@@ -7,7 +7,9 @@ import re
 
 from backend.core import config
 from backend.db import database as db
-from backend.core.normalize import context_unit, detect_attribute, normalize_period, parse_quantity
+from backend.core.normalize import (QTY_RE, context_unit, detect_attribute,
+                                    in_range, normalize_period, parse_number,
+                                    parse_quantity)
 
 _MINE_RE = re.compile(
     r"\b([A-Z][A-Za-z&]+(?:\s+[A-Z][A-Za-z&]+){0,2})\s+"
@@ -134,7 +136,7 @@ def _facts_from_table_chunk(chunk, refs, period, patterns, ocr_low):
     # bare spreadsheet cells inherit the unit from the table title/section
     ctx_unit_name, ctx_unit_factor = context_unit(f"{chunk['section_path']} {headers[0] if headers else ''}")
     for cell in rows:
-        if cell["value_norm"] is None or _YEAR_LIKE.match(cell["value_raw"].strip()):
+        if cell["value_norm"] is None or _is_noise(cell["value_raw"]):
             continue
         col_attr = detect_attribute(headers[cell["col_idx"]]) if cell["col_idx"] < len(headers) else None
         cell_period = normalize_period(headers[cell["col_idx"]]) if cell["col_idx"] < len(headers) else None
@@ -145,18 +147,51 @@ def _facts_from_table_chunk(chunk, refs, period, patterns, ocr_low):
             unit, value = ctx_unit_name, cell["value_norm"] * ctx_unit_factor
         else:
             unit, value = None, cell["value_norm"]
+        eff_attr = col_attr or attr or "quantity"
+        if not in_range(eff_attr, value):
+            continue
         flags = "low_confidence_number" if ocr_low else ""
         conn = db.connect()
         conn.execute(
             "INSERT INTO facts (entity_id, entity_text, attribute, period_norm, value_raw,"
             " value_norm, unit, conf, flags, chunk_id) VALUES (?,?,?,?,?,?,?,?,?,?)",
-            (entity_id, None, col_attr or attr or "quantity", cell_period or period,
+            (entity_id, None, eff_attr, cell_period or period,
              cell["value_raw"], value, unit,
              0.5 if ocr_low else 1.0, flags, chunk["id"]))
         conn.commit()
 
 
 _MONTH_NEXT = re.compile(r"\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b", re.IGNORECASE)
+_DATE_LIKE = re.compile(r"^(?:\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}|\d{4}-\d{2}-\d{2})")
+_ALPHA_WORDS = re.compile(r"[A-Za-z]{2,}")
+
+
+def _is_noise(raw: str) -> bool:
+    """Statistics sheets are full of computed cells: shares stored as
+    fractions, date strings, quarter labels, variation columns. None are
+    measurable quantities."""
+    raw = raw.strip()
+    if not raw or raw.startswith("(") or _YEAR_LIKE.match(raw) or _DATE_LIKE.match(raw):
+        return True  # "(9)" is a footnote marker, not a value
+    if raw.lower() in ("nil", "na", "n/a", "-", "\u2014"):
+        return True
+    if re.match(r"^\d+\s*[-\u2013\u2014]\s*\d+$", raw):
+        return True  # year spans (2019-20) and ranges (300-600)
+    # alphabetic text outside the recognized quantity kills the cell
+    # ("3rd Quarter" is noise; "5,800 kcal/kg" is not)
+    m = QTY_RE.search(raw)
+    rest = raw.replace(m.group(0), "", 1) if m else raw
+    if _ALPHA_WORDS.search(rest):
+        return True
+    v = parse_number(raw)
+    if v is None or v < 0:
+        return True
+    if -1 < v < 1:
+        return True  # unitless fractions are computed shares
+    decimals = raw.split(".")
+    if len(decimals) == 2 and len(decimals[1].rstrip("0")) > 4:
+        return True  # 14 significant decimals = a computed value, never reported
+    return False
 
 
 def _facts_from_text_chunk(chunk, period, patterns, ocr_low):
@@ -187,7 +222,7 @@ def _facts_from_text_chunk(chunk, period, patterns, ocr_low):
             continue
         seen_spans.add(raw)
         value, unit = parse_quantity(raw)
-        if value is None:
+        if value is None or (unit is None and -1 < value < 1):
             continue
         # Entity and attribute come from the text before the number only;
         # text after the number belongs to the next fact.
@@ -197,6 +232,8 @@ def _facts_from_text_chunk(chunk, period, patterns, ocr_low):
             if unit is None:
                 continue  # a bare number with no context and no unit is noise
             local_attr = "quantity"
+        if not in_range(local_attr, value):
+            continue
         flags = "low_confidence_number" if ocr_low else ""
         conn.execute(
             "INSERT INTO facts (entity_id, entity_text, attribute, period_norm, value_raw,"

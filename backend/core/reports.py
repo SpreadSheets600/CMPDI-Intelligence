@@ -120,7 +120,7 @@ def _fact_section(entity: str, period: str) -> tuple[list, dict, int]:
     if period:
         period_norm = normalize_period(period)
 
-    where, params = ["f.value_norm IS NOT NULL"], []
+    where, params = ["f.value_norm IS NOT NULL", "f.attribute != 'quantity'"], []
     if entity_id:
         where.append("f.entity_id=?")
         params.append(entity_id)

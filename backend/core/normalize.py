@@ -203,6 +203,20 @@ _UNIT_KEYS_BY_LEN = sorted(
     list(TONNES_UNITS.keys()) + list(OTHER_UNITS.keys()), key=len, reverse=True)
 
 
+# Plausibility bands for physical quantities; computed-column junk that
+# survives the syntax guards still fails these.
+ATTRIBUTE_RANGES = {
+    "ash_pct": (0, 100), "moisture_pct": (0, 100), "share_pct": (0, 100),
+    "growth_pct": (-100, 500), "gcv": (500, 12000), "stripping_ratio": (0, 20),
+    "depth": (0, 3000),
+}
+
+
+def in_range(attribute: str, value: float) -> bool:
+    band = ATTRIBUTE_RANGES.get(attribute)
+    return band is None or band[0] <= value <= band[1]
+
+
 def detect_attribute(context: str) -> str | None:
     """Classify what a number measures. The keyword nearest to the number wins
     (callers cut the context at the number), so '... reserves of 412 MT ... GCV

@@ -6,3 +6,4 @@ __pycache__/
 .agents/
 cmpdi_intel.egg-info/
 *.egg-info/
+samples/

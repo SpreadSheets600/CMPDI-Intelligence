@@ -136,6 +136,24 @@ frontend/
   static/       vendored Tailwind, self-hosted fonts, app.js
 ```
 
+## Tested Against Real Data
+
+The library ingests and answers over live documents from
+[coal.gov.in](https://coal.gov.in) — annual report chapters (digital pages
+plus image-only pages through OCR) and the Coal Directory statistics
+workbooks (multi-sheet, hundreds of table regions, thousands of numeric
+cells). Drop any of them into `samples/` and ingest:
+
+```bash
+python -m backend.scripts.ingest samples
+```
+
+Fact extraction on statistical sheets applies noise guards (footnote
+markers, date cells, year spans, computed high-precision values) and
+plausibility bands per attribute (ash cannot exceed 100%, GCV lives in a
+known kcal/kg band), so the fact index holds reported figures rather than
+spreadsheet arithmetic.
+
 ## Known Limitations
 
 - Single-user; no authentication.

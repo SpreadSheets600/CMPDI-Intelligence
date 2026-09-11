@@ -41,9 +41,13 @@ def _fuzzy_entity(query: str) -> tuple[int | None, str | None]:
     for e in ents:
         names = [e["canonical_name"]] + json.loads(e["aliases_json"] or "[]")
         for name in names:
-            # the entity name must appear inside the query, not merely share
-            # common tokens like "coal"
-            score = fuzz.partial_ratio(name.lower(), query.lower())
+            if name.isupper() and len(name) <= 6:
+                # abbreviations need a word boundary so "ECL" never matches
+                # inside "SECL"
+                score = 100 if re.search(rf"\b{re.escape(name)}\b", query) else 0
+            else:
+                score = fuzz.partial_ratio(name.lower(), query.lower())
+                score = score if score >= 90 else 0
             if score > best_score:
                 best_id, best_name, best_score = e["id"], name, score
     if best_score >= 90:
@@ -140,7 +144,11 @@ def answer(query: str, filters: dict | None = None,
     vres = retrieval.vector_search(retrieval_query, k=15, filters=filters)
     if vres:
         vscores = np.array([e["vec"] for e in vres])
-        weak = vscores[0] < 0.60 or vscores.std() < 0.03
+        # abstain on a low top score, or on a flat distribution that never
+        # rises clearly above the corpus baseline (statistical tables score
+        # uniformly ~0.78 even for irrelevant wording, so flatness alone
+        # is not evidence of a miss)
+        weak = vscores[0] < 0.60 or (vscores.std() < 0.03 and vscores[0] < 0.75)
     else:
         weak = evidence and evidence[0]["vec"] is None and not fact
     if weak and not fact:
