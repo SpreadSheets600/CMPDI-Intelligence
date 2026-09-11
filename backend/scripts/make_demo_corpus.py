@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np
 import pymupdf
 
-OUT = Path(__file__).resolve().parents[2] / "demo_corpus"
+OUT = Path(__file__).resolve().parents[2] / "data" / "demo_corpus"
 
 MINES = ["Kusunda Mine", "Dipka OCP", "Gevra Area", "Barpali Mine"]
 

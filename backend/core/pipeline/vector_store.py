@@ -47,15 +47,17 @@ def _rebuild():
 
 
 def get_index():
-    """Lazy-loaded index; rebuilds when missing, empty, or dimension-changed."""
+    """Lazy-loaded index. The database is the source of truth: rebuild when
+    the file is missing, empty, dimension-changed, or its vector count has
+    drifted from the stored embeddings (self-heals stale or doubled files)."""
     global _index, _dim
     if _index is not None:
         return _index, _dim
-    stored = db.q1("SELECT dim FROM chunk_embeddings LIMIT 1")
-    db_dim = stored["dim"] if stored else None
-    if _use_faiss and INDEX_PATH.exists() and db_dim:
+    stored = db.q1("SELECT dim, COUNT(*) n FROM chunk_embeddings")
+    db_dim, db_count = (stored["dim"], stored["n"]) if stored else (None, 0)
+    if _use_faiss and INDEX_PATH.exists() and db_count:
         index = faiss.read_index(str(INDEX_PATH))
-        if index.d == db_dim and index.ntotal > 0:
+        if index.d == db_dim and index.ntotal == db_count:
             _index, _dim = index, index.d
             return _index, _dim
     _rebuild()
@@ -78,12 +80,14 @@ def add(chunk_ids: list[int], vectors: np.ndarray):
         _rebuild()
 
 
-def remove(chunk_id: int):
-    if _use_faiss and _index is not None:
-        _index.remove_ids(np.array([chunk_id], dtype=np.int64))
-        faiss.write_index(_index, str(INDEX_PATH))
-    else:
-        invalidate()
+def sync():
+    """Rebuild the index from stored embeddings. Call after deletions so the
+    file never keeps vectors whose rows are gone."""
+    global _index, _dim
+    _index, _dim = None, None
+    if INDEX_PATH.exists():
+        INDEX_PATH.unlink()
+    _rebuild()
 
 
 def invalidate():

@@ -3,6 +3,10 @@
 <div class="flex flex-wrap items-baseline justify-between gap-3">
   <h1 class="text-2xl font-semibold tracking-tight">{{ doc.filename }}</h1>
   <span class="font-mono text-[12px] text-stone-400">{{ doc.sha256[:16] }}…</span>
+  <form method="post" action="{{ url_for('documents.delete', doc_id=doc.id) }}"
+        onsubmit="return confirm('Delete this document and all its extracted data?')">
+    <button type="submit" class="rounded-lg border border-seam px-2.5 py-1 text-[12px] text-stone-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700">Delete</button>
+  </form>
 </div>
 <div class="mt-2 flex flex-wrap gap-2">
   <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] uppercase text-coal">{{ doc.doc_type }}</span>

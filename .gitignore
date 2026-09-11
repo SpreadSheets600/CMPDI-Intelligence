@@ -2,6 +2,7 @@
 data/
 __pycache__/
 *.pyc
-demo_corpus/
 .pytest_cache/
 .agents/
+cmpdi_intel.egg-info/
+*.egg-info/

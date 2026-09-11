@@ -108,7 +108,7 @@ print(len(db.q('SELECT id FROM documents')))
 if [ "$DOC_COUNT" -eq 0 ]; then
   info "No documents yet; generating and ingesting the demo corpus"
   "$PY" -m backend.scripts.make_demo_corpus
-  "$PY" -m backend.scripts.ingest demo_corpus
+  "$PY" -m backend.scripts.ingest data/demo_corpus
   ok "Demo corpus ingested"
 else
   ok "Library already has $DOC_COUNT documents"

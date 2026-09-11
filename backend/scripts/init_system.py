@@ -3,7 +3,7 @@
 import sys
 
 from backend.core import config
-from backend.core import facts, reports
+from backend.core import facts
 from backend.db import database as db
 
 
@@ -11,7 +11,6 @@ def main():
     config.ensure_dirs()
     db.init_db()
     facts.ensure_subsidiary_entities()
-    reports.ensure_templates()
     print(f"System Initialized At {config.DATA_DIR}")
     print(f"Database: {config.DB_PATH}")
     print(f"LLM Backend Mode: {config.LLM_BACKEND} "

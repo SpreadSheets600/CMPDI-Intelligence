@@ -27,6 +27,7 @@
         <th class="px-4 py-3 text-center font-medium">Pages</th>
         <th class="px-4 py-3 text-center font-medium">OCR</th>
         <th class="px-4 py-3 font-medium">Status</th>
+        <th class="px-4 py-3 font-medium"></th>
       </tr>
     </thead>
     {% for d in docs %}
@@ -54,6 +55,12 @@
         {% else %}
           <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] text-coal">{{ d.status }}</span>
         {% endif %}
+      </td>
+      <td class="px-4 py-3.5">
+        <form method="post" action="{{ url_for('documents.delete', doc_id=d.id) }}"
+              onsubmit="return confirm('Delete “{{ d.filename }}” and all its extracted data?')">
+          <button type="submit" class="rounded-lg border border-seam px-2.5 py-1 text-[12px] text-stone-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700">Delete</button>
+        </form>
       </td>
     </tr>
     {% endfor %}

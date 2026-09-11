@@ -4,17 +4,15 @@ carries provenance and lands in a Sources appendix. Conflicting facts are
 flagged inline, never silently resolved. Low-confidence OCR numbers require
 human approval via the conflict workflow before they may appear."""
 
+import io
 import json
-import pathlib
 import time
 
 from docxtpl import DocxTemplate
 
 from backend.core import config, facts, retrieval
+from backend.core.normalize import fy_label
 from backend.db import database as db
-from .normalize import fy_label
-
-TEMPLATES_DIR = pathlib.Path(__file__).resolve().parent / "reports_templates"
 
 TEMPLATES = {
     "production_summary": {
@@ -58,25 +56,23 @@ TEMPLATES = {
 }
 
 
-def ensure_templates():
-    TEMPLATES_DIR.mkdir(exist_ok=True)
+def _template_stream(name: str) -> io.BytesIO:
+    """Build a template DOCX in memory from its spec; nothing ships on disk."""
     from docx import Document
     from docx.shared import Pt
-    for name, spec in TEMPLATES.items():
-        path = TEMPLATES_DIR / f"{name}.docx"
-        if path.exists():
-            continue
-        doc = Document()
-        doc.add_heading(spec["title"], level=0)
-        for line in spec["body"]:
-            p = doc.add_paragraph()
-            run = p.add_run(line)
-            run.font.size = Pt(11)
-        doc.save(path)
+    doc = Document()
+    doc.add_heading(TEMPLATES[name]["title"], level=0)
+    for line in TEMPLATES[name]["body"]:
+        p = doc.add_paragraph()
+        run = p.add_run(line)
+        run.font.size = Pt(11)
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
 
 
 def generate(template: str, params: dict) -> int:
-    ensure_templates()
     if template not in TEMPLATES:
         raise ValueError(f"Unknown Report Template: {template}")
     entity = params.get("entity") or ""
@@ -98,7 +94,7 @@ def generate(template: str, params: dict) -> int:
         "question": question, "fact_rows": fact_rows, "narrative": narrative,
         "conflicts_pending": conflicts_pending,
     }
-    tpl = DocxTemplate(str(TEMPLATES_DIR / f"{template}.docx"))
+    tpl = DocxTemplate(_template_stream(template))
     tpl.render(ctx)
     out_name = f"{template}_{int(time.time())}.docx"
     out_path = config.REPORTS_DIR / out_name

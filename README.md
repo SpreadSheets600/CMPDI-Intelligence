@@ -43,7 +43,11 @@ premises.
   revisions excluded from answers.
 - **Report Studio**: template-driven DOCX output (production summary,
   comparative analysis, parliamentary reply) with conflict flags, sources
-  appendix, and human-approval workflow.
+  appendix, and human-approval workflow. Templates are built in memory;
+  no artifacts ship with the code.
+- **Document deletion**: one click removes a document everywhere: FAISS
+  vectors, chunks, facts, tags, open conflicts that cite it, page images
+  and the stored original. Version groups elect a new current document.
 - **Topics**: word clouds, keyphrases and document clusters computed locally.
 - **LLM optional**: Ollama or raw Transformers when available, extractive
   mode (verbatim evidence, no generation) otherwise. Answers never depend on
@@ -64,7 +68,7 @@ Initialize, generate the demo corpus, and ingest it:
 ```bash
 python -m backend.scripts.init_system
 python -m backend.scripts.make_demo_corpus
-python -m backend.scripts.ingest demo_corpus
+python -m backend.scripts.ingest data/demo_corpus
 ```
 
 Start the app and open http://127.0.0.1:5000:

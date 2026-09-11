@@ -1,10 +1,11 @@
-"""Document library and source viewer endpoints."""
+"""Document library, source viewer and deletion endpoints."""
 
 import json
 
-from flask import Blueprint, abort, render_template, request, send_from_directory
+from flask import Blueprint, abort, redirect, render_template, request, send_from_directory, url_for
 
 from backend.core import config, retrieval
+from backend.core.pipeline import pipeline
 from backend.db import database as db
 
 bp = Blueprint("documents", __name__)
@@ -58,6 +59,13 @@ def viewer(doc_id):
     return render_template("pages/viewer.html", doc=doc, pages=pages, sheets=sheets,
                            page_no=page_no, sheet_no=sheet_no, elements=elements,
                            tables=tables)
+
+
+@bp.route("/documents/<doc_id>/delete", methods=["POST"])
+def delete(doc_id):
+    if not pipeline.delete_document(doc_id):
+        abort(404)
+    return redirect(url_for("documents.documents"))
 
 
 @bp.route("/page_image/<doc_id>/<path:rel>")

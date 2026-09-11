@@ -3,6 +3,7 @@ index -> facts/conflicts. A single worker thread consumes the jobs table so
 the UI stays responsive during ingestion. Document id = content SHA-256."""
 
 import json
+import shutil
 import logging
 import threading
 import traceback
@@ -22,6 +23,44 @@ log = logging.getLogger("cmpdi.pipeline")
 
 STAGES = ["uploaded", "classifying", "extracting", "ocr", "normalizing",
           "chunking", "embedding", "indexing", "completed"]
+
+
+def delete_document(doc_id: str) -> bool:
+    """Remove a document everywhere it exists: vector index, derived rows
+    (cascades), open conflicts that cite it, generated files, and the stored
+    original. Remaining members of its version group elect a new current."""
+    doc = db.q1("SELECT id, version_group_id FROM documents WHERE id=?", (doc_id,))
+    if doc is None:
+        return False
+
+    # open conflicts cite fact ids whose values_json carries the doc id
+    for c in db.q("SELECT id, values_json FROM conflicts WHERE status='open'"):
+        if doc_id in (c["values_json"] or ""):
+            db.execute("DELETE FROM conflicts WHERE id=?", (c["id"],))
+
+    # explicit deletes cover tables whose FKs predate the cascade
+    conn = db.connect()
+    conn.execute("DELETE FROM facts WHERE chunk_id IN (SELECT id FROM chunks WHERE doc_id=?)",
+                 (doc_id,))
+    conn.execute("DELETE FROM jobs WHERE doc_id=?", (doc_id,))
+    conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+    conn.commit()
+
+    from backend.core.pipeline import vector_store
+    vector_store.sync()
+
+    group = doc["version_group_id"]
+    if group:
+        members = db.q(
+            "SELECT id, doc_date_norm, upload_ts FROM documents WHERE version_group_id=?", (group,))
+        ordered = sorted(members, key=lambda r: (r["doc_date_norm"] or "", r["upload_ts"]))
+        for i, m in enumerate(ordered):
+            db.execute("UPDATE documents SET is_current_version=? WHERE id=?",
+                       (1 if i == len(ordered) - 1 else 0, m["id"]))
+
+    shutil.rmtree(config.FILES_DIR / doc_id, ignore_errors=True)
+    log.info("Document %s Deleted", doc_id[:12])
+    return True
 
 
 def ingest_file(path) -> dict:

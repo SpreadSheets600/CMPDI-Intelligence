@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS facts (
     unit TEXT,
     conf REAL DEFAULT 1.0,
     flags TEXT DEFAULT '',              -- low_confidence_number | ...
-    chunk_id INTEGER REFERENCES chunks(id)
+    chunk_id INTEGER REFERENCES chunks(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_facts_key ON facts(entity_id, attribute, period_norm);
 
@@ -121,7 +121,7 @@ CREATE INDEX IF NOT EXISTS idx_conflicts_key ON conflicts(fact_key, status);
 
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY,
-    doc_id TEXT REFERENCES documents(id),
+    doc_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
     stage TEXT NOT NULL DEFAULT 'uploaded',
     status TEXT NOT NULL DEFAULT 'pending',  -- pending | running | completed | failed
     error TEXT,
