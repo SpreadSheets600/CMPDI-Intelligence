@@ -1,5 +1,5 @@
 """Ingestion pipeline: classify -> parse -> normalize -> chunk -> embed ->
-index -> facts/conflicts. A single worker thread consumes the jobs table so
+index -> facts. A single worker thread consumes the jobs table so
 the UI stays responsive during ingestion. Document id = content SHA-256."""
 
 import json
@@ -27,16 +27,11 @@ STAGES = ["uploaded", "classifying", "extracting", "ocr", "normalizing",
 
 def delete_document(doc_id: str) -> bool:
     """Remove a document everywhere it exists: vector index, derived rows
-    (cascades), open conflicts that cite it, generated files, and the stored
-    original. Remaining members of its version group elect a new current."""
+    (cascades), generated files, and the stored original. Remaining members
+    of its version group elect a new current."""
     doc = db.q1("SELECT id, version_group_id FROM documents WHERE id=?", (doc_id,))
     if doc is None:
         return False
-
-    # open conflicts cite fact ids whose values_json carries the doc id
-    for c in db.q("SELECT id, values_json FROM conflicts WHERE status='open'"):
-        if doc_id in (c["values_json"] or ""):
-            db.execute("DELETE FROM conflicts WHERE id=?", (c["id"],))
 
     # explicit deletes cover tables whose FKs predate the cascade
     conn = db.connect()
@@ -140,7 +135,6 @@ def process_document(doc_id: str):
         _link_chunk_tables(chunks, chunk_db_ids, table_ids)
         from backend.core import facts
         facts.extract_for_doc(doc_id)
-        facts.detect_conflicts()
         _assign_version_group(doc_id)
 
         _stage(doc_id, "completed", "completed",

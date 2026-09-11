@@ -15,7 +15,7 @@
       <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ink font-mono text-lg font-semibold text-amber-400">C</span>
       <p class="mt-4 text-[15px] font-medium">Ask about mines, seams, reserves, production figures.</p>
       <div class="mt-5 flex flex-wrap justify-center gap-2">
-        {% for q in ['coal production of Kusunda Mine in 2021-22', 'what are the geological characteristics of the Korba coalfield', 'which documents mention SECL reserves', 'summarize the parliamentary questions'] %}
+        {% for q in ['coal production of CIL in 2023-24', 'what does the annual report say about production targets', 'coal offtake of SECL in 2022-23', 'summarize the lignite reserves of India'] %}
         <button class="suggestion rounded-full border border-seam bg-white px-3.5 py-1.5 text-[13px] text-stone-600 transition-colors hover:border-coal hover:text-coal">{{ q }}</button>
         {% endfor %}
       </div>
@@ -61,10 +61,11 @@ function citationChip(c) {
 }
 
 function addAssistant(p) {
-  const conflicts = (p.conflicts || []).map(c =>
-    `<div class="mt-2 rounded-lg border border-red-200 bg-red-50/70 px-3 py-2 text-[12px] text-red-800">
-       <span class="font-semibold">Conflict:</span> ${c.key.replace(/\|/g, ' · ')}
-       <a href="/conflicts" class="font-semibold underline underline-offset-2">review</a>
+  const alternatives = (p.alternatives || []).map(c =>
+    `<div class="mt-2 rounded-lg border border-coalline bg-coalsoft/60 px-3 py-2 text-[12px] text-amber-900">
+       <span class="font-semibold">Also reported elsewhere:</span> ${c.key.replace(/\|/g, ' · ')}
+       ${c.fact_values.map(v => `<span class="font-mono">${v.value_raw}</span> (${v.filename})`).join(', ')}
+       <a href="/insights" class="font-semibold underline underline-offset-2">compare</a>
      </div>`).join('');
   const cites = (p.citations || []).map(c => `
     <a href="/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : '?sheet=' + (c.sheet_no || 1)}"
@@ -82,7 +83,7 @@ function addAssistant(p) {
       <div class="max-w-[85%]">
         <div class="rounded-2xl rounded-bl-md border border-seam bg-white px-4 py-3 shadow-card">
           <div class="answer text-[14px] leading-relaxed whitespace-pre-wrap"></div>
-          ${conflicts}
+          ${alternatives}
           ${meta}
         </div>
         ${cites ? `<div class="mt-2 grid gap-1.5">${cites}</div>` : ''}

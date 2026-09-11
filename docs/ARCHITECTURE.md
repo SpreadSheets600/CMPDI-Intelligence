@@ -230,13 +230,13 @@ flowchart RL
     DOC --> FILE["data/files/<sha256>/original.*"]
 ```
 
-## Conflict Detection
+## Fact Verification
 
-Facts group by `(entity, attribute, period, unit)`. Groups whose normalized
-values differ beyond the tolerance become conflicts. Detection is
-unit-aware (a unitless `4.85` and `4.85 MT` are not compared) and
-supersede-aware. Resolution is a human workflow; the system records the
-chosen value and the reviewer's note.
+Facts group by `(entity, attribute, period, unit)`. When the same fact key
+carries differing values across documents, the system shows every value
+with its receipt rather than choosing one: chat answers attach an
+"also reported elsewhere" note, reports flag the slot for verification,
+and the Insights fact explorer plots each reported value per period.
 
 ## Frontend
 

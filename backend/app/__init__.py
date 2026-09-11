@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask
 
-from backend.api.routes import ask, chat, conflicts, documents, ingest, reports, search, topics
+from backend.api.routes import ask, chat, documents, ingest, insights, reports, search, topics
 from backend.core import facts
 from backend.core.pipeline import pipeline
 from backend.db import database
@@ -32,7 +32,7 @@ def create_app() -> Flask:
     app.register_blueprint(search.bp)
     app.register_blueprint(ask.bp)
     app.register_blueprint(chat.bp)
-    app.register_blueprint(conflicts.bp)
+    app.register_blueprint(insights.bp)
     app.register_blueprint(topics.bp)
     app.register_blueprint(reports.bp)
 
@@ -46,8 +46,8 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_globals():
-        row = database.q1("SELECT COUNT(*) c FROM conflicts WHERE status='open'")
-        return {"open_conflicts": row["c"] if row else 0}
+        row = database.q1("SELECT COUNT(*) c FROM documents WHERE status='completed'")
+        return {"library_size": row["c"] if row else 0}
 
     return app
 

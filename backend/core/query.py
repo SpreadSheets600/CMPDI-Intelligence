@@ -88,12 +88,18 @@ def fact_lookup(query: str) -> dict | None:
         return None
     current = [r for r in rows if r["is_current_version"]] or rows
     top = current[0]
-    key = (f"{top['canonical_name']}|{top['attribute']}|{top['period_norm']}|"
-           f"{top['unit'] or ''}")
-    conflict = db.q1("SELECT * FROM conflicts WHERE fact_key=? AND status='open'", (key,))
+    # every distinct reported value for the same (entity, attribute, period),
+    # kept with its receipt; differing sources are shown, never averaged
+    seen_values = {round(top["value_norm"], 6)}
+    alternatives = []
+    for r in current[1:]:
+        v = round(r["value_norm"], 6)
+        if v not in seen_values:
+            seen_values.add(v)
+            alternatives.append(dict(r))
     return {"top": dict(top), "all": [dict(r) for r in current],
             "entity": entity_name, "attribute": top["attribute"],
-            "period": fy_label(top["period_norm"]), "conflict": dict(conflict) if conflict else None}
+            "period": fy_label(top["period_norm"]), "alternatives": alternatives}
 
 
 def condense_question(query: str, history: list[dict] | None) -> str:
@@ -182,18 +188,19 @@ def answer(query: str, filters: dict | None = None,
     model_name, dim = model_info()
     payload["coverage"] = {"evidence_count": len(evidence), "embedding_model": model_name}
 
-    conflicts = _conflicts_touched(evidence)
-    payload["conflicts"] = conflicts
+    alternatives = _alternatives_for_evidence(evidence)
+    payload["alternatives"] = alternatives
 
-    if fact and not fact["conflict"]:
+    if fact and not fact["alternatives"]:
         t = fact["top"]
         lead = (f"{fact['entity']}, {fact['attribute'].replace('_', ' ')} for {fact['period']}: "
                 f"**{t['value_raw']}**{(' (' + str(t['unit']) + ')') if t['unit'] else ''}")
-    elif fact and fact["conflict"]:
-        vals = json.loads(fact["conflict"]["values_json"])
-        parts = [f"**{v['value_raw']}** {v['unit'] or ''} (Document {v['doc_id'][:8]}…, "
-                 f"page {v['page_no'] or ('sheet ' + str(v['sheet_no']))})" for v in vals]
-        lead = ("Conflicting values found; human verification required: " + " vs ".join(parts))
+    elif fact and fact["alternatives"]:
+        parts = [f"**{a['value_raw']}** {a['unit'] or ''} ({a['filename']}, "
+                 f"{'page ' + str(a['page_no']) if a['page_no'] else 'sheet ' + str(a['sheet_no'])})"
+                 for a in fact["alternatives"][:3]]
+        lead = (f"The top value is **{fact['top']['value_raw']}** {fact['top']['unit'] or ''}, "
+                f"but other documents report differently: " + " vs ".join(parts))
     else:
         lead = None
 
@@ -228,8 +235,8 @@ def answer(query: str, filters: dict | None = None,
             loc = f"page {c['page_no']}" if c["page_no"] else f"sheet {c['sheet_no']}"
             snippet = c["text"][:400] + ("…" if len(c["text"]) > 400 else "")
             lines.append(f"- [{c['eid']}] ({c['doc_title']}, {loc}): {snippet}")
-        if conflicts:
-            lines.append("Note: conflicting values were detected for some facts in this answer.")
+        if alternatives:
+            lines.append("Note: some facts in this answer are reported differently across documents.")
         payload["answer"] = "\n".join(lines)
         payload["backend"] = backend.name if backend.name != "extractive" else "extractive"
 
@@ -237,19 +244,38 @@ def answer(query: str, filters: dict | None = None,
     return payload
 
 
-def _conflicts_touched(evidence) -> list[dict]:
-    """Conflicts whose source facts come from chunks cited in this answer."""
-    chunk_ids = {e["chunk_id"] for e in evidence}
-    out = []
-    for c in db.q("SELECT * FROM conflicts WHERE status='open'"):
-        values = json.loads(c["values_json"])
-        chunk_of = {}
-        for v in values:
-            row = db.q1("SELECT chunk_id FROM facts WHERE id=?", (v["fact_id"],))
-            if row:
-                chunk_of[v["fact_id"]] = row["chunk_id"]
-        if any(cid in chunk_ids for cid in chunk_of.values()):
-            out.append({"key": c["fact_key"], "conflict_id": c["id"], "fact_values": values})
+def _alternatives_for_evidence(evidence) -> list[dict]:
+    """Facts grounded in this answer whose (entity, attribute, period) is
+    reported differently in other documents; each alternative keeps its
+    receipt so the reader can compare sources directly."""
+    chunk_ids = [e["chunk_id"] for e in evidence]
+    marks = ",".join("?" * len(chunk_ids))
+    cited = db.q(f"""SELECT f.id, f.entity_id, f.attribute, f.period_norm, f.value_norm,
+                            e.canonical_name
+                     FROM facts f JOIN entities e ON e.id = f.entity_id
+                     WHERE f.chunk_id IN ({marks})
+                       AND f.entity_id IS NOT NULL AND f.attribute != 'quantity'
+                       AND f.value_norm IS NOT NULL AND f.period_norm IS NOT NULL""",
+                 chunk_ids)
+    out, seen = [], set()
+    for f in cited:
+        key = (f["entity_id"], f["attribute"], f["period_norm"])
+        if key in seen:
+            continue
+        seen.add(key)
+        others = db.q("""SELECT f.*, d.filename FROM facts f
+                         JOIN chunks c ON c.id = f.chunk_id
+                         JOIN documents d ON d.id = c.doc_id
+                         WHERE f.entity_id = ? AND f.attribute = ? AND f.period_norm = ?
+                           AND f.value_norm IS NOT NULL
+                         ORDER BY d.is_current_version DESC LIMIT 5""",
+                      (f["entity_id"], f["attribute"], f["period_norm"]))
+        differing = [dict(o) for o in others
+                     if abs(o["value_norm"] - f["value_norm"])
+                     > max(0.01, 0.01 * abs(f["value_norm"]))]
+        if differing:
+            out.append({"key": f"{f['canonical_name']}|{f['attribute']}|{f['period_norm']}",
+                        "fact_values": differing})
     return out
 
 

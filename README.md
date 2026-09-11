@@ -34,9 +34,11 @@ premises.
 - **Automatic tags**: every ingested document gets keywords (Ollama prompt
   with a deterministic term-frequency fallback) used for filtering,
   search boosts and the knowledge tree.
-- **Conflict Radar**: documents that disagree about the same fact, side by
-  side, each value linked to its source. Humans resolve; the decision and
-  note are recorded.
+- **Insights**: the fact index made visible — explore any metric (entity ×
+  attribute) as a chart where every bar links to its reporting document,
+  plus per-document data quality. When documents report the same fact
+  differently, chat and reports show all values side by side instead of
+  picking one.
 - **Data hygiene**: Indian number formats (`1,23,456.78`, lakh/crore), unit
   normalization (MT, lakh tonnes, GCV, %), fiscal-year spans (April start),
   SHA-256 duplicate rejection, automatic version chains with superseded

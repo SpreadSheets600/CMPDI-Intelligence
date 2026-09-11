@@ -22,7 +22,7 @@ TEMPLATES = {
             "Period: {{ period }}",
             "",
             "1. Production",
-            "{% for r in fact_rows %}{{ r.label }}: {{ r.value }}{% if r.conflict %} [CONFLICT, VERIFY: {{ r.conflict }}]{% endif %} [{{ r.ref }}]",
+            "{% for r in fact_rows %}{{ r.label }}: {{ r.value }}{% if r.conflict %} [VERIFY: {{ r.conflict }}]{% endif %} [{{ r.ref }}]",
             "{% endfor %}",
             "2. Narrative Overview",
             "{% for p in narrative %}{{ p }}", "{% endfor %}",
@@ -34,7 +34,7 @@ TEMPLATES = {
             "Comparative Analysis: {{ entity }}",
             "Period: {{ period }}",
             "",
-            "{% for r in fact_rows %}{{ r.label }}: {{ r.value }}{% if r.conflict %} [CONFLICT, VERIFY: {{ r.conflict }}]{% endif %} [{{ r.ref }}]",
+            "{% for r in fact_rows %}{{ r.label }}: {{ r.value }}{% if r.conflict %} [VERIFY: {{ r.conflict }}]{% endif %} [{{ r.ref }}]",
             "{% endfor %}",
             "",
             "{% for p in narrative %}{{ p }}", "{% endfor %}",
@@ -144,12 +144,17 @@ def _fact_section(entity: str, period: str) -> tuple[list, dict, int]:
         if slot in seen:
             continue
         seen.add(slot)
-        # unit-agnostic conflict lookup: 4.85 (bare cell) and 4.85 MT are the
-        # same fact for the purposes of flagging
-        conflict = db.q1(
-            "SELECT * FROM conflicts WHERE fact_key LIKE ? AND status='open'",
-            (f"{r['canonical_name']}|{r['attribute']}|{r['period_norm']}|%",))
-        if conflict:
+        # values reported differently for the same (entity, attribute, period)
+        # are flagged inline so the reviewing officer sees both sources
+        differing = db.q("""SELECT COUNT(DISTINCT f.value_norm) n FROM facts f
+                            JOIN entities e ON e.id = f.entity_id
+                            WHERE e.canonical_name = ? AND f.attribute = ?
+                              AND f.period_norm IS ? AND f.value_norm IS NOT NULL
+                              AND ABS(f.value_norm - ?) > MAX(0.01, 0.01 * ABS(?))""",
+                         (r["canonical_name"], r["attribute"], r["period_norm"],
+                          r["value_norm"], r["value_norm"]))
+        n_diff = differing[0]["n"] if differing else 0
+        if n_diff:
             conflicts_pending += 1
         ref = f"S{len(out) + 1}"
         loc = f"page {r['page_no']}" if r["page_no"] else f"sheet {r['sheet_no']}"
@@ -163,8 +168,8 @@ def _fact_section(entity: str, period: str) -> tuple[list, dict, int]:
         out.append({
             "label": f"{r['canonical_name']} {r['attribute'].replace('_', ' ')} ({fy_label(r['period_norm'])})",
             "value": value,
-            "conflict": (f"{len(json.loads(conflict['values_json']))} documents disagree"
-                         if conflict else ""),
+            "conflict": (f"{n_diff} other value{'s' if n_diff != 1 else ''} reported elsewhere"
+                         if n_diff else ""),
             "ref": ref,
         })
         provenance["slots"][ref] = {"fact_id": r["id"], "chunk_id": r["chunk_id"],

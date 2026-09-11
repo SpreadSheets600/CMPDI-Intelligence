@@ -108,17 +108,6 @@ CREATE TABLE IF NOT EXISTS facts (
 );
 CREATE INDEX IF NOT EXISTS idx_facts_key ON facts(entity_id, attribute, period_norm);
 
-CREATE TABLE IF NOT EXISTS conflicts (
-    id INTEGER PRIMARY KEY,
-    fact_key TEXT NOT NULL,            -- entity|attribute|period
-    values_json TEXT NOT NULL,         -- [{value_norm, value_raw, unit, doc_id, page_no, sheet_no, cell_ref, flags}]
-    status TEXT NOT NULL DEFAULT 'open',   -- open | acknowledged | resolved
-    chosen_fact_id INTEGER,
-    notes TEXT DEFAULT '',
-    created_ts TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_conflicts_key ON conflicts(fact_key, status);
-
 CREATE TABLE IF NOT EXISTS jobs (
     id INTEGER PRIMARY KEY,
     doc_id TEXT REFERENCES documents(id) ON DELETE CASCADE,

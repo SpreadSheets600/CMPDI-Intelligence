@@ -44,14 +44,6 @@ tailwind.config = {
 </head>
 <body class="min-h-dvh bg-paper font-sans text-ink antialiased">
 {% include "components/nav.html" %}
-{% if open_conflicts %}
-<div class="border-b border-red-200 bg-red-50">
-  <main class="mx-auto max-w-6xl px-6 py-2.5 text-sm text-red-800">
-    {{ open_conflicts }} data conflict{{ 's' if open_conflicts != 1 }} need human review.
-    <a href="{{ url_for('conflicts.conflicts') }}" class="font-semibold underline underline-offset-2">Open Conflict Radar</a>
-  </main>
-</div>
-{% endif %}
 <main class="mx-auto max-w-6xl px-6 pb-24 pt-10">
   {% block body %}{% endblock %}
 </main>
