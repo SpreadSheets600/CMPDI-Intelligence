@@ -12,7 +12,8 @@ premises.
 > [!TIP]
 > Run the demo corpus first: it ingests a digital annual report, a scanned
 > geological report, a mixed PDF, a multi-sheet workbook and a parliamentary
-> DOCX, and plants a data conflict you can watch the Conflict Radar catch.
+> DOCX, and shows how conflicting production figures across sources appear
+> side by side in chat answers and the Insights fact explorer.
 
 ## Features
 
