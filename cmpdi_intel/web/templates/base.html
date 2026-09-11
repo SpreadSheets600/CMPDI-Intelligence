@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}CMPDI Intelligence{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="{{ url_for('index') }}">CMPDI&nbsp;<span>Intelligence</span></a>
+  <nav>
+    {% for route, label in [( 'documents', 'Documents'), ('search', 'Search'), ('ask', 'Ask'), ('conflicts', 'Conflict Radar'), ('topics_page', 'Topics'), ('reports_page', 'Reports')] %}
+    <a href="{{ url_for(route) }}" class="{{ 'active' if request.endpoint == route }}">{{ label }}</a>
+    {% endfor %}
+  </nav>
+  <span class="badge-local" title="All processing, models and data stay on this machine. No network calls.">
+    <span class="dot"></span> 100% Local
+  </span>
+</header>
+{% if open_conflicts %}
+<div class="conflict-banner">
+  {{ open_conflicts }} unresolved data conflict{{ 's' if open_conflicts != 1 }} need human review —
+  <a href="{{ url_for('conflicts') }}">open Conflict Radar</a>
+</div>
+{% endif %}
+<main>
+{% block body %}{% endblock %}
+</main>
+<footer>CMPDI Intelligence — evidence-backed geological &amp; mining reporting · offline · source-of-truth preserved</footer>
+<script>
+async function refreshJobs() {
+  const el = document.getElementById('jobstrip');
+  if (!el) return;
+  const jobs = await (await fetch('/api/jobs')).json();
+  el.innerHTML = jobs.map(j => `
+    <div class="job ${j.status}">
+      <div class="job-file">${j.filename || '—'}</div>
+      <div class="stages">${['uploaded','classifying','extracting','ocr','normalizing','chunking','embedding','indexing','completed']
+        .map(s => `<span class="stage ${j.stage === s ? 'cur' : ''} ${passed(j, s)}">${s}</span>`).join('<i>›</i>')}</div>
+      ${j.error ? `<div class="job-error">${j.error.split('\n')[0]}</div>` : ''}
+    </div>`).join('');
+}
+function passed(j, s) {
+  const order = ['uploaded','classifying','extracting','ocr','normalizing','chunking','embedding','indexing','completed'];
+  return order.indexOf(s) < order.indexOf(j.stage) ? 'done' : '';
+}
+refreshJobs(); setInterval(refreshJobs, 2500);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

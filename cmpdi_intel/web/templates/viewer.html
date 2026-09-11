@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>{{ doc.filename }}</h1>
+<p class="sub">
+  <span class="chip type">{{ doc.doc_type }}</span>
+  {% if doc.subsidiary %}<span class="chip">{{ doc.subsidiary }}</span>{% endif %}
+  {% if doc.doc_date_raw %}<span class="chip">{{ doc.doc_date_raw }}</span>{% endif %}
+  {% if doc.version_group_id %}
+    <span class="chip {{ 'ok' if doc.is_current_version else 'superseded' }}">version {{ 'current' if doc.is_current_version else 'superseded' }}</span>
+  {% endif %}
+  <span class="muted">SHA-256 {{ doc.sha256[:16] }}…</span>
+</p>
+
+{% if pages|length > 1 %}
+<div class="pagenav">
+  {% for p in pages %}
+  <a href="{{ url_for('viewer', doc_id=doc.id, page=p.page_no) }}" class="{{ 'cur' if page_no == p.page_no }}"
+     title="{{ 'OCR' if p.ocr_used else 'digital' }} page">{{ p.page_no }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+{% if sheets %}
+<div class="pagenav">
+  {% for s in sheets %}
+  <a href="{{ url_for('viewer', doc_id=doc.id, sheet=s.sheet_no) }}" class="{{ 'cur' if sheet_no == s.sheet_no }}">Sheet {{ s.sheet_no }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if page_no and not sheet_no %}
+  {% set img = (pages | selectattr('page_no', 'equalto', page_no) | list | first) %}
+  {% if img and img.image_path %}
+  <div class="card">
+    {% if img.ocr_used %}<span class="chip conf">OCR page{% if img.avg_confidence %} · avg confidence {{ '%.1f'|format(img.avg_confidence) }}%{% endif %}</span>{% endif %}
+    <div class="viewer-wrap" id="viewerwrap">
+      <img src="{{ url_for('page_image', doc_id=doc.id, rel=img.image_path.split('/')[-1]) }}" id="pageimg">
+      {% for el in elements if el.bbox %}
+      <div class="elbox" data-type="{{ el.element_type }}" data-text="{{ el.text[:160] }}"
+           style="left:{{ el.bbox | fromjson(0) }}px; top:{{ el.bbox | fromjson(1) }}px; width:{{ el.bbox | fromjson(2) - el.bbox | fromjson(0) }}px; height:{{ el.bbox | fromjson(3) - el.bbox | fromjson(1) }}px">
+        <span class="tag">{{ el.element_type }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  <div class="card">
+    <h2 style="margin-top:0">Extracted Content</h2>
+    {% for el in elements %}
+    <p style="margin:6px 0"><span class="chip">{{ el.element_type }}</span>
+      {% if el.section_path %}<span class="muted">[{{ el.section_path }}]</span>{% endif %}<br>
+      {{ el.text[:800] }}</p>
+    {% endfor %}
+  </div>
+{% elif sheet_no %}
+  {% for t in tables %}
+  <div class="card">
+    <h2 style="margin-top:0">Table {{ t.table_idx + 1 }} <span class="muted">{{ t.section_path if t.section_path }}</span></h2>
+    <div style="overflow-x:auto">
+    <table>
+      <tr>{% for h in t.headers %}<th>{{ h }}</th>{% endfor %}</tr>
+      {% set maxrow = t.rows | map(attribute='row_idx') | max %}
+      {% for r in range(maxrow + 1) %}
+      <tr>{% for c in t.rows if c.row_idx == r %}<td>{{ c.value_raw }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </table>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="card muted">Select a page or sheet above to view the source with extraction overlays.</div>
+{% endif %}
+{% endblock %}

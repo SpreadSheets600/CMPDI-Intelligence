@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Ingest &amp; Pipeline</h1>
+<p class="sub">Drop mixed documents — digital and scanned PDFs, DOCX, XLSX, CSV, images. Everything is parsed, chunked, embedded and indexed locally.</p>
+
+<div class="grid c4">
+  <div class="card stat"><div class="n">{{ stats.documents }}</div><div class="l">Documents</div></div>
+  <div class="card stat"><div class="n">{{ stats.chunks }}</div><div class="l">Chunks Indexed</div></div>
+  <div class="card stat"><div class="n">{{ stats.facts }}</div><div class="l">Facts With Receipts</div></div>
+  <div class="card stat"><div class="n">{{ stats.conflicts }}</div><div class="l">Open Conflicts</div></div>
+</div>
+
+<div class="card">
+  <form action="{{ url_for('ingest') }}" method="post" enctype="multipart/form-data" class="inline">
+    <input type="file" name="files" multiple required>
+    <button type="submit">Ingest Documents</button>
+    <span class="muted">Duplicates are detected by SHA-256; revisions are grouped automatically.</span>
+  </form>
+</div>
+
+<h2>Pipeline Status</h2>
+<div id="jobstrip" aria-live="polite"></div>
+{% endblock %}
