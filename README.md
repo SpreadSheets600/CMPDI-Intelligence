@@ -21,11 +21,19 @@ premises.
 - **Receipts everywhere**: every fact links through chunk, element, page and
   document back to `data/files/<sha256>/original.*`. Click a figure in a
   generated report to open the exact source location.
-- **Hybrid retrieval**: SQLite FTS5 BM25 plus local embeddings (Gemma-3
-  family), fused with Reciprocal Rank Fusion and metadata filters.
-- **Grounded Q&A** with per-claim citations. Numeric questions resolve
-  against a fact index for exact values. The system abstains when evidence
-  is weak instead of guessing.
+- **Hybrid retrieval**: FAISS cosine search (Gemma-3 family embeddings) and
+  SQLite FTS5 BM25, fused with weighted scoring (vector 0.45, lexical 0.25,
+  title 0.15, tags 0.10, recency 0.05). Queries are expanded with alternative
+  phrasings when an LLM is available.
+- **Knowledge Tree**: force-directed graph of documents, their extracted tags
+  and the entities they mention; tag sidebar with per-tag search.
+- **Grounded chat** with per-claim citations and conversation memory:
+  follow-up questions are rewritten into standalone search queries before
+  retrieval. Numeric questions resolve against a fact index for exact
+  values. The system abstains when evidence is weak instead of guessing.
+- **Automatic tags**: every ingested document gets keywords (Ollama prompt
+  with a deterministic term-frequency fallback) used for filtering,
+  search boosts and the knowledge tree.
 - **Conflict Radar**: documents that disagree about the same fact, side by
   side, each value linked to its source. Humans resolve; the decision and
   note are recorded.
@@ -113,7 +121,8 @@ Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
 backend/
   app/          Flask factory
   api/routes/   ingest, documents, search, ask, conflicts, topics, reports
-  core/         pipeline, retrieval, facts, query, llm, topics, reports
+  core/         pipeline, retrieval, facts, query, keywords, graph, llm,
+                topics, reports
   db/           connection + schema
   models/       canonical document dataclasses
   storage/      content-addressed file store
@@ -130,3 +139,5 @@ frontend/
   digits are flagged rather than trusted.
 - Table detection targets ruled tables, which official reports use;
   borderless layouts are best effort.
+- Documents ingested before the tag/enrichment upgrade need
+  `python -m backend.scripts.reindex` to gain tags and enriched embeddings.

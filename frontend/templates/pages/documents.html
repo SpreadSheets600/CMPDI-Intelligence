@@ -40,6 +40,11 @@
       <td class="px-4 py-3.5 text-center font-mono text-[13px]">{{ d.page_count }}</td>
       <td class="px-4 py-3.5 text-center font-mono text-[13px]">{{ d.ocr_pages or '—' }}</td>
       <td class="px-4 py-3.5">
+        <div class="flex flex-wrap gap-1">
+          {% for kw in kw_map.get(d.id, [])[:3] %}
+          <a href="{{ url_for('search.search') }}?tag={{ kw | urlencode }}" class="rounded-full border border-coalline bg-coalsoft px-2 py-0.5 text-[11px] text-coal hover:bg-amber-100">{{ kw }}</a>
+          {% endfor %}
+        </div>
         {% if d.version_group_id and not d.is_current_version %}
           <span class="rounded-full border border-seam bg-paper px-3 py-1 font-mono text-[11px] text-stone-400 line-through">superseded</span>
         {% elif d.status == 'failed' %}

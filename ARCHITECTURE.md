@@ -30,6 +30,7 @@ flowchart TB
         end
 
         DB[("db/<br/>SQLite (WAL) + FTS5")]
+        FAISSI[("vector_store/<br/>FAISS index file")]
         STORE[("storage/<br/>data/files/&lt;sha256&gt;/")]
         MODELS["models/<br/>canonical document dataclasses"]
     end
@@ -57,6 +58,7 @@ flowchart TB
     PIPE --> OCR
     RET --> DB
     RET --> EMB
+    RET --> FAISSI
     FACTS --> DB
     QUERY --> RET
     QUERY --> FACTS
@@ -99,6 +101,43 @@ Stage behavior:
 | Chunk | Structure-aware: section-bound text, whole tables or self-describing row chunks |
 | Embed | Local sentence-transformers model; vectors stored as float32 BLOBs |
 | Index | Rows in SQLite + FTS5; fact extraction and conflict detection run here |
+
+## Retrieval Fusion
+
+Candidates come from three layers and merge into one weighted score:
+
+| Signal | Weight | Source |
+|---|---|---|
+| Vector similarity | 0.45 | FAISS IndexFlatIP on L2-normalized vectors (inner product = cosine) |
+| BM25 | 0.25 | SQLite FTS5, augmented with LLM query expansions |
+| Title match | 0.15 | Query terms present in the document filename/title |
+| Tag match | 0.10 | Query terms against extracted keywords |
+| Recency | 0.05 | Exponential decay on document date |
+
+The FAISS index persists to `data/faiss_index.bin` (an `IndexIDMap2` over
+`IndexFlatIP`, keyed by chunk id). A dimension mismatch with the stored
+embeddings triggers an automatic rebuild.
+
+Tags come from a dual-layer extractor at ingestion time: an Ollama prompt
+when a generative model is available, a deterministic term-frequency
+fallback otherwise. Tags drive document filtering, the search boost, and
+the knowledge tree.
+
+## Knowledge Tree
+
+`/graph` renders a force-directed canvas of three node types: documents
+(amber), extracted tags (green) and entities resolved from the fact index
+(blue). Edges connect each document to its tags and entities, so one topic
+reported across many files forms a dense cluster. The tag sidebar links
+every tag to a filtered search.
+
+## Chat
+
+The Ask page is a conversation. The client sends the full message list to
+`/api/chat`; the backend rewrites follow-up questions ("which document says
+that?") into standalone queries using the history, retrieves, and grounds
+the reply with citations. Extractive mode keeps the same contract with no
+LLM installed.
 
 ## Query Flow
 

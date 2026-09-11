@@ -140,6 +140,14 @@ CREATE TABLE IF NOT EXISTS reports (
     created_ts TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS doc_keywords (
+    doc_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    keyword TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'tf',   -- llm | tf
+    PRIMARY KEY (doc_id, keyword)
+);
+CREATE INDEX IF NOT EXISTS idx_doc_keywords_kw ON doc_keywords(keyword);
+
 CREATE TABLE IF NOT EXISTS doc_topics (
     id INTEGER PRIMARY KEY,
     scope TEXT NOT NULL,               -- corpus | subsidiary:<X> | year:<Y>

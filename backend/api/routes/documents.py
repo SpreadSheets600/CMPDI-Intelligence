@@ -4,7 +4,7 @@ import json
 
 from flask import Blueprint, abort, render_template, request, send_from_directory
 
-from backend.core import config
+from backend.core import config, retrieval
 from backend.db import database as db
 
 bp = Blueprint("documents", __name__)
@@ -16,7 +16,18 @@ def documents():
     sel_sub = request.args.get("subsidiary") or ""
     rows = db.q("SELECT * FROM documents WHERE ?='' OR subsidiary=? ORDER BY upload_ts DESC",
                 (sel_sub, sel_sub))
-    return render_template("pages/documents.html", docs=rows, subsidiaries=subs, sel_sub=sel_sub)
+    tag_filter = request.args.get("tag") or None
+    if tag_filter:
+        rows = [r for r in rows if tag_filter in
+                [x["keyword"] for x in db.q(
+                    "SELECT keyword FROM doc_keywords WHERE doc_id=?", (r["id"],))]]
+    kw_map = {}
+    for r in rows:
+        kw_map[r["id"]] = [x["keyword"] for x in db.q(
+            "SELECT keyword FROM doc_keywords WHERE doc_id=? ORDER BY keyword", (r["id"],))]
+    return render_template("pages/documents.html", docs=rows, subsidiaries=subs,
+                           sel_sub=sel_sub, kw_map=kw_map, tag=tag_filter,
+                           tags=retrieval.top_tags(30))
 
 
 @bp.route("/doc/<doc_id>")

@@ -82,12 +82,22 @@ def process_document(doc_id: str):
         _stage(doc_id, "chunking", "running")
         chunks = build_chunks(cdoc)
 
+        # keywords double as tags and enrich every chunk embedding so vector
+        # search matches on document-level topics as well as inner content
+        keywords, keyword_source = _extract_keywords(doc_id, cdoc)
+
         _stage(doc_id, "embedding", "running")
         model_name, _dim = model_info()
-        vectors = embed_texts([c["text"] for c in chunks]) if chunks else []
+        if chunks:
+            prefix = _embedding_prefix(doc_type, cdoc, keywords)
+            vectors = embed_texts([prefix + c["text"] for c in chunks])
+        else:
+            vectors = []
 
         _stage(doc_id, "indexing", "running")
         chunk_db_ids = _persist_chunks(doc_id, chunks, vectors, model_name)
+        from backend.core.pipeline import vector_store
+        vector_store.add(chunk_db_ids, vectors)
         _link_chunk_tables(chunks, chunk_db_ids, table_ids)
         from backend.core import facts
         facts.extract_for_doc(doc_id)
@@ -95,11 +105,38 @@ def process_document(doc_id: str):
         _assign_version_group(doc_id)
 
         _stage(doc_id, "completed", "completed",
-               stats={"chunks": len(chunks), "embedding_model": model_name})
+               stats={"chunks": len(chunks), "embedding_model": model_name,
+                      "keywords": keywords, "keyword_source": keyword_source})
         log.info("Document %s Processed: %s", doc_id[:12], stats)
     except Exception as e:
         log.exception("Pipeline Failed For %s", doc_id)
         _stage(doc_id, "failed", "failed", error=f"{type(e).__name__}: {e}\n{traceback.format_exc()[-1500:]}")
+
+
+def _extract_keywords(doc_id: str, cdoc) -> tuple[list[str], str]:
+    from backend.core.keywords import extract_keywords
+    parts = [p.text for p in cdoc.pages]
+    parts += [el.text for el in cdoc.elements if el.text]
+    text = "\n".join(parts)
+    keywords, source = extract_keywords(text)
+    conn = db.connect()
+    conn.execute("DELETE FROM doc_keywords WHERE doc_id=?", (doc_id,))
+    for kw in keywords:
+        conn.execute("INSERT OR IGNORE INTO doc_keywords (doc_id, keyword, source) VALUES (?,?,?)",
+                     (doc_id, kw, source))
+    conn.commit()
+    return keywords, source
+
+
+def _embedding_prefix(doc_type: str, cdoc, keywords: list[str]) -> str:
+    meta = cdoc.meta
+    lines = [
+        f"Title: {meta.get('title') or ''}",
+        f"Subsidiary: {meta.get('subsidiary') or ''}",
+        f"Doc Type: {doc_type}",
+        f"Keywords: {', '.join(keywords)}",
+    ]
+    return "\n".join(lines) + "\n\n"
 
 
 def _persist_document(doc_id: str, doc_type: str, cdoc):
@@ -181,8 +218,6 @@ def _persist_chunks(doc_id: str, chunks, vectors, model_name) -> list[int]:
             (cid, int(vec.shape[0]), model_name, vec.astype(np.float32).tobytes()))
         ids.append(cid)
     conn.commit()
-    from backend.core.pipeline.embedder import invalidate_cache
-    invalidate_cache()
     return ids
 
 

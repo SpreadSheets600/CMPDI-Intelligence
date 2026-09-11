@@ -10,22 +10,38 @@
     <option value="">All subsidiaries</option>
     {% for s in subs %}<option value="{{ s.subsidiary }}">{{ s.subsidiary }}</option>{% endfor %}
   </select>
+  <select name="tag" class="rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm shadow-card focus:border-coal focus:outline-none">
+    <option value="">All tags</option>
+    {% for t in tags %}<option value="{{ t.keyword }}" {{ 'selected' if tag == t.keyword }}>{{ t.keyword }} ({{ t.count }})</option>{% endfor %}
+  </select>
   <button type="submit" class="rounded-lg bg-coal px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:bg-amber-500 active:translate-y-px">Search</button>
 </form>
 
 <div class="mt-8 space-y-3">
 {% for ev in results %}
-  <article class="border-l-[3px] border-coalline bg-white py-4 pl-5 pr-6 shadow-card transition-shadow hover:shadow-lift animate-rise" style="animation-delay:{{ loop.index * 40 }}ms">
+  <article class="border-l-[3px] {{ 'border-coal' if loop.index == 1 else 'border-coalline' }} bg-white py-4 pl-5 pr-6 shadow-card transition-shadow hover:shadow-lift animate-rise" style="animation-delay:{{ loop.index * 40 }}ms">
     <div class="flex flex-wrap items-baseline justify-between gap-2 font-mono text-[12px]">
       <a href="{{ url_for('documents.viewer', doc_id=ev.doc_id, **({'page': ev.page_no} if ev.page_no else {'sheet': ev.sheet_no})) }}"
          class="font-semibold text-coal hover:underline">{{ ev.doc_title }}</a>
-      <span class="text-stone-400">
-        {{ 'page ' ~ ev.page_no if ev.page_no else 'sheet ' ~ ev.sheet_no }}
-        · {{ ev.content_type | lower }}
-        {% if ev.subsidiary %} · {{ ev.subsidiary }}{% endif %}
+      <span class="flex items-center gap-2">
+        {% if ev.score is not none %}
+        <span class="rounded-full border {{ 'border-coal bg-coal text-white' if ev.score >= 0.5 else 'border-seam bg-paper text-stone-500' }} px-2 py-0.5 text-[10px] uppercase">{{ '%.0f'|format(ev.score * 100) }}% match</span>
+        {% endif %}
+        <span class="text-stone-400">
+          {{ 'page ' ~ ev.page_no if ev.page_no else 'sheet ' ~ ev.sheet_no }}
+          · {{ ev.content_type | lower }}
+          {% if ev.subsidiary %} · {{ ev.subsidiary }}{% endif %}
+        </span>
       </span>
     </div>
     <p class="mt-2 text-[14px] leading-relaxed text-stone-700">{{ ev.text[:600] }}{% if ev.text|length > 600 %}…{% endif %}</p>
+    {% if ev.tags %}
+    <div class="mt-2.5 flex flex-wrap gap-1.5">
+      {% for t in ev.tags %}
+      <a href="{{ url_for('search.search') }}?tag={{ t | urlencode }}" class="rounded-full border border-coalline bg-coalsoft px-2 py-0.5 text-[11px] text-coal hover:bg-amber-100">{{ t }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
   </article>
 {% else %}
   {% if q %}<div class="rounded-xl border border-seam bg-white px-6 py-10 text-center text-sm text-stone-500 shadow-card">Nothing in the library matches “{{ q }}”.</div>{% endif %}

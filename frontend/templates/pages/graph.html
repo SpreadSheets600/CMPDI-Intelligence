@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Knowledge Tree · CMPDI Intelligence{% endblock %}
+{% block body %}
+<div class="flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Knowledge Tree</h1>
+    <p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">Documents, their extracted tags and the entities they mention, laid out by force simulation. Click a node to inspect it.</p>
+  </div>
+  <form method="get" class="flex items-center gap-2">
+    <select name="subsidiary" onchange="this.form.submit()"
+            class="rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none">
+      <option value="">All subsidiaries</option>
+      {% for s in subs %}
+      <option value="{{ s.subsidiary }}" {{ 'selected' if request.args.get('subsidiary') == s.subsidiary }}>{{ s.subsidiary }}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+<div class="mt-6 grid gap-5 lg:grid-cols-[1fr_280px]">
+  <div class="relative overflow-hidden rounded-xl border border-seam bg-white shadow-card">
+    <canvas id="graph" class="block h-[560px] w-full"></canvas>
+    <div class="pointer-events-none absolute left-4 top-4 flex gap-3 font-mono text-[10px] uppercase tracking-wide text-stone-400">
+      <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-coal"></i>document</span>
+      <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-emerald-600"></i>tag</span>
+      <span class="flex items-center gap-1.5"><i class="h-2.5 w-2.5 rounded-full bg-sky-700"></i>entity</span>
+    </div>
+    <div id="panel" class="absolute inset-y-0 right-0 hidden w-72 border-l border-seam bg-white/95 p-4 backdrop-blur"></div>
+  </div>
+
+  <aside class="space-y-4">
+    <div class="rounded-xl border border-seam bg-white p-4 shadow-card">
+      <h2 class="text-[13px] font-semibold uppercase tracking-wide text-stone-500">Top Tags</h2>
+      <div class="mt-3 flex flex-wrap gap-1.5">
+        {% for t in tags %}
+        <a href="{{ url_for('search.search') }}?tag={{ t.keyword | urlencode }}"
+           class="rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal transition-colors hover:bg-amber-100"
+           title="used by {{ t.count }} documents">{{ t.keyword }} <span class="font-mono text-[10px] text-coal/60">{{ t.count }}</span></a>
+        {% else %}
+        <p class="text-[13px] text-stone-400">No tags yet. Ingest documents to grow the tree.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="rounded-xl border border-seam bg-white p-4 shadow-card">
+      <h2 class="text-[13px] font-semibold uppercase tracking-wide text-stone-500">How To Read It</h2>
+      <p class="mt-2 text-[13px] leading-relaxed text-stone-600">Amber nodes are documents. Green nodes are tags extracted at ingestion time. Blue nodes are entities resolved from the fact index. A document connects to every tag and entity it contains, so densely linked clusters usually mean one topic reported across many files.</p>
+      <p class="mt-2 text-[13px] text-stone-500">Click a document node to open it, or a tag to run a search.</p>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/graph.js') }}" defer></script>
+{% endblock %}

@@ -15,7 +15,11 @@ dependencies = [
     "rapidfuzz>=3.6",
     "sentence-transformers>=3.0",
     "numpy>=1.26",
+    "faiss-cpu>=1.9",
 ]
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
 
 [tool.uv]
 package = false

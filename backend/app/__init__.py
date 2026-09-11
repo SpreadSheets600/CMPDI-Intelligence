@@ -7,7 +7,7 @@ from pathlib import Path
 
 from flask import Flask
 
-from backend.api.routes import ask, conflicts, documents, ingest, reports, search, topics
+from backend.api.routes import ask, chat, conflicts, documents, ingest, reports, search, topics
 from backend.core import facts
 from backend.core.pipeline import pipeline
 from backend.db import database
@@ -31,6 +31,7 @@ def create_app() -> Flask:
     app.register_blueprint(documents.bp)
     app.register_blueprint(search.bp)
     app.register_blueprint(ask.bp)
+    app.register_blueprint(chat.bp)
     app.register_blueprint(conflicts.bp)
     app.register_blueprint(topics.bp)
     app.register_blueprint(reports.bp)

@@ -9,9 +9,9 @@ DATA_DIR = Path(os.environ.get("CMPDI_DATA_DIR", ROOT / "data"))
 DB_PATH = Path(os.environ.get("CMPDI_DB_PATH", DATA_DIR / "cmpdi.db"))
 
 # Filesystem object store layout
-FILES_DIR = DATA_DIR / "files"        # <sha256>/original.<ext>, page images, ocr artifacts
-REPORTS_DIR = DATA_DIR / "reports"    # generated DOCX reports
-CLOUDS_DIR = DATA_DIR / "clouds"      # rendered word-cloud PNGs
+FILES_DIR = DATA_DIR / "files"  # <sha256>/original.<ext>, page images, ocr artifacts
+REPORTS_DIR = DATA_DIR / "reports"  # generated DOCX reports
+CLOUDS_DIR = DATA_DIR / "clouds"  # rendered word-cloud PNGs
 
 # Embeddings: primary is Gemma-3-family; fallbacks load automatically if the
 # primary is unavailable (embeddinggemma is HF-gated and needs license acceptance).
@@ -25,13 +25,15 @@ EMBEDDING_FALLBACKS = [
 # extractive mode (no generation, evidence snippets only).
 LLM_BACKEND = os.environ.get("CMPDI_LLM_BACKEND", "auto")
 OLLAMA_URL = os.environ.get("CMPDI_OLLAMA_URL", "http://127.0.0.1:11434")
-OLLAMA_MODEL = os.environ.get("CMPDI_OLLAMA_MODEL", "qwen3:4b")
-LLM_MODEL = os.environ.get("CMPDI_LLM_MODEL", "Qwen/Qwen3-1.7B")
+OLLAMA_MODEL = os.environ.get("CMPDI_OLLAMA_MODEL", "gemma4:31b-cloud")
+LLM_MODEL = os.environ.get("CMPDI_LLM_MODEL", "gemma4:31b-cloud")
 
 # OCR
 OCR_MIN_CONF = float(os.environ.get("CMPDI_OCR_MIN_CONF", "85"))
 OCR_DPI = int(os.environ.get("CMPDI_OCR_DPI", "300"))
-PAGE_TEXT_FLOOR = int(os.environ.get("CMPDI_PAGE_TEXT_FLOOR", "50"))  # chars below this -> OCR the page
+PAGE_TEXT_FLOOR = int(
+    os.environ.get("CMPDI_PAGE_TEXT_FLOOR", "50")
+)  # chars below this -> OCR the page
 
 # Chunking
 CHUNK_TOKENS = int(os.environ.get("CMPDI_CHUNK_TOKENS", "400"))

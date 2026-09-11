@@ -1,16 +1,14 @@
-"""Local embedding service. Tries the configured Gemma-family model first,
-falls back down EMBEDDING_FALLBACKS automatically (e.g. when the primary is
-HF-gated or download fails). Embeddings are cached in SQLite as float32 BLOBs."""
+"""Local embedding service. Tries the configured Gemma-family model first
+and falls back down EMBEDDING_FALLBACKS automatically (e.g. when the primary
+is HF-gated or the download fails). Vectors are normalized so FAISS inner
+product equals cosine similarity."""
 
 import numpy as np
 
 from backend.core import config
-from backend.db import database as db
 
 _model = None
 _model_name = None
-_matrix = None  # np.ndarray (n, dim), rows aligned with chunk ids list
-_ids = None
 
 
 class EmbeddingUnavailable(RuntimeError):
@@ -52,31 +50,3 @@ def embed_texts(texts: list[str], is_query: bool = False) -> np.ndarray:
     vecs = _model.encode(wrapped, batch_size=32, show_progress_bar=False,
                          normalize_embeddings=True)
     return np.asarray(vecs, dtype=np.float32)
-
-
-def to_blob(vec: np.ndarray) -> bytes:
-    return vec.astype(np.float32).tobytes()
-
-
-def from_blob(blob: bytes) -> np.ndarray:
-    return np.frombuffer(blob, dtype=np.float32)
-
-
-def invalidate_cache():
-    global _matrix, _ids
-    _matrix, _ids = None, None
-
-
-def vector_matrix():
-    """Lazily loaded (ids, matrix) of all stored chunk embeddings."""
-    global _matrix, _ids
-    if _matrix is None:
-        rows = db.q("SELECT chunk_id, blob FROM chunk_embeddings")
-        _ids = np.array([r["chunk_id"] for r in rows], dtype=np.int64)
-        if len(rows):
-            _matrix = np.stack([from_blob(r["blob"]) for r in rows])
-        else:
-            _matrix = np.zeros((0, 1), dtype=np.float32)
-    return _ids, _matrix
-
-

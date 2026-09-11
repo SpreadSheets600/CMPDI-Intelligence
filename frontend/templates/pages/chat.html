@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Ask · CMPDI Intelligence{% endblock %}
+{% block body %}
+<div class="flex h-[calc(100dvh-11rem)] flex-col">
+  <div class="flex items-baseline justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold tracking-tight">Ask the Library</h1>
+      <p class="mt-1 text-[15px] text-stone-500">Every reply is grounded in retrieved documents and carries its receipts.</p>
+    </div>
+    <button id="newchat" class="rounded-lg border border-seamdark bg-white px-3 py-1.5 text-[13px] font-medium text-stone-600 transition-colors hover:border-coal hover:text-coal">New chat</button>
+  </div>
+
+  <div id="chatlog" class="mt-6 flex-1 space-y-4 overflow-y-auto pr-1">
+    <div id="welcome" class="mx-auto mt-16 max-w-lg text-center">
+      <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ink font-mono text-lg font-semibold text-amber-400">C</span>
+      <p class="mt-4 text-[15px] font-medium">Ask about mines, seams, reserves, production figures.</p>
+      <div class="mt-5 flex flex-wrap justify-center gap-2">
+        {% for q in ['coal production of Kusunda Mine in 2021-22', 'what are the geological characteristics of the Korba coalfield', 'which documents mention SECL reserves', 'summarize the parliamentary questions'] %}
+        <button class="suggestion rounded-full border border-seam bg-white px-3.5 py-1.5 text-[13px] text-stone-600 transition-colors hover:border-coal hover:text-coal">{{ q }}</button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <form id="chatform" class="mt-4 flex items-end gap-3">
+    <textarea id="chatinput" rows="1" placeholder="Ask a question… (Enter to send, Shift+Enter for a new line)"
+              class="max-h-40 flex-1 resize-none rounded-xl border border-seamdark bg-white px-4 py-3 text-sm shadow-card focus:border-coal focus:outline-none"></textarea>
+    <button type="submit" id="sendbtn"
+            class="rounded-xl bg-coal px-5 py-3 text-sm font-semibold text-white shadow-card transition-all hover:bg-amber-500 active:translate-y-px disabled:opacity-50">Send</button>
+  </form>
+  <p class="mt-2 text-center text-[12px] text-stone-400">Answers cite evidence; the assistant abstains when the library cannot support a claim.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const log = document.getElementById('chatlog');
+const input = document.getElementById('chatinput');
+const form = document.getElementById('chatform');
+const sendBtn = document.getElementById('sendbtn');
+let history = [];   // {role, content} sent to /api/chat
+let busy = false;
+
+function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
+
+function addUser(text) {
+  document.getElementById('welcome')?.remove();
+  const node = el(`
+    <div class="flex justify-end">
+      <div class="max-w-[80%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-[14px] leading-relaxed text-white whitespace-pre-wrap"></div>
+    </div>`);
+  node.querySelector('div').textContent = text;
+  log.appendChild(node);
+  log.scrollTop = log.scrollHeight;
+}
+
+function citationChip(c) {
+  const href = `/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : '?sheet=' + (c.sheet_no || 1)}`;
+  const loc = c.page_no ? 'p.' + c.page_no : 'sheet ' + (c.sheet_no || '?');
+  return `<a href="${href}" class="cite" title="${c.doc_title} — ${loc}">${c.eid}</a>`;
+}
+
+function addAssistant(p) {
+  const conflicts = (p.conflicts || []).map(c =>
+    `<div class="mt-2 rounded-lg border border-red-200 bg-red-50/70 px-3 py-2 text-[12px] text-red-800">
+       <span class="font-semibold">Conflict:</span> ${c.key.replace(/\|/g, ' · ')}
+       <a href="/conflicts" class="font-semibold underline underline-offset-2">review</a>
+     </div>`).join('');
+  const cites = (p.citations || []).map(c => `
+    <a href="/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : '?sheet=' + (c.sheet_no || 1)}"
+       class="flex items-center justify-between gap-3 rounded-lg border border-seam px-3 py-2 text-[12px] transition-colors hover:border-coal">
+       <span class="truncate"><span class="font-mono font-semibold text-coal">${c.eid}</span> ${c.doc_title}</span>
+       <span class="shrink-0 font-mono text-stone-400">${c.page_no ? 'p.' + c.page_no : 'sheet ' + (c.sheet_no || '?')}</span>
+     </a>`).join('');
+  const meta = `<div class="mt-2 flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-wide text-stone-400">
+      <span class="rounded-full border border-coalline bg-coalsoft px-2 py-0.5 text-coal">${p.backend}</span>
+      <span class="rounded-full border border-seam px-2 py-0.5">${p.route.toLowerCase()}</span>
+      ${p.abstained ? '<span class="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-red-700">abstained</span>' : ''}
+    </div>`;
+  const node = el(`
+    <div class="flex justify-start">
+      <div class="max-w-[85%]">
+        <div class="rounded-2xl rounded-bl-md border border-seam bg-white px-4 py-3 shadow-card">
+          <div class="answer text-[14px] leading-relaxed whitespace-pre-wrap"></div>
+          ${conflicts}
+          ${meta}
+        </div>
+        ${cites ? `<div class="mt-2 grid gap-1.5">${cites}</div>` : ''}
+      </div>
+    </div>`);
+  node.querySelector('.answer').textContent = p.answer;
+  // re-inject citation chips into the answer text ([E1] markers)
+  const answerEl = node.querySelector('.answer');
+  if ((p.citations || []).length) {
+    let html = answerEl.textContent
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    for (const c of p.citations) {
+      const href = `/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : '?sheet=' + (c.sheet_no || 1)}`;
+      const loc = c.page_no ? 'p.' + c.page_no : 'sheet ' + (c.sheet_no || '?');
+      html = html.replaceAll(`[${c.eid}]`,
+        `<a href="${href}" class="cite" title="${c.doc_title} — ${loc}">${c.eid}</a>`);
+    }
+    answerEl.innerHTML = html;
+  }
+  log.appendChild(node);
+  log.scrollTop = log.scrollHeight;
+}
+
+function addTyping() {
+  const node = el(`
+    <div class="flex justify-start">
+      <div class="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-seam bg-white px-4 py-3 shadow-card">
+        <span class="h-2 w-2 animate-bounce rounded-full bg-coal [animation-delay:0ms]"></span>
+        <span class="h-2 w-2 animate-bounce rounded-full bg-coal [animation-delay:120ms]"></span>
+        <span class="h-2 w-2 animate-bounce rounded-full bg-coal [animation-delay:240ms]"></span>
+      </div>
+    </div>`);
+  node.id = 'typing';
+  log.appendChild(node);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function send(text) {
+  if (busy || !text.trim()) return;
+  busy = true; sendBtn.disabled = true;
+  addUser(text);
+  history.push({role: 'user', content: text});
+  addTyping();
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({messages: history}),
+    });
+    const p = await resp.json();
+    document.getElementById('typing')?.remove();
+    if (p.error) { history.pop(); addUserUndo(); alert(p.error); return; }
+    history.push({role: 'assistant', content: p.answer});
+    addAssistant(p);
+  } catch (e) {
+    document.getElementById('typing')?.remove();
+    history.pop();
+  } finally {
+    busy = false; sendBtn.disabled = false; input.focus();
+  }
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const text = input.value;
+  input.value = ''; input.style.height = 'auto';
+  send(text);
+});
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+});
+input.addEventListener('input', () => {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 160) + 'px';
+});
+document.querySelectorAll('.suggestion').forEach(b =>
+  b.addEventListener('click', () => send(b.textContent.trim())));
+document.getElementById('newchat').addEventListener('click', () => {
+  history = [];
+  log.innerHTML = '';
+  location.reload();
+});
+</script>
+{% endblock %}

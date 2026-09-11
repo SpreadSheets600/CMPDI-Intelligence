@@ -92,9 +92,36 @@ def fact_lookup(query: str) -> dict | None:
             "period": fy_label(top["period_norm"]), "conflict": dict(conflict) if conflict else None}
 
 
-def answer(query: str, filters: dict | None = None) -> dict:
-    route = classify_query(query)
+def condense_question(query: str, history: list[dict] | None) -> str:
+    """Rewrite a follow-up question ('which document says that?') into a
+    standalone query using the chat history. Falls back to appending the
+    previous user message when no LLM is available."""
+    if not history:
+        return query
     backend = get_backend()
+    turns = "\n".join(f"{m['role']}: {m['content'][:300]}" for m in history[-6:])
+    raw = backend.generate(
+        "You rewrite follow-up questions as standalone search queries. Reply "
+        "with the rewritten query only.",
+        f"Rewrite the last question as a standalone search query that keeps "
+        f"the entities it refers to from the earlier conversation.\n\n"
+        f"Conversation:\n{turns}\n\nLast question: {query}",
+    )
+    if raw and 2 < len(raw.strip()) < 300:
+        return raw.strip()
+    prior_user = next((m["content"] for m in reversed(history)
+                       if m["role"] == "user"), "")
+    return f"{prior_user} {query}".strip()
+
+
+def answer(query: str, filters: dict | None = None,
+           history: list[dict] | None = None) -> dict:
+    """Answer a question. `history` carries prior chat turns
+    ([{role, content}, ...]); follow-up questions are condensed into
+    standalone search queries using that history."""
+    backend = get_backend()
+    retrieval_query = condense_question(query, history) if history else query
+    route = classify_query(retrieval_query)
     payload = {
         "query": query, "route": route, "backend": backend.name,
         "answer": "", "citations": [], "conflicts": [], "abstained": False,
@@ -103,14 +130,14 @@ def answer(query: str, filters: dict | None = None) -> dict:
 
     fact = None
     if route == "NUMERIC_FACT":
-        fact = fact_lookup(query)
+        fact = fact_lookup(retrieval_query)
 
-    evidence = retrieval.hybrid_search(query, filters=filters)
+    evidence = retrieval.hybrid_search(retrieval_query, filters=filters)
 
     # Abstention: measure the vector-score distribution. An irrelevant query
     # retrieves a flat, low-scoring pile; a relevant one has a clear top.
     import numpy as np
-    vres = retrieval.vector_search(query, k=15, filters=filters)
+    vres = retrieval.vector_search(retrieval_query, k=15, filters=filters)
     if vres:
         vscores = np.array([e["vec"] for e in vres])
         weak = vscores[0] < 0.60 or vscores.std() < 0.03
@@ -172,6 +199,10 @@ def answer(query: str, filters: dict | None = None) -> dict:
                              "page_no": ev["page_no"], "sheet_no": ev["sheet_no"],
                              "content_type": ev["content_type"], "text": ev["text"]})
     user_prompt = "Evidence:\n" + "\n\n".join(blocks) + f"\n\nQuestion: {query}"
+    if history:
+        turns = "\n".join(f"{m['role']}: {m['content'][:300]}"
+                          for m in history[-6:] if m.get("content"))
+        user_prompt += f"\n\nEarlier conversation (for context only):\n{turns}"
     if lead:
         user_prompt += f"\n\nThe fact index resolved: {lead}. Use it and cite the matching evidence."
 
