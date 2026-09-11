@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block body %}
+<h1 class="text-2xl font-semibold tracking-tight">Ask</h1>
+<p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">Answers cite their evidence. Numeric questions resolve against the fact index for exact values; the system abstains rather than guess.</p>
+
+<form method="post" class="mt-6 flex flex-wrap items-center gap-3">
+  <input type="text" name="q" value="{{ q }}" autofocus placeholder="e.g. coal production of Kusunda Mine in 2021-22"
+         class="min-w-[24rem] flex-1 rounded-lg border border-seamdark bg-white px-4 py-2.5 text-sm shadow-card focus:border-coal focus:outline-none">
+  <select name="subsidiary" class="rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm shadow-card focus:border-coal focus:outline-none">
+    <option value="">All subsidiaries</option>
+    {% for s in subs %}<option value="{{ s.subsidiary }}">{{ s.subsidiary }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="rounded-lg bg-coal px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:bg-amber-500 active:translate-y-px">Ask</button>
+</form>
+
+{% if payload %}
+<div class="mt-8 rounded-xl border border-seam bg-white p-6 shadow-card animate-rise">
+  <div class="flex flex-wrap gap-2 font-mono text-[11px]">
+    <span class="rounded-full border border-seam bg-paper px-3 py-1 text-stone-500">{{ payload.route | lower }}</span>
+    <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 text-coal">{{ payload.backend }}</span>
+    {% if payload.coverage.evidence_count %}
+    <span class="rounded-full border border-seam bg-paper px-3 py-1 text-stone-500">{{ payload.coverage.evidence_count }} evidence items</span>
+    {% endif %}
+    {% if payload.abstained %}
+    <span class="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-red-700">abstained</span>
+    {% endif %}
+  </div>
+  <div class="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed">{{ payload.answer }}</div>
+
+  {% if payload.conflicts %}
+  <div class="mt-5 rounded-lg border border-red-200 bg-red-50/70 px-4 py-3 text-sm text-red-800">
+    <span class="font-semibold">Conflict detected.</span>
+    {% for c in payload.conflicts %}
+      <span class="font-mono text-[12px]">{{ c.key | replace('|', ' · ') }}</span>:
+      {% for v in c.fact_values %}{{ v.value_raw }} {{ v.unit or '' }}{% if not loop.last %} vs {% endif %}{% endfor %}
+      <a href="{{ url_for('conflicts.conflicts') }}" class="font-semibold underline underline-offset-2">review</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+{% if payload.citations %}
+<h2 class="mt-10 text-lg font-semibold tracking-tight">Evidence</h2>
+<div class="mt-4 space-y-3">
+  {% for c in payload.citations %}
+  <article class="border-l-[3px] border-coalline bg-white py-4 pl-5 pr-6 shadow-card animate-rise" style="animation-delay:{{ loop.index * 40 }}ms">
+    <div class="flex flex-wrap items-baseline justify-between gap-2 font-mono text-[12px]">
+      <a href="{{ url_for('documents.viewer', doc_id=c.doc_id, **({'page': c.page_no} if c.page_no else {'sheet': c.sheet_no})) }}"
+         class="font-semibold text-coal hover:underline">{{ c.eid }} · {{ c.doc_title }}</a>
+      <span class="text-stone-400">{{ 'page ' ~ c.page_no if c.page_no else 'sheet ' ~ c.sheet_no }} · {{ c.content_type | lower }}</span>
+    </div>
+    <p class="mt-2 text-[14px] leading-relaxed text-stone-700">{{ c.text[:500] }}{% if c.text|length > 500 %}…{% endif %}</p>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

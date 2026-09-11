@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="animate-rise">
+  <h1 class="text-2xl font-semibold tracking-tight">Pipeline</h1>
+  <p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">Drop in digital or scanned PDFs, DOCX, XLSX, CSV and images. Everything is parsed, chunked, embedded and indexed on this machine.</p>
+</div>
+
+<div class="mt-8 grid grid-cols-2 divide-x divide-seam rounded-xl border border-seam bg-white shadow-card md:grid-cols-4">
+  {% for label, key in [('Documents', 'documents'), ('Chunks Indexed', 'chunks'), ('Facts With Receipts', 'facts'), ('Open Conflicts', 'conflicts')] %}
+  <div class="px-6 py-5 animate-rise" style="animation-delay:{{ loop.index * 60 }}ms">
+    <div class="font-mono text-[26px] font-semibold tracking-tight {{ 'text-red-700' if key == 'conflicts' and stats.conflicts else '' }}">{{ stats[key] }}</div>
+    <div class="mt-0.5 text-[13px] text-stone-500">{{ label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="mt-6 rounded-xl border border-seam bg-white p-5 shadow-card animate-rise" style="animation-delay:240ms">
+  <form action="{{ url_for('ingest.ingest') }}" method="post" enctype="multipart/form-data" class="flex flex-wrap items-center gap-3">
+    <label class="flex-1 cursor-pointer rounded-lg border border-dashed border-seamdark px-4 py-3 text-sm text-stone-500 transition-colors hover:border-coal hover:text-coal">
+      <input type="file" name="files" multiple required class="hidden">
+      Choose files or drop them here after clicking
+    </label>
+    <button type="submit" class="rounded-lg bg-coal px-4 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:bg-amber-500 active:translate-y-px">Ingest</button>
+  </form>
+  <p class="mt-3 text-[13px] text-stone-500">Duplicates are rejected by SHA-256. Revised reports are grouped into version chains automatically.</p>
+</div>
+
+<h2 class="mt-10 text-lg font-semibold tracking-tight">Recent Jobs</h2>
+<div id="jobstrip" class="mt-4 space-y-3" aria-live="polite"></div>
+{% endblock %}

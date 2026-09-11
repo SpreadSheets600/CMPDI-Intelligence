@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 demo_corpus/
 .pytest_cache/
+.agents/

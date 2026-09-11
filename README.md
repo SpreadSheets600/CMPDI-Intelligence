@@ -1,94 +1,132 @@
 # CMPDI Intelligence
 
-**AI-Powered Geological, Mining & Reporting Solution for CMPDI/CIL Subsidiaries (SIH26023)**
+An offline document intelligence platform for geological, mining and
+production reporting (SIH26023). It turns scattered PDFs, spreadsheets and
+scanned archives into a searchable, cross-validated knowledge base where
+every number, answer and generated report carries a receipt back to its
+exact source: document, page, table row, or spreadsheet cell.
 
-An offline, evidence-first document intelligence platform: it turns scattered
-geological, mining and production documents into a searchable, cross-validated
-knowledge base where **every number, answer and generated report carries a
-verifiable receipt back to its exact source** (document → page → table → row →
-cell). 100% local — no API calls, no cloud, no data leaves the machine.
+Everything runs on one machine. No API calls, no cloud, no data leaving the
+premises.
 
-## What It Does
+> [!TIP]
+> Run the demo corpus first: it ingests a digital annual report, a scanned
+> geological report, a mixed PDF, a multi-sheet workbook and a parliamentary
+> DOCX, and plants a data conflict you can watch the Conflict Radar catch.
 
-| Feature | Where |
-|---|---|
-| Ingest digital / scanned / mixed PDFs, DOCX, XLSX, CSV, images with live pipeline status | Ingest page |
-| SHA-256 dedup + automatic document version chains (superseded revisions struck through) | Documents page |
-| Source viewer: page images with element overlays, OCR confidence, spreadsheet grids | click any document |
-| Hybrid retrieval: FTS5 BM25 + local embeddings + Reciprocal Rank Fusion | Search page |
-| Grounded Q&A with per-claim citations, numeric fact lookup, and honest abstention | Ask page |
-| **Conflict Radar**: documents disagreeing about the same fact, side by side, human-resolved | Conflict Radar |
-| Word clouds, keyphrases and document clusters | Topics page |
-| Template-driven DOCX reports where every figure has a receipt + Sources appendix | Report Studio |
-| **Click-to-receipt**: any figure in a report opens the exact source page/sheet | Report Studio → viewer |
+## Features
+
+- **Ingestion pipeline** with live status: classify, parse, OCR, normalize,
+  chunk, embed, index. Digital, scanned and mixed PDFs are decided per page.
+- **Receipts everywhere**: every fact links through chunk, element, page and
+  document back to `data/files/<sha256>/original.*`. Click a figure in a
+  generated report to open the exact source location.
+- **Hybrid retrieval**: SQLite FTS5 BM25 plus local embeddings (Gemma-3
+  family), fused with Reciprocal Rank Fusion and metadata filters.
+- **Grounded Q&A** with per-claim citations. Numeric questions resolve
+  against a fact index for exact values. The system abstains when evidence
+  is weak instead of guessing.
+- **Conflict Radar**: documents that disagree about the same fact, side by
+  side, each value linked to its source. Humans resolve; the decision and
+  note are recorded.
+- **Data hygiene**: Indian number formats (`1,23,456.78`, lakh/crore), unit
+  normalization (MT, lakh tonnes, GCV, %), fiscal-year spans (April start),
+  SHA-256 duplicate rejection, automatic version chains with superseded
+  revisions excluded from answers.
+- **Report Studio**: template-driven DOCX output (production summary,
+  comparative analysis, parliamentary reply) with conflict flags, sources
+  appendix, and human-approval workflow.
+- **Topics**: word clouds, keyphrases and document clusters computed locally.
+- **LLM optional**: Ollama or raw Transformers when available, extractive
+  mode (verbatim evidence, no generation) otherwise. Answers never depend on
+  a generative model.
 
 ## Quickstart
 
-Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), and either a
-Tesseract install **or** nothing (RapidOCR is used automatically — models
-download on first run).
+Requires Python 3.11+ and [uv](https://docs.astral.sh/uv/). OCR works out of
+the box through RapidOCR; a Tesseract install is used instead when present.
 
 ```bash
 uv venv
 uv pip install -e .            # or: uv sync
-.venv/bin/python -m cmpdi_intel.scripts.init_system
-.venv/bin/python -m cmpdi_intel.scripts.make_demo_corpus    # optional demo data
-.venv/bin/python -m cmpdi_intel.scripts.ingest demo_corpus  # process it
-
-.venv/bin/python -m cmpdi_intel.web.app     # open http://127.0.0.1:5000
 ```
 
-Then: drag files in on the Ingest page, watch the pipeline strip, ask a
-question, click a citation, resolve a conflict, download a report.
+Initialize, generate the demo corpus, and ingest it:
 
-## Configuration (environment variables, all optional)
+```bash
+python -m backend.scripts.init_system
+python -m backend.scripts.make_demo_corpus
+python -m backend.scripts.ingest demo_corpus
+```
 
-| Variable | Default | Meaning |
+Start the app and open http://127.0.0.1:5000:
+
+```bash
+python -m backend.app
+```
+
+First ingestion downloads the embedding model. On machines without access to
+the gated Gemma model, the embedder falls back to bge-small automatically.
+
+> [!NOTE]
+> The first run downloads models (embedding, OCR). After that, everything
+> runs with the network cable pulled.
+
+## Configuration
+
+All configuration is environment-driven with working defaults.
+
+| Variable | Default | Purpose |
 |---|---|---|
-| `CMPDI_LLM_BACKEND` | `auto` | `auto` \| `ollama` \| `transformers` \| `extractive` |
+| `CMPDI_LLM_BACKEND` | `auto` | `auto`, `ollama`, `transformers` or `extractive` |
 | `CMPDI_OLLAMA_MODEL` | `qwen3:4b` | Model when Ollama is running locally |
-| `CMPDI_LLM_MODEL` | `Qwen/Qwen3-1.7B` | HF model for the raw Transformers backend |
-| `CMPDI_EMBEDDING_MODEL` | `google/embeddinggemma-300m` | Gemma-3-family embeddings; auto-falls back to bge-small / MiniLM (e.g. when the Gemma model is HF-gated) |
-| `CMPDI_OCR_MIN_CONF` | `85` | OCR word confidence below which digits are quarantined from reports |
-| `CMPDI_DATA_DIR` | `./data` | SQLite DB + file store location |
+| `CMPDI_LLM_MODEL` | `Qwen/Qwen3-1.7B` | HF model for the Transformers backend |
+| `CMPDI_EMBEDDING_MODEL` | `google/embeddinggemma-300m` | Embedding model, with automatic fallbacks |
+| `CMPDI_OCR_MIN_CONF` | `85` | OCR confidence below which digits are quarantined |
+| `CMPDI_DATA_DIR` | `./data` | SQLite database and file store location |
 
-**Backend resolution (`auto`)**: Ollama if running → cached HF model →
-extractive mode (no generation: verbatim evidence + citations). The platform
-never hard-depends on a generative model and never answers without evidence.
+## How It Fits Together
 
-## Architecture
+Documents flow one way: parse into a canonical model, normalize, chunk with
+structure awareness, embed, index, then extract facts and detect conflicts.
+Nothing downstream ever touches the raw file; the file store is the source
+of truth and the indexes are rebuildable.
+
+```mermaid
+flowchart LR
+    F[Files] --> P[Parsers + OCR]
+    P --> C[Canonical model]
+    C --> N[Normalize]
+    N --> K[Chunk]
+    K --> E[Embed]
+    E --> I[(SQLite: FTS5 + vectors)]
+    K --> X[Facts + conflicts]
+    I --> Q[Ask / Search / Reports]
+    X --> Q
+```
+
+Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Project Layout
 
 ```
-files → classify → parse (PyMuPDF/OCR/python-docx/openpyxl) → canonical model
-      → normalize (Indian numbers, lakh/crore, units, FY Apr–Mar)
-      → chunk (structure-aware, tables row-precise) → embed (local)
-      → index (SQLite FTS5 BM25 + float32 vectors) → facts → conflicts
-                                                                    ↓
-        ask / search / reports / conflict radar / topics ← hybrid retrieval
+backend/
+  app/          Flask factory
+  api/routes/   ingest, documents, search, ask, conflicts, topics, reports
+  core/         pipeline, retrieval, facts, query, llm, topics, reports
+  db/           connection + schema
+  models/       canonical document dataclasses
+  storage/      content-addressed file store
+  scripts/      init, CLI ingest, demo corpus
+frontend/
+  templates/    pages/ and components/
+  static/       vendored Tailwind, self-hosted fonts, app.js
 ```
 
-Data flow golden rule: `answer/fact → chunk → element → page/sheet →
-document → data/files/<sha256>/original.*`. SQLite (WAL) is the only
-database; the filesystem is the object store; both are the source of truth —
-the vector index is disposable and rebuildable.
+## Known Limitations
 
-## Verified End-to-End (demo corpus)
-
-- 9-file demo corpus: digital PDF, revised PDF (auto version group), scanned
-  PDF (OCR), mixed PDF (per-page OCR), multi-sheet XLSX (merged title cells,
-  two tables per sheet), CSV, parliamentary DOCX, exact duplicate (rejected),
-  corrupt file (clean failure with reason).
-- Planted conflict detected and surfaced: Kusunda Mine FY2021-22 production —
-  scanned report says 4.35 MT, workbook says 48.5 lakh tonnes (4.85 MT) —
-  both linked to their exact sources.
-- Numbers normalize correctly: `1,23,456.78`, `12.5 lakh tonnes`, `3.2 MT`,
-  `FY22` → absolute values + Indian fiscal-year starts (April).
-
-## Known Limitations (MVP)
-
-- Single-user, no authentication.
-- OCR quality on badly degraded scans limits fact extraction (low-confidence
-  digits are flagged rather than trusted).
-- Table detection targets ruled tables (typical of official reports);
-  borderless-table layouts are best-effort.
-- Knowledge-graph visualization and chart-image data extraction are deferred.
+- Single-user; no authentication.
+- Heavily degraded scans reduce fact extraction quality; low-confidence
+  digits are flagged rather than trusted.
+- Table detection targets ruled tables, which official reports use;
+  borderless layouts are best effort.

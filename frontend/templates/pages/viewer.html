@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="flex flex-wrap items-baseline justify-between gap-3">
+  <h1 class="text-2xl font-semibold tracking-tight">{{ doc.filename }}</h1>
+  <span class="font-mono text-[12px] text-stone-400">{{ doc.sha256[:16] }}…</span>
+</div>
+<div class="mt-2 flex flex-wrap gap-2">
+  <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] uppercase text-coal">{{ doc.doc_type }}</span>
+  {% if doc.subsidiary %}<span class="rounded-full border border-seam bg-white px-3 py-1 text-[12px] text-stone-600">{{ doc.subsidiary }}</span>{% endif %}
+  {% if doc.doc_date_raw %}<span class="rounded-full border border-seam bg-white px-3 py-1 font-mono text-[12px] text-stone-600">{{ doc.doc_date_raw }}</span>{% endif %}
+  {% if doc.version_group_id %}
+    {% if doc.is_current_version %}
+    <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700">current version</span>
+    {% else %}
+    <span class="rounded-full border border-seam bg-paper px-3 py-1 font-mono text-[11px] text-stone-400 line-through">superseded</span>
+    {% endif %}
+  {% endif %}
+</div>
+
+{% if pages|length > 1 %}
+<div class="mt-5 flex flex-wrap gap-1.5">
+  {% for p in pages %}
+  <a href="{{ url_for('documents.viewer', doc_id=doc.id, page=p.page_no) }}"
+     class="rounded-md border px-2.5 py-1 font-mono text-[12px] transition-colors {{ 'border-coal bg-coal text-white' if page_no == p.page_no else 'border-seam bg-white text-stone-600 hover:border-coal hover:text-coal' }}"
+     title="{{ 'OCR' if p.ocr_used else 'digital text' }}">{{ p.page_no }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+{% if sheets %}
+<div class="mt-5 flex flex-wrap gap-1.5">
+  {% for s in sheets %}
+  <a href="{{ url_for('documents.viewer', doc_id=doc.id, sheet=s.sheet_no) }}"
+     class="rounded-md border px-2.5 py-1 font-mono text-[12px] transition-colors {{ 'border-coal bg-coal text-white' if sheet_no == s.sheet_no else 'border-seam bg-white text-stone-600 hover:border-coal hover:text-coal' }}">Sheet {{ s.sheet_no }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if page_no and not sheet_no %}
+  {% set img = (pages | selectattr('page_no', 'equalto', page_no) | list | first) %}
+  {% if img and img.image_path %}
+  <div class="mt-6 rounded-xl border border-seam bg-white p-4 shadow-card animate-rise">
+    <div class="mb-3 flex items-center gap-2">
+      {% if img.ocr_used %}
+      <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] text-coal">OCR page{% if img.avg_confidence %} · confidence {{ '%.1f'|format(img.avg_confidence) }}%{% endif %}</span>
+      {% else %}
+      <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700">digital text layer</span>
+      {% endif %}
+    </div>
+    <div class="relative inline-block max-w-full" id="viewerwrap">
+      <img src="{{ url_for('documents.page_image', doc_id=doc.id, rel=img.image_path.split('/')[-1]) }}" id="pageimg" class="max-w-full rounded-lg border border-seam">
+      {% for el in elements if el.bbox %}
+      <div class="absolute rounded-sm border-[1.5px] border-coal/50 transition-colors hover:bg-coal/10"
+           data-type="{{ el.element_type }}" data-text="{{ el.text[:160] }}"
+           style="left:{{ el.bbox | fromjson(0) }}px; top:{{ el.bbox | fromjson(1) }}px; width:{{ el.bbox | fromjson(2) - el.bbox | fromjson(0) }}px; height:{{ el.bbox | fromjson(3) - el.bbox | fromjson(1) }}px">
+        <span class="absolute -top-4 left-0 whitespace-nowrap rounded-sm bg-coal px-1 text-[9px] font-medium text-white opacity-0 transition-opacity hover:opacity-100">{{ el.element_type }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  <div class="mt-6 rounded-xl border border-seam bg-white p-6 shadow-card animate-rise" style="animation-delay:80ms">
+    <h2 class="text-[15px] font-semibold">Extracted Content</h2>
+    <div class="mt-3 space-y-3">
+      {% for el in elements %}
+      <div class="border-l-2 border-coalline pl-3">
+        <span class="font-mono text-[10px] uppercase tracking-wide text-stone-400">{{ el.element_type }}</span>
+        {% if el.section_path %}<span class="ml-2 font-mono text-[10px] text-stone-400">{{ el.section_path }}</span>{% endif %}
+        <p class="mt-0.5 text-[14px] leading-relaxed text-stone-700">{{ el.text[:800] }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+{% elif sheet_no %}
+  {% for t in tables %}
+  <div class="mt-6 overflow-hidden rounded-xl border border-seam bg-white shadow-card animate-rise" style="animation-delay:{{ loop.index * 60 }}ms">
+    <div class="border-b border-seam bg-paper px-5 py-3 text-[13px] font-semibold">Table {{ t.table_idx + 1 }}
+      {% if t.section_path %}<span class="ml-2 font-normal font-mono text-[11px] text-stone-400">{{ t.section_path }}</span>{% endif %}
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-[13px]">
+        <thead>
+          <tr class="border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500">
+            {% for h in t.headers %}<th class="px-4 py-2.5 font-medium">{{ h }}</th>{% endfor %}
+          </tr>
+        </thead>
+        {% set maxrow = t.rows | map(attribute='row_idx') | max %}
+        {% for r in range(maxrow + 1) %}
+        <tr class="border-b border-seam last:border-0">
+          {% for c in t.rows if c.row_idx == r %}
+          <td class="px-4 py-2 {{ 'font-mono' if c.value_norm is not none }}">{{ c.value_raw }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+{% else %}
+<div class="mt-6 rounded-xl border border-seam bg-white px-6 py-10 text-center text-sm text-stone-500 shadow-card">
+  Select a page or sheet above to inspect the source with extraction overlays.
+</div>
+{% endif %}
+{% endblock %}
