@@ -1,0 +1,41 @@
+import sqlite3
+
+from . import config
+
+_conn: sqlite3.Connection | None = None
+
+
+def connect() -> sqlite3.Connection:
+    """Single shared connection. WAL mode lets UI reads run while the
+    ingestion worker writes. check_same_thread=False because Flask serves
+    requests from worker threads; all writes are short transactions."""
+    global _conn
+    if _conn is None:
+        config.ensure_dirs()
+        _conn = sqlite3.connect(config.DB_PATH, check_same_thread=False)
+        _conn.row_factory = sqlite3.Row
+        _conn.execute("PRAGMA journal_mode=WAL")
+        _conn.execute("PRAGMA foreign_keys=ON")
+        _conn.execute("PRAGMA busy_timeout=10000")
+    return _conn
+
+
+def init_db():
+    conn = connect()
+    schema = (config.ROOT / "cmpdi_intel" / "schema.sql").read_text()
+    conn.executescript(schema)
+    conn.commit()
+
+
+def q(sql: str, params=()) -> list[sqlite3.Row]:
+    return connect().execute(sql, params).fetchall()
+
+
+def q1(sql: str, params=()) -> sqlite3.Row | None:
+    return connect().execute(sql, params).fetchone()
+
+
+def execute(sql: str, params=()) -> int:
+    cur = connect().execute(sql, params)
+    connect().commit()
+    return cur.lastrowid
