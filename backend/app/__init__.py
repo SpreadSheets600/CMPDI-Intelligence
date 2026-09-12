@@ -9,9 +9,9 @@ from pathlib import Path
 
 from flask import Flask
 
-from backend.api.routes import (agent, ask, chat, conflicts, dashboard,
-                                documents, ingest, insights, reports, search,
-                                settings, topics)
+from backend.api.routes import (agent, ask, chat, compare, conflicts,
+                                dashboard, documents, ingest, insights,
+                                reports, search, settings, topics)
 from backend.core import appsettings, config, facts
 from backend.core.pipeline import pipeline
 from backend.db import database
@@ -65,6 +65,7 @@ def create_app() -> Flask:
     app.register_blueprint(agent.bp)
     app.register_blueprint(settings.bp)
     app.register_blueprint(conflicts.bp)
+    app.register_blueprint(compare.bp)
 
     @app.template_filter("fromjson")
     def fromjson(seq, i):

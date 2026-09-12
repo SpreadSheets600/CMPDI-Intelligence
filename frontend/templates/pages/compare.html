@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Compare · CMPDI Intelligence{% endblock %}
+{% block body %}
+<div class="animate-rise">
+  <h1 class="text-2xl font-semibold tracking-tight">Compare Documents</h1>
+  <p class="mt-1 max-w-[70ch] text-[15px] text-stone-500">Pick any two documents and see exactly what changed: every numerical fact that moved, and sections added or removed. Version chains suggest the natural pair.</p>
+</div>
+
+<form method="get" class="mt-6 rounded-xl border border-seam bg-white p-4 shadow-card animate-rise" style="animation-delay:60ms">
+  <div class="flex flex-wrap items-end gap-3">
+    <label class="min-w-[220px] flex-1">
+      <span class="text-[12px] font-medium text-stone-500">Document A</span>
+      <select name="doc" class="mt-1 w-full rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none">
+        <option value="">Choose...</option>
+        {% for d in docs %}<option value="{{ d.id }}" {{ 'selected' if d.id == sel_doc }}>{{ d.display_name or d.filename }}{{ ' · ' + d.doc_date_raw if d.doc_date_raw }}</option>{% endfor %}
+      </select>
+    </label>
+    {% if suggested %}
+    <div class="pb-2 text-[13px] text-stone-500">previous revision: <button type="button" id="use-suggested" data-b="{{ suggested.id }}" class="font-medium text-coal hover:underline">{{ suggested.display_name or suggested.filename }}</button></div>
+    {% endif %}
+  </div>
+  <div class="mt-3 flex flex-wrap items-end gap-3">
+    <label class="min-w-[220px] flex-1">
+      <span class="text-[12px] font-medium text-stone-500">Document B</span>
+      <select id="doc-b" class="mt-1 w-full rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none">
+        <option value="">Choose...</option>
+        {% for d in docs %}<option value="{{ d.id }}">{{ d.display_name or d.filename }}{{ ' · ' + d.doc_date_raw if d.doc_date_raw }}</option>{% endfor %}
+      </select>
+    </label>
+    <button type="button" id="run-compare"
+            class="flex items-center gap-2 rounded-lg bg-coal px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:-translate-y-px hover:bg-amber-500">
+      Compare
+    </button>
+  </div>
+</form>
+
+<div id="result" class="mt-6"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const qs = new URLSearchParams(location.search);
+const fmt = v => v.toLocaleString(undefined, {maximumFractionDigits: 2});
+
+document.getElementById('use-suggested')?.addEventListener('click', e => {
+  document.getElementById('doc-b').value = e.currentTarget.dataset.b;
+});
+
+document.getElementById('run-compare').addEventListener('click', async () => {
+  const a = qs.get('doc') || new URLSearchParams(new FormData(document.querySelector('form'))).get('doc');
+  const b = document.getElementById('doc-b').value;
+  const box = document.getElementById('result');
+  if (!a || !b || a === b) { box.innerHTML = '<p class="text-[13.5px] text-red-700">Pick two different documents.</p>'; return; }
+  box.innerHTML = '<p class="animate-pulse text-[13.5px] text-stone-500">Comparing...</p>';
+  const d = await (await fetch(`/api/compare?a=${a}&b=${b}`)).json();
+  if (d.error) { box.innerHTML = `<p class="text-[13.5px] text-red-700">${esc(d.error)}</p>`; return; }
+
+  const keyLine = k => `${esc(k.entity)} · ${esc(k.attribute.replace('_', ' '))} · ${esc(k.period || 'period n/a')}`;
+  const changeRow = c => `
+    <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-seam bg-paper px-3 py-2 text-[13px]">
+      <span>${keyLine(c)}</span>
+      <span class="font-mono">${fmt(c.old)} &rarr; <strong>${fmt(c.new)}</strong>
+        <span class="${c.delta_pct > 0 ? 'text-emerald-700' : 'text-red-700'}">(${c.delta_pct > 0 ? '+' : ''}${c.delta_pct}%)</span>
+      </span>
+    </div>`;
+  const listRow = (k, v, label) => `
+    <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-seam bg-paper px-3 py-2 text-[13px]">
+      <span>${keyLine(k)}</span>
+      <span class="font-mono text-stone-500">${label} ${fmt(v)}</span>
+    </div>`;
+  const sectionRow = s => `
+    <div class="rounded-lg border border-seam bg-paper px-3 py-2 text-[13px]">
+      <p class="font-mono text-[11px] text-stone-400">${esc(s.path)}</p>
+      <p class="mt-0.5 line-clamp-2 text-stone-600">${esc(s.excerpt)}</p>
+    </div>`;
+
+  box.innerHTML = `
+  <div class="animate-rise">
+    <div class="grid gap-3 sm:grid-cols-2">
+      ${['a', 'b'].map(k => `
+      <div class="rounded-xl border ${k === 'b' ? 'border-coalline bg-coalsoft/50' : 'border-seam'} bg-white p-4 shadow-card">
+        <p class="font-mono text-[10px] uppercase tracking-widest text-stone-400">${k === 'a' ? 'document a' : 'document b'}</p>
+        <p class="mt-1 font-semibold">${esc(d[k].name || d[k].filename)}</p>
+        <p class="mt-0.5 text-[12.5px] text-stone-500">${esc(d[k].date || 'period n/a')} · ${d[k].facts} facts · ${d[k].sections} sections</p>
+      </div>`).join('')}
+    </div>
+    <div class="mt-4 flex flex-wrap gap-2">
+      ${[['changed facts', d.summary.changed], ['facts only in A', d.summary.removed], ['facts only in B', d.summary.added], ['new sections', d.summary.new_sections], ['removed sections', d.summary.removed_sections]]
+        .map(([l, n]) => `<span class="rounded-full border border-seam bg-white px-3 py-1 font-mono text-[11.5px] text-stone-600">${l}: <strong>${n}</strong></span>`).join('')}
+    </div>
+    ${d.fact_changes.length ? `<h2 class="mt-8 text-lg font-semibold">Changed Numerical Facts</h2>
+    <div class="mt-3 space-y-1.5">${d.fact_changes.map(changeRow).join('')}</div>` : ''}
+    ${d.added_facts.length ? `<h2 class="mt-8 text-lg font-semibold">Facts Only in Document B</h2>
+    <div class="mt-3 space-y-1.5">${d.added_facts.map(f => listRow(f, f.new, 'new')).join('')}</div>` : ''}
+    ${d.removed_facts.length ? `<h2 class="mt-8 text-lg font-semibold">Facts Only in Document A</h2>
+    <div class="mt-3 space-y-1.5">${d.removed_facts.map(f => listRow(f, f.old, 'old')).join('')}</div>` : ''}
+    ${d.new_sections.length ? `<h2 class="mt-8 text-lg font-semibold">New Sections</h2>
+    <div class="mt-3 space-y-1.5">${d.new_sections.map(sectionRow).join('')}</div>` : ''}
+    ${d.removed_sections.length ? `<h2 class="mt-8 text-lg font-semibold">Removed Sections</h2>
+    <div class="mt-3 space-y-1.5">${d.removed_sections.map(sectionRow).join('')}</div>` : ''}
+    ${!d.summary.changed && !d.summary.added && !d.summary.removed ? '<p class="mt-8 rounded-xl border border-seam bg-white px-6 py-10 text-center text-sm text-stone-500">No numerical or structural changes detected between these documents.</p>' : ''}
+  </div>`;
+});
+if (qs.get('doc')) document.getElementById('doc-b').focus();
+</script>
+{% endblock %}
