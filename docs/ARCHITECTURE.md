@@ -238,27 +238,53 @@ with its receipt rather than choosing one: chat answers attach an
 "also reported elsewhere" note, reports flag the slot for verification,
 and the Insights fact explorer plots each reported value per period.
 
+## Document Summaries
+
+The last pipeline stage asks the LLM for a 4-6 sentence summary of each
+document (deterministic fallback without a backend). The summary is stored
+on the document and indexed as its own `SUMMARY` chunk, embedded with the
+same metadata envelope as content chunks. Descriptive queries therefore
+reach spreadsheets and scans whose raw cells never contain the query words.
+
+## Agent
+
+A model-agnostic ReAct loop. Each turn the LLM emits one JSON action:
+`search_documents` (hybrid retrieval), `get_facts` (fact index), or
+`run_python`. The Python tool spawns an isolated runner process with a
+60-second budget; user code gets preloaded pandas/numpy/matplotlib plus
+`load_table()`/`load_facts()` readers over SQLite, restricted builtins
+(no `open`, `exec`, `eval`, `compile`), and a static AST import scan that
+rejects network and system modules. Every matplotlib figure is captured to
+`data/agent_runs/<run_id>/` and shown in the trace. The final answer cites
+numbered evidence entries that are deduplicated and renumbered to match the
+returned receipts, and any run can be assembled into a DOCX report.
+
 ## Frontend
 
 Server-rendered Jinja templates styled with Tailwind (vendored locally, no
 build step). The design system lives in the Tailwind config inside
 `frontend/templates/base.html`: Archivo for text, IBM Plex Mono for numbers
-and labels, a paper/ink/amber palette. `app.js` polls `/api/jobs` for the
-live pipeline strip. No custom CSS file ships with the project.
+and labels, a paper/ink/amber palette. Every palette step is a CSS variable
+that flips under `.dark`, so dark mode re-themes the whole UI (canvas
+visuals included) without per-template overrides; the choice persists in
+`localStorage`. Navigation is a collapsible sidebar. `app.js` polls
+`/api/jobs` for the live pipeline strip. No custom CSS file ships with the
+project.
 
 ## Directory Layout
 
 ```
 backend/
   app/          Flask factory, blueprint registration
-  api/routes/   one module per surface (ingest, documents, search, ask, ...)
+  api/routes/   one module per surface (dashboard, ingest, documents, agent, ...)
   core/         config, normalization, pipeline, retrieval, facts, query,
-                llm backends, topics, report generation
+                llm backends, agent + sandbox runner, summaries, settings,
+                topics, report generation
   db/           SQLite connection, schema.sql
   models/       canonical document dataclasses
   storage/      content-addressed file store
-  scripts/      init, CLI ingestion, demo corpus generator
+  scripts/      init, CLI ingestion, demo corpus generator, reindex
 frontend/
   templates/    base.html, components/, pages/
-  static/       vendor/tailwind.js, fonts/, js/app.js
+  static/       vendor/tailwind.js, fonts/, js/app.js, js/graph.js
 ```

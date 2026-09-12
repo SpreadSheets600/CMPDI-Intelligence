@@ -73,10 +73,10 @@
   <dl class="grid grid-cols-1 gap-x-10 gap-y-2 border-t border-seam px-5 py-4 text-[13px] sm:grid-cols-2">
     <div class="flex justify-between gap-4"><dt class="text-stone-500">Original file</dt><dd class="text-right">{{ doc.filename }}</dd></div>
     <div class="flex justify-between gap-4"><dt class="text-stone-500">File type</dt><dd class="font-mono">{{ doc.doc_type }}</dd></div>
-    <div class="flex justify-between gap-4"><dt class="text-stone-500">Normalized representation</dt><dd>{{ doc.content_norm or '—' }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Normalized representation</dt><dd>{{ doc.content_norm or '-' }}</dd></div>
     <div class="flex justify-between gap-4"><dt class="text-stone-500">Document ID (SHA-256)</dt><dd class="font-mono text-[12px]">{{ doc.sha256[:24] }}…</dd></div>
-    <div class="flex justify-between gap-4"><dt class="text-stone-500">Pages</dt><dd class="font-mono">{{ doc.page_count or '—' }}</dd></div>
-    <div class="flex justify-between gap-4"><dt class="text-stone-500">OCR pages</dt><dd class="font-mono">{{ doc.ocr_pages or '—' }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Pages</dt><dd class="font-mono">{{ doc.page_count or '-' }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">OCR pages</dt><dd class="font-mono">{{ doc.ocr_pages or '-' }}</dd></div>
     <div class="flex justify-between gap-4"><dt class="text-stone-500">Processing status</dt><dd class="font-mono">{{ doc.status }}</dd></div>
     <div class="flex justify-between gap-4"><dt class="text-stone-500">Ingested</dt><dd class="font-mono">{{ doc.upload_ts }}</dd></div>
     <div class="flex justify-between gap-4"><dt class="text-stone-500">Source of truth</dt><dd class="font-mono text-[12px]">data/files/{{ doc.sha256[:12] }}…/original.{{ doc.filename.rsplit('.', 1)[-1] }}</dd></div>
@@ -187,7 +187,7 @@
     {% if el.element_type == 'HEADING' %}
     <h3 class="mt-6 text-[17px] font-semibold tracking-tight">{{ el.text }}</h3>
     {% elif el.element_type == 'TABLE' %}
-    <p class="rounded-lg border border-coalline bg-coalsoft px-4 py-2.5 text-[13px] text-coal">Table extracted on this document — see its cells in the extracted tables below the search index.</p>
+    <p class="rounded-lg border border-coalline bg-coalsoft px-4 py-2.5 text-[13px] text-coal">Table extracted on this document. Its cells are searchable and citable across the system.</p>
     {% else %}
     <p class="max-w-[85ch] text-[14.5px] leading-relaxed text-stone-700">{{ el.text }}</p>
     {% endif %}

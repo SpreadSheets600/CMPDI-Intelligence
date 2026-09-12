@@ -5,7 +5,7 @@
 #   ./run.sh --fresh      wipe data/, re-ingest the demo corpus, start the app
 #   ./run.sh --no-llm     skip Ollama entirely; the app runs in extractive mode
 #
-# Environment overrides: OLLAMA_MODEL (default qwen3:4b), PORT (default 5000).
+# Environment overrides: OLLAMA_MODEL (default gemma4:31b-cloud), PORT (default 5000).
 
 set -euo pipefail
 

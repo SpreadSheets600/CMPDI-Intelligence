@@ -17,8 +17,15 @@ premises.
 
 ## Features
 
+- **Workspace UI**: collapsible sidebar navigation, dark and light themes
+  (persisted per machine), and a dashboard showing corpus stats, live model
+  status, storage and pipeline activity.
 - **Ingestion pipeline** with live status: classify, parse, OCR, normalize,
   chunk, embed, index. Digital, scanned and mixed PDFs are decided per page.
+- **Document management**: rename documents, inspect full metadata and the
+  normalized representation each file became, and preview them properly.
+  PDFs render in a real PDF viewer; spreadsheets open as sheet-switchable
+  tables; Word documents get a reading view; images show with their OCR text.
 - **Receipts everywhere**: every fact links through chunk, element, page and
   document back to `data/files/<sha256>/original.*`. Click a figure in a
   generated report to open the exact source location.
@@ -26,12 +33,20 @@ premises.
   SQLite FTS5 BM25, fused with weighted scoring (vector 0.45, lexical 0.25,
   title 0.15, tags 0.10, recency 0.05). Queries are expanded with alternative
   phrasings when an LLM is available.
+- **LLM document summaries**: every document gets a summary that is indexed
+  as its own chunk, so descriptive queries ("documents about coal
+  despatch") find a spreadsheet whose cells never say the words.
 - **Knowledge Tree**: force-directed graph of documents, their extracted tags
   and the entities they mention; tag sidebar with per-tag search.
 - **Grounded chat** with per-claim citations and conversation memory:
   follow-up questions are rewritten into standalone search queries before
   retrieval. Numeric questions resolve against a fact index for exact
   values. The system abstains when evidence is weak instead of guessing.
+- **Analytical Agent**: a tool-calling agent that searches documents, queries
+  the fact index and runs sandboxed Python (pandas, numpy, matplotlib) so
+  comparisons, shares and trends are computed, never guessed. Charts it
+  draws are captured and shown; its runs can be assembled into a DOCX
+  report with a sources appendix.
 - **Automatic tags**: every ingested document gets keywords (Ollama prompt
   with a deterministic term-frequency fallback) used for filtering,
   search boosts and the knowledge tree.
@@ -45,12 +60,15 @@ premises.
   SHA-256 duplicate rejection, automatic version chains with superseded
   revisions excluded from answers.
 - **Report Studio**: template-driven DOCX output (production summary,
-  comparative analysis, parliamentary reply) with conflict flags, sources
-  appendix, and human-approval workflow. Templates are built in memory;
-  no artifacts ship with the code.
+  comparative analysis, parliamentary reply) plus agent-run reports, with
+  verification flags, sources appendix, and human-approval workflow.
+  Templates are built in memory; no artifacts ship with the code.
+- **Settings**: only functional controls (LLM backend and model, Ollama
+  endpoint, retrieval depth) with live backend probes; persisted to
+  `data/app_settings.json` over the environment defaults.
 - **Document deletion**: one click removes a document everywhere: FAISS
-  vectors, chunks, facts, tags, open conflicts that cite it, page images
-  and the stored original. Version groups elect a new current document.
+  vectors, chunks, facts, tags, page images and the stored original.
+  Version groups elect a new current document.
 - **Topics**: word clouds, keyphrases and document clusters computed locally.
 - **LLM optional**: Ollama or raw Transformers when available, extractive
   mode (verbatim evidence, no generation) otherwise. Answers never depend on
@@ -93,9 +111,9 @@ All configuration is environment-driven with working defaults.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CMPDI_LLM_BACKEND` | `auto` | `auto`, `ollama`, `transformers` or `extractive` |
-| `CMPDI_OLLAMA_MODEL` | `qwen3:4b` | Model when Ollama is running locally |
-| `CMPDI_LLM_MODEL` | `Qwen/Qwen3-1.7B` | HF model for the Transformers backend |
+| `CMPDI_LLM_BACKEND` | `auto` | `auto`, `ollama`, `transformers` or `extractive` (also settable in Settings) |
+| `CMPDI_OLLAMA_MODEL` | `gemma4:31b-cloud` | Model when Ollama is running locally |
+| `CMPDI_LLM_MODEL` | `gemma4:31b-cloud` | HF model for the Transformers backend |
 | `CMPDI_EMBEDDING_MODEL` | `google/embeddinggemma-300m` | Embedding model, with automatic fallbacks |
 | `CMPDI_OCR_MIN_CONF` | `85` | OCR confidence below which digits are quarantined |
 | `CMPDI_DATA_DIR` | `./data` | SQLite database and file store location |
@@ -103,7 +121,7 @@ All configuration is environment-driven with working defaults.
 ## How It Fits Together
 
 Documents flow one way: parse into a canonical model, normalize, chunk with
-structure awareness, embed, index, then extract facts and detect conflicts.
+structure awareness, embed, index, then extract facts and write summaries.
 Nothing downstream ever touches the raw file; the file store is the source
 of truth and the indexes are rebuildable.
 
@@ -115,7 +133,7 @@ flowchart LR
     N --> K[Chunk]
     K --> E[Embed]
     E --> I[(SQLite: FTS5 + vectors)]
-    K --> X[Facts + conflicts]
+    K --> X[Facts + summaries]
     I --> Q[Ask / Search / Reports]
     X --> Q
 ```
@@ -127,16 +145,17 @@ Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
 ```
 backend/
   app/          Flask factory
-  api/routes/   ingest, documents, search, ask, conflicts, topics, reports
+  api/routes/   dashboard, ingest, documents, search, ask, chat, agent,
+                insights, topics, reports, settings
   core/         pipeline, retrieval, facts, query, keywords, graph, llm,
-                topics, reports
+                agent (+ sandbox runner), summary, appsettings, topics, reports
   db/           connection + schema
   models/       canonical document dataclasses
   storage/      content-addressed file store
-  scripts/      init, CLI ingest, demo corpus
+  scripts/      init, CLI ingest, demo corpus, reindex
 frontend/
   templates/    pages/ and components/
-  static/       vendored Tailwind, self-hosted fonts, app.js
+  static/       vendored Tailwind, self-hosted fonts, app.js, graph.js
 ```
 
 ## Tested Against Real Data

@@ -191,19 +191,6 @@ def answer(query: str, filters: dict | None = None,
     alternatives = _alternatives_for_evidence(evidence)
     payload["alternatives"] = alternatives
 
-    if fact and not fact["alternatives"]:
-        t = fact["top"]
-        lead = (f"{fact['entity']}, {fact['attribute'].replace('_', ' ')} for {fact['period']}: "
-                f"**{t['value_raw']}**{(' (' + str(t['unit']) + ')') if t['unit'] else ''}")
-    elif fact and fact["alternatives"]:
-        parts = [f"**{a['value_raw']}** {a['unit'] or ''} ({a['filename']}, "
-                 f"{'page ' + str(a['page_no']) if a['page_no'] else 'sheet ' + str(a['sheet_no'])})"
-                 for a in fact["alternatives"][:3]]
-        lead = (f"The top value is **{fact['top']['value_raw']}** {fact['top']['unit'] or ''}, "
-                f"but other documents report differently: " + " vs ".join(parts))
-    else:
-        lead = None
-
     # numbered evidence blocks for the prompt
     blocks, citation_map = [], []
     for i, ev in enumerate(evidence, start=1):
@@ -213,13 +200,35 @@ def answer(query: str, filters: dict | None = None,
                              "doc_id": ev["doc_id"], "doc_title": ev["doc_title"],
                              "page_no": ev["page_no"], "sheet_no": ev["sheet_no"],
                              "content_type": ev["content_type"], "text": ev["text"]})
+
+    # a resolved fact answers deterministically: the value was extracted from
+    # a cited cell, so no generation step is allowed to muddy it
+    if fact:
+        t = fact["top"]
+        eid = next((c["eid"] for c in citation_map
+                    if c["chunk_id"] == fact["top"]["chunk_id"]), "E1")
+        loc = f"page {t['page_no']}" if t["page_no"] else f"sheet {t['sheet_no']}"
+        val = t["value_raw"]
+        if t["unit"] and not any(ch.isalpha() for ch in val):
+            val = f"{val} {t['unit']}"
+        lines = [f"**{val}** — {fact['entity']} {fact['attribute'].replace('_', ' ')} "
+                 f"for {fact['period']}, reported in {t['filename']}, {loc} [{eid}]"]
+        if fact["alternatives"]:
+            alts = ", ".join(
+                f"**{a['value_raw']}** ({a['filename']}, "
+                f"{'page ' + str(a['page_no']) if a['page_no'] else 'sheet ' + str(a['sheet_no'])})"
+                for a in fact["alternatives"][:3])
+            lines.append(f"Also reported elsewhere: {alts}.")
+        payload["answer"] = "\n".join(lines)
+        payload["citations"] = citation_map
+        payload["fact"] = fact
+        return payload
+
     user_prompt = "Evidence:\n" + "\n\n".join(blocks) + f"\n\nQuestion: {query}"
     if history:
         turns = "\n".join(f"{m['role']}: {m['content'][:300]}"
                           for m in history[-6:] if m.get("content"))
         user_prompt += f"\n\nEarlier conversation (for context only):\n{turns}"
-    if lead:
-        user_prompt += f"\n\nThe fact index resolved: {lead}. Use it and cite the matching evidence."
 
     generated = backend.generate(SYSTEM_PROMPT, user_prompt)
     if generated:
@@ -227,10 +236,7 @@ def answer(query: str, filters: dict | None = None,
         payload["answer"] = cleaned
     else:
         # extractive mode: verbatim snippets, fully cited
-        lines = []
-        if lead:
-            lines.append(lead + "\n")
-        lines.append("Extractive mode: supporting evidence from the indexed documents.")
+        lines = ["Extractive mode: supporting evidence from the indexed documents."]
         for c in citation_map[:4]:
             loc = f"page {c['page_no']}" if c["page_no"] else f"sheet {c['sheet_no']}"
             snippet = c["text"][:400] + ("…" if len(c["text"]) > 400 else "")

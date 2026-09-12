@@ -1,5 +1,5 @@
 """Agent endpoints: the workspace page, the run API, figure serving, run
-history and DOCX report assembly. Runs are synchronous — the UI shows a
+history and DOCX report assembly. Runs are synchronous; the UI shows a
 working state while the tool loop executes."""
 
 from flask import Blueprint, abort, jsonify, render_template, request, send_from_directory, url_for

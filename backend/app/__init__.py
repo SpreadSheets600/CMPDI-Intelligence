@@ -2,13 +2,15 @@
 API from one process; the ingestion worker thread starts with the app and
 SQLite WAL lets reads run while it writes."""
 
+import hashlib
 import json
 from pathlib import Path
 
 from flask import Flask
 
-from backend.api.routes import agent, ask, chat, dashboard, documents, ingest, insights, reports, search, settings, topics
-from backend.core import appsettings, facts
+from backend.api.routes import (agent, ask, chat, dashboard, documents, ingest,
+                                insights, reports, search, settings, topics)
+from backend.core import appsettings, config, facts
 from backend.core.pipeline import pipeline
 from backend.db import database
 
@@ -22,6 +24,8 @@ def create_app() -> Flask:
         static_folder=str(FRONTEND / "static"),
     )
     app.config["MAX_CONTENT_LENGTH"] = 512 * 1024 * 1024
+    # stable per-installation key so flash messages survive redirects
+    app.secret_key = hashlib.sha256(str(config.DATA_DIR).encode()).hexdigest()
 
     database.init_db()
     facts.ensure_subsidiary_entities()

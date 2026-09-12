@@ -26,7 +26,7 @@
               ('transformers', 'Transformers', 'locally cached HuggingFace model'),
               ('none', 'None (evidence-only)', 'no generation; verbatim cited evidence only'),
             ] %}
-            <option value="{{ value }}" {{ 'selected' if settings.llm_backend == value }}>{{ label }} — {{ hint }}</option>
+            <option value="{{ value }}" {{ 'selected' if settings.llm_backend == value }}>{{ label }}: {{ hint }}</option>
             {% endfor %}
           </select>
         </label>
@@ -43,7 +43,7 @@
       </div>
       <div class="mt-4 flex items-center gap-2 rounded-lg border border-seam bg-paper px-3 py-2.5 text-[13px]">
         <span class="h-2 w-2 rounded-full {{ 'bg-emerald-600' if llm_status.available else 'bg-coal' }}"></span>
-        <span class="text-stone-600">{{ llm_status.backend or llm_status.configured }}{% if llm_status.model %} · <span class="font-mono">{{ llm_status.model }}</span>{% endif %} — {{ llm_status.detail }}</span>
+        <span class="text-stone-600">{{ llm_status.backend or llm_status.configured }}{% if llm_status.model %} · <span class="font-mono">{{ llm_status.model }}</span>{% endif %}: {{ llm_status.detail }}</span>
       </div>
     </div>
 

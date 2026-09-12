@@ -1,4 +1,4 @@
-"""Dashboard: operational overview of the system — corpus stats, model
+"""Dashboard: operational overview of the system: corpus stats, model
 status, storage and recent activity. Every number shown comes from the live
 database or a real backend probe; nothing decorative."""
 
