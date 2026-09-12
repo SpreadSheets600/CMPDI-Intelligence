@@ -188,10 +188,24 @@ def _is_noise(raw: str) -> bool:
         return True
     if -1 < v < 1:
         return True  # unitless fractions are computed shares
-    decimals = raw.split(".")
-    if len(decimals) == 2 and len(decimals[1].rstrip("0")) > 4:
-        return True  # 14 significant decimals = a computed value, never reported
+    # high decimal precision = a computed value, never a reported figure;
+    # measure on the bare number, the unit suffix must not count
+    num = QTY_RE.search(raw)
+    if num:
+        whole = num.group(0).split()[0]
+        decimals = whole.split(".")
+        if len(decimals) == 2 and len(decimals[1].rstrip("0")) > 4:
+            return True
     return False
+
+
+def extract_value(raw: str) -> tuple[float, str | None] | None:
+    """Noise-gated quantity parse: the single entry point for turning a cell
+    or phrase into a number. Statistics junk (footnote markers, year spans,
+    date strings, computed shares) returns None."""
+    if _is_noise(raw):
+        return None
+    return parse_quantity(raw)
 
 
 def _facts_from_text_chunk(chunk, period, patterns, ocr_low):

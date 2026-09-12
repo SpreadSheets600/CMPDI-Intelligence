@@ -118,7 +118,25 @@ _FY_PATTERNS = [
 def normalize_period(text: str) -> str | None:
     """Return ISO date of the period start, or None.
     '2021-22'/'FY22' -> 2021-04-01 (Indian fiscal year, April start).
-    Bare '2021' -> 2021-01-01 (calendar year)."""
+    Bare '2021' -> 2021-01-01 (calendar year).
+    'as on 31st March 2022' -> 2021-04-01: a 31-March position marks the END
+    of a fiscal year, and coal reporting groups it with that fiscal year."""
+    m = re.search(r"(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})", text)
+    if m:
+        d_, mth, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if 1 <= d_ <= 31 and 1 <= mth <= 12:
+            d = date(y, mth, d_)
+            if (d.month, d.day) == (3, 31):
+                return date(y - 1, 4, 1).isoformat()
+            return d.isoformat()
+    m = re.search(r"(\d{1,2})(?:st|nd|rd|th)?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(\d{4})", text, re.IGNORECASE)
+    if m:
+        months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+        mth = months.index(m.group(2)[:3].lower()) + 1
+        d = date(int(m.group(3)), mth, int(m.group(1)))
+        if (d.month, d.day) == (3, 31):
+            return date(d.year - 1, 4, 1).isoformat()
+        return d.isoformat()
     # Span form first: '2021-22', 'FY 2021-23' (a bare FY-prefixed span means start year)
     m = re.search(r"(?:FY\s*'?|\b)(\d{4})\s*[-–—]\s*(\d{2,4})\b", text)
     if m:
