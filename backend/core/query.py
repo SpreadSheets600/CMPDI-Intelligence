@@ -11,6 +11,7 @@ import re
 from backend.core import retrieval
 from backend.db import database as db
 from backend.core.llm import get_backend
+from backend.core import trust
 from backend.core.normalize import detect_attribute, fy_label, normalize_period
 from backend.core.pipeline.embedder import model_info
 
@@ -160,6 +161,9 @@ def answer(query: str, filters: dict | None = None,
     if weak and not fact:
         closest = evidence[:3]
         payload["abstained"] = True
+        payload["quality"] = trust.grade(None, [], None, abstained=True)
+        payload["why"] = trust.why(route, None, evidence, [], None, backend.name,
+                                   "abstained")
         payload["answer"] = ("Insufficient evidence in the indexed documents for this question.\n"
                              "Closest matches found (low confidence):")
         payload["citations"] = [
@@ -198,6 +202,7 @@ def answer(query: str, filters: dict | None = None,
         blocks.append(f"[E{i}] ({ev['doc_title']}, {loc}, {ev['content_type']}) {ev['text'][:1200]}")
         citation_map.append({"eid": f"E{i}", "chunk_id": ev["chunk_id"],
                              "doc_id": ev["doc_id"], "doc_title": ev["doc_title"],
+                             "doc_type": ev.get("doc_type"),
                              "page_no": ev["page_no"], "sheet_no": ev["sheet_no"],
                              "content_type": ev["content_type"], "text": ev["text"]})
 
@@ -211,6 +216,10 @@ def answer(query: str, filters: dict | None = None,
         val = t["value_raw"]
         if t["unit"] and not any(ch.isalpha() for ch in val):
             val = f"{val} {t['unit']}"
+        t_conf = t.get("conf")
+        for c in citation_map:
+            if c["chunk_id"] == fact["top"].get("chunk_id") and t_conf is not None:
+                c["conf"] = round(float(t_conf) * 100, 1)
         lines = [f"**{val}** — {fact['entity']} {fact['attribute'].replace('_', ' ')} "
                  f"for {fact['period']}, reported in {t['filename']}, {loc} [{eid}]"]
         if fact["alternatives"]:
@@ -222,6 +231,11 @@ def answer(query: str, filters: dict | None = None,
         payload["answer"] = "\n".join(lines)
         payload["citations"] = citation_map
         payload["fact"] = fact
+        payload["alternatives"] = _alternatives_for_evidence(evidence)
+        payload["quality"] = trust.grade(fact, citation_map, payload["alternatives"])
+        payload["why"] = trust.why(route, fact, evidence, citation_map,
+                                   payload["alternatives"], backend.name,
+                                   "deterministic fact resolution")
         return payload
 
     user_prompt = "Evidence:\n" + "\n\n".join(blocks) + f"\n\nQuestion: {query}"
@@ -247,6 +261,10 @@ def answer(query: str, filters: dict | None = None,
         payload["backend"] = backend.name if backend.name != "extractive" else "extractive"
 
     payload["citations"] = citation_map
+    payload["quality"] = trust.grade(None, citation_map, alternatives)
+    payload["why"] = trust.why(
+        route, fact, evidence, citation_map, alternatives, backend.name,
+        "extractive evidence" if not generated else "grounded generation")
     return payload
 
 

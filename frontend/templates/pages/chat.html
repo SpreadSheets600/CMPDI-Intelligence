@@ -69,14 +69,68 @@ function mdLite(text) {
 
 const TOOL_LABEL = {search_documents: 'Searched Documents', get_facts: 'Queried Fact Index', run_python: 'Ran Python Analysis'};
 
-function evidenceRow(c, i) {
-  const loc = c.page_no ? `page ${c.page_no}` : c.sheet_no ? `sheet ${c.sheet_no}` : '';
+function evidenceCard(c, i) {
+  const loc = c.page_no ? `page ${c.page_no}` : c.sheet_no ? `sheet ${c.sheet_no}` : 'document';
+  const isFact = c.content_type && c.content_type !== 'EVIDENCE';
   return `
-  <a class="flex items-baseline gap-2 text-[12.5px] transition-colors hover:text-coal"
-     href="/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : c.sheet_no ? '?sheet=' + c.sheet_no : ''}">
-    <sup class="rounded border border-coalline bg-coalsoft px-1 font-mono text-[10px] font-semibold text-coal">E${i + 1}</sup>
-    <span class="text-stone-600">${esc(c.doc_title)}${loc ? ', ' + loc : ''}</span>
-  </a>`;
+  <div class="rounded-lg border ${isFact ? 'border-emerald-200' : 'border-seam'} bg-paper p-3 text-[12.5px]">
+    <div class="flex items-center justify-between gap-2">
+      <span class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest ${isFact ? 'text-emerald-700' : 'text-stone-400'}">
+        ${isFact ? '&#10003; verified evidence' : 'supporting evidence'}
+        <sup class="rounded border border-coalline bg-coalsoft px-1 font-semibold text-coal">E${i + 1}</sup>
+      </span>
+      <a class="flex items-center gap-1 rounded-md border border-coal px-2 py-0.5 text-[11px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white"
+         href="/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : c.sheet_no ? '?sheet=' + c.sheet_no : ''}">
+        View Source ${'&rarr;'}
+      </a>
+    </div>
+    <div class="mt-2 grid grid-cols-[64px_1fr] gap-x-2 gap-y-0.5">
+      <span class="text-stone-400">Source</span><span class="truncate font-medium text-ink" title="${esc(c.doc_title)}">${esc(c.doc_title)}</span>
+      <span class="text-stone-400">Location</span><span class="font-mono">${esc(loc)}${c.content_type && c.content_type !== 'EVIDENCE' ? ' · ' + esc(c.content_type.toLowerCase()) : ''}</span>
+      ${c.doc_type ? `<span class="text-stone-400">Type</span><span class="font-mono uppercase">${esc(c.doc_type)}</span>` : ''}
+      ${c.conf ? `<span class="text-stone-400">Confidence</span><span class="font-mono">${c.conf}%</span>` : ''}
+    </div>
+    ${c.text && !isFact ? `<p class="mt-2 line-clamp-2 text-stone-500">${esc((c.text || '').slice(0, 200))}</p>` : ''}
+  </div>`;
+}
+
+function qualityBadge(q) {
+  if (!q) return '';
+  const color = q.level === 'HIGH' ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : q.level === 'LOW' ? 'border-red-200 bg-red-50 text-red-700'
+    : 'border-coalline bg-coalsoft text-coal';
+  const mark = s => s === 'ok' ? '<span class="text-emerald-600">&#10003;</span>'
+    : s === 'warn' ? '<span class="text-coal">&#9888;</span>' : '<span class="text-red-600">&#10007;</span>';
+  return `
+  <div class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border ${color} px-3 py-2">
+    <span class="font-mono text-[10.5px] font-bold uppercase tracking-widest">Evidence Quality: ${q.level}</span>
+    <details class="min-w-0 flex-1">
+      <summary class="cursor-pointer list-none select-none text-right font-mono text-[10.5px] uppercase tracking-wide opacity-70">details</summary>
+      <div class="mt-2 space-y-1 text-left text-[12px] normal-case">
+        ${q.checks.map(c => `<div class="flex items-center gap-1.5">${mark(c[0])}<span>${esc(c[1])}</span></div>`).join('')}
+      </div>
+    </details>
+  </div>`;
+}
+
+function whyPanel(w) {
+  if (!w) return '';
+  const row = (k, v) => `<div class="flex justify-between gap-3"><dt class="text-stone-400">${k}</dt><dd class="font-mono text-[11.5px] text-stone-600">${esc(String(v))}</dd></div>`;
+  return `
+  <details class="mt-3 rounded-lg border border-seam bg-paper px-3 py-2">
+    <summary class="cursor-pointer list-none select-none font-mono text-[10.5px] uppercase tracking-widest text-stone-400">Why this answer?</summary>
+    <dl class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-[12px]">
+      ${row('Query type', w.route)}
+      ${row('Chunks retrieved', w.chunks_retrieved)}
+      ${row('Documents represented', w.documents_represented)}
+      ${w.facts_matched !== undefined ? row('Facts matched', w.facts_matched) : ''}
+      ${w.computations !== undefined ? row('Computations run', w.computations) : ''}
+      ${row('Sources cited', w.sources_cited)}
+      ${row('Conflicts', w.conflicts)}
+      ${row('LLM', w.llm)}
+      ${row('Generation', w.generation)}
+    </dl>
+  </details>`;
 }
 
 function addMessage(role, html) {
@@ -109,15 +163,17 @@ function renderAnswer(payload) {
       <div class="mt-2 space-y-1.5 border-l-2 border-coalline pl-3">${items}</div>
     </details>`;
   }
+  html += qualityBadge(payload.quality);
   html += `<div class="text-[14.5px] leading-relaxed text-stone-700">${mdLite(payload.answer || '')}</div>`;
   for (const src of charts) {
     html += `<div class="mt-4"><img src="${src}" class="max-h-[420px] w-auto rounded-lg border border-seam bg-white shadow-card animate-pop" alt="Chart generated from library data"></div>`;
   }
   const cites = payload.citations || [];
   if (cites.length) {
-    html += `<div class="mt-4 border-t border-seam pt-3"><p class="font-mono text-[10px] uppercase tracking-widest text-stone-400">sources</p>
-      <div class="mt-1.5 space-y-1">${cites.map(evidenceRow).join('')}</div></div>`;
+    html += `<div class="mt-4 border-t border-seam pt-3"><p class="font-mono text-[10px] uppercase tracking-widest text-stone-400">source coverage</p>
+      <div class="mt-1.5 grid gap-2 sm:grid-cols-2">${cites.map(evidenceCard).join('')}</div></div>`;
   }
+  html += whyPanel(payload.why);
   if (payload.mode === 'agent' && payload.run_row_id) {
     html += `<button onclick="downloadReport(${payload.run_row_id}, this)"
       class="mt-3 flex items-center gap-2 rounded-lg border border-coal px-3 py-1.5 text-[12.5px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white">

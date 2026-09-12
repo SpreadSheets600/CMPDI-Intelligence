@@ -7,7 +7,7 @@ import re
 
 from flask import Blueprint, jsonify, render_template, request
 
-from backend.core import agent, graph, query, retrieval
+from backend.core import agent, graph, query, retrieval, trust
 from backend.core.llm import get_backend
 from backend.db import database as db
 
@@ -44,15 +44,28 @@ def chat():
             logging.getLogger("cmpdi.chat").exception("Agent Run Failed In Chat")
             run = None
         if run:
+            cites = [{"eid": f"E{i}", "doc_id": e["doc_id"],
+                      "doc_title": e["filename"], "page_no": e.get("page_no"),
+                      "sheet_no": e.get("sheet_no"), "text": e.get("snippet", ""),
+                      "content_type": "EVIDENCE"}
+                     for i, e in enumerate(run["evidence"], 1)]
+            steps = [s for s in run["steps"] if s["type"] in ("thought", "tool", "chart")]
+            n_tools = sum(1 for s in steps if s["type"] == "tool")
             return jsonify({
                 "mode": "agent",
                 "answer": run["answer"],
                 "run_row_id": run.get("row_id"),
-                "citations": [{"eid": f"E{i}", "doc_id": e["doc_id"],
-                               "doc_title": e["filename"], "page_no": e.get("page_no"),
-                               "sheet_no": e.get("sheet_no"), "text": e.get("snippet", ""),
-                               "content_type": "EVIDENCE"}
-                              for i, e in enumerate(run["evidence"], 1)],
+                "citations": cites,
+                "quality": trust.grade(None, cites, None),
+                "why": {"route": "AGENT",
+                        "chunks_retrieved": len(run["evidence"]),
+                        "documents_represented": len({e["doc_id"] for e in run["evidence"]}),
+                        "facts_matched": sum(1 for s in steps if s.get("tool") == "get_facts"),
+                        "computations": sum(1 for s in steps if s.get("tool") == "run_python"),
+                        "sources_cited": len(cites), "conflicts": 0,
+                        "llm": "agent tool loop", "generation": f"{n_tools} tool steps"},
+                "charts": [f"/agent/figure/{f['run_id']}/{f['file']}" for f in run["figures"]],
+                "trace": steps,
                 "charts": [f"/agent/figure/{f['run_id']}/{f['file']}" for f in run["figures"]],
                 "trace": [s for s in run["steps"] if s["type"] in ("thought", "tool", "chart")],
                 "alternatives": [], "abstained": False, "route": "AGENT",
