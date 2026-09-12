@@ -1,15 +1,37 @@
 {% extends "base.html" %}
+{% block title %}{{ doc.display_name or doc.filename }} · CMPDI Intelligence{% endblock %}
 {% block body %}
-<div class="flex flex-wrap items-baseline justify-between gap-3">
-  <h1 class="text-2xl font-semibold tracking-tight">{{ doc.filename }}</h1>
-  <span class="font-mono text-[12px] text-stone-400">{{ doc.sha256[:16] }}…</span>
-  <form method="post" action="{{ url_for('documents.delete', doc_id=doc.id) }}"
-        onsubmit="return confirm('Delete this document and all its extracted data?')">
-    <button type="submit" class="rounded-lg border border-seam px-2.5 py-1 text-[12px] text-stone-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700">Delete</button>
-  </form>
+{% set title = doc.display_name or doc.filename %}
+<div class="flex flex-wrap items-start justify-between gap-3 animate-rise">
+  <div class="min-w-0">
+    <h1 class="text-2xl font-semibold tracking-tight">{{ title }}</h1>
+    <p class="mt-1 font-mono text-[12px] text-stone-400">{{ doc.filename }} · {{ doc.sha256[:16] }}…</p>
+  </div>
+  <div class="flex flex-wrap items-center gap-2">
+    <details class="relative">
+      <summary class="cursor-pointer list-none rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">Rename</summary>
+      <form method="post" action="{{ url_for('documents.rename', doc_id=doc.id) }}"
+            class="absolute right-0 z-10 mt-2 flex w-72 gap-2 rounded-xl border border-seam bg-white p-3 shadow-lift">
+        <input name="display_name" value="{{ title }}" maxlength="200" required
+               class="min-w-0 flex-1 rounded-lg border border-seamdark bg-paper px-2.5 py-1.5 text-sm focus:border-coal focus:outline-none">
+        <button class="rounded-lg bg-coal px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-amber-500">Save</button>
+      </form>
+    </details>
+    <a href="{{ url_for('documents.original', doc_id=doc.id) }}" target="_blank"
+       class="rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">Open Original</a>
+    <form method="post" action="{{ url_for('documents.delete', doc_id=doc.id) }}"
+          onsubmit="return confirm('Delete “{{ title }}” and all its extracted data?')">
+      <button type="submit" class="rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] text-stone-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700">Delete</button>
+    </form>
+  </div>
 </div>
-<div class="mt-2 flex flex-wrap gap-2">
+
+<div class="mt-3 flex flex-wrap gap-2 animate-rise" style="animation-delay:40ms">
   <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] uppercase text-coal">{{ doc.doc_type }}</span>
+  {% if doc.content_norm %}
+  <span class="rounded-full border border-seam bg-white px-3 py-1 text-[12px] text-stone-600"
+        title="The normalized representation this file became inside the intelligence layer">normalized: {{ doc.content_norm }}</span>
+  {% endif %}
   {% if doc.subsidiary %}<span class="rounded-full border border-seam bg-white px-3 py-1 text-[12px] text-stone-600">{{ doc.subsidiary }}</span>{% endif %}
   {% if doc.doc_date_raw %}<span class="rounded-full border border-seam bg-white px-3 py-1 font-mono text-[12px] text-stone-600">{{ doc.doc_date_raw }}</span>{% endif %}
   {% if doc.version_group_id %}
@@ -21,88 +43,158 @@
   {% endif %}
 </div>
 
-{% if pages|length > 1 %}
-<div class="mt-5 flex flex-wrap gap-1.5">
+<!-- summary -->
+<div class="mt-5 rounded-xl border border-seam bg-white p-5 shadow-card animate-rise" style="animation-delay:80ms">
+  <div class="flex items-center justify-between gap-3">
+    <h2 class="text-[15px] font-semibold">Summary</h2>
+    <form method="post" action="{{ url_for('documents.summarize', doc_id=doc.id) }}">
+      <button class="rounded-lg border border-seam px-2.5 py-1 text-[12px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">
+        {{ 'Regenerate' if doc.summary else 'Generate Summary' }}
+      </button>
+    </form>
+  </div>
+  {% if doc.summary %}
+  <p class="mt-2 max-w-[85ch] text-[14px] leading-relaxed text-stone-700">{{ doc.summary }}</p>
+  {% else %}
+  <p class="mt-2 text-[13.5px] text-stone-500">No summary yet. It becomes part of the searchable index, so plain-language queries can find this document even when the words never appear in it.</p>
+  {% endif %}
+  {% if kw_list %}
+  <div class="mt-3 flex flex-wrap gap-1.5">
+    {% for kw in kw_list %}
+    <a href="{{ url_for('search.search') }}?tag={{ kw | urlencode }}" class="rounded-full border border-coalline bg-coalsoft px-2.5 py-0.5 text-[11.5px] text-coal hover:bg-amber-100">#{{ kw }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- metadata -->
+<details class="mt-4 rounded-xl border border-seam bg-white shadow-card animate-rise" style="animation-delay:120ms">
+  <summary class="cursor-pointer list-none px-5 py-3.5 text-[14px] font-semibold select-none">Metadata &amp; Provenance</summary>
+  <dl class="grid grid-cols-1 gap-x-10 gap-y-2 border-t border-seam px-5 py-4 text-[13px] sm:grid-cols-2">
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Original file</dt><dd class="text-right">{{ doc.filename }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">File type</dt><dd class="font-mono">{{ doc.doc_type }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Normalized representation</dt><dd>{{ doc.content_norm or '—' }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Document ID (SHA-256)</dt><dd class="font-mono text-[12px]">{{ doc.sha256[:24] }}…</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Pages</dt><dd class="font-mono">{{ doc.page_count or '—' }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">OCR pages</dt><dd class="font-mono">{{ doc.ocr_pages or '—' }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Processing status</dt><dd class="font-mono">{{ doc.status }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Ingested</dt><dd class="font-mono">{{ doc.upload_ts }}</dd></div>
+    <div class="flex justify-between gap-4"><dt class="text-stone-500">Source of truth</dt><dd class="font-mono text-[12px]">data/files/{{ doc.sha256[:12] }}…/original.{{ doc.filename.rsplit('.', 1)[-1] }}</dd></div>
+  </dl>
+</details>
+
+{% set is_pdf = doc.doc_type in ('pdf', 'digital_pdf', 'mixed_pdf', 'scanned_pdf') %}
+{% set is_sheet = doc.doc_type in ('xlsx', 'csv') %}
+{% set active_page = page_no or (pages[0].page_no if is_pdf and pages else None) %}
+
+{% if is_pdf and pages %}
+<div class="mt-6 flex flex-wrap items-center gap-1.5 animate-rise" style="animation-delay:160ms">
+  <span class="mr-1 font-mono text-[11px] uppercase tracking-wide text-stone-400">page</span>
   {% for p in pages %}
-  <a href="{{ url_for('documents.viewer', doc_id=doc.id, page=p.page_no) }}"
-     class="rounded-md border px-2.5 py-1 font-mono text-[12px] transition-colors {{ 'border-coal bg-coal text-white' if page_no == p.page_no else 'border-seam bg-white text-stone-600 hover:border-coal hover:text-coal' }}"
+  <a href="{{ url_for('documents.viewer', doc_id=doc.id, page=p.page_no) }}#preview"
+     class="rounded-md border px-2.5 py-1 font-mono text-[12px] transition-colors {{ 'border-coal bg-coal text-white' if active_page == p.page_no else 'border-seam bg-white text-stone-600 hover:border-coal hover:text-coal' }}"
      title="{{ 'OCR' if p.ocr_used else 'digital text' }}">{{ p.page_no }}</a>
   {% endfor %}
 </div>
+
+<iframe id="preview" src="{{ url_for('documents.original', doc_id=doc.id) }}#page={{ active_page }}"
+        class="mt-4 h-[720px] w-full rounded-xl border border-seam bg-white shadow-card animate-rise"
+        style="animation-delay:200ms" title="PDF preview"></iframe>
+
+{% set pinfo = pages | selectattr('page_no', 'equalto', active_page) | list | first %}
+{% if pinfo %}
+<div class="mt-3 flex flex-wrap items-center gap-2 text-[12px] animate-rise" style="animation-delay:240ms">
+  {% if pinfo.ocr_used %}
+  <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] text-coal">page {{ active_page }} is OCR{% if pinfo.avg_confidence %} · confidence {{ '%.1f'|format(pinfo.avg_confidence) }}%{% endif %}</span>
+  {% else %}
+  <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700">page {{ active_page }} has a digital text layer</span>
+  {% endif %}
+  <a href="{{ url_for('documents.viewer', doc_id=doc.id, page=active_page) }}#extraction"
+     class="text-[12.5px] font-medium text-coal hover:underline">Inspect extraction for this page</a>
+</div>
 {% endif %}
-{% if sheets %}
-<div class="mt-5 flex flex-wrap gap-1.5">
+
+{% elif is_sheet and sheets %}
+<div class="mt-6 flex flex-wrap items-center gap-1.5 animate-rise" style="animation-delay:160ms">
+  <span class="mr-1 font-mono text-[11px] uppercase tracking-wide text-stone-400">sheet</span>
   {% for s in sheets %}
   <a href="{{ url_for('documents.viewer', doc_id=doc.id, sheet=s.sheet_no) }}"
-     class="rounded-md border px-2.5 py-1 font-mono text-[12px] transition-colors {{ 'border-coal bg-coal text-white' if sheet_no == s.sheet_no else 'border-seam bg-white text-stone-600 hover:border-coal hover:text-coal' }}">Sheet {{ s.sheet_no }}</a>
+     class="rounded-md border px-2.5 py-1 font-mono text-[12px] transition-colors {{ 'border-coal bg-coal text-white' if sheet_no == s.sheet_no else 'border-seam bg-white text-stone-600 hover:border-coal hover:text-coal' }}">{{ s.sheet_no }}</a>
   {% endfor %}
 </div>
 {% endif %}
 
 {% if page_no and not sheet_no %}
-  {% set img = (pages | selectattr('page_no', 'equalto', page_no) | list | first) %}
-  {% if img and img.image_path %}
-  <div class="mt-6 rounded-xl border border-seam bg-white p-4 shadow-card animate-rise">
-    <div class="mb-3 flex items-center gap-2">
-      {% if img.ocr_used %}
-      <span class="rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] text-coal">OCR page{% if img.avg_confidence %} · confidence {{ '%.1f'|format(img.avg_confidence) }}%{% endif %}</span>
-      {% else %}
-      <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700">digital text layer</span>
-      {% endif %}
+<div id="extraction" class="mt-6 rounded-xl border border-seam bg-white p-6 shadow-card animate-rise" style="animation-delay:120ms">
+  <h2 class="text-[15px] font-semibold">Extracted Content · Page {{ page_no }}</h2>
+  <div class="mt-3 space-y-3">
+    {% for el in elements %}
+    <div class="border-l-2 border-coalline pl-3">
+      <span class="font-mono text-[10px] uppercase tracking-wide text-stone-400">{{ el.element_type }}</span>
+      {% if el.section_path %}<span class="ml-2 font-mono text-[10px] text-stone-400">{{ el.section_path }}</span>{% endif %}
+      <p class="mt-0.5 text-[14px] leading-relaxed text-stone-700">{{ el.text[:800] }}</p>
     </div>
-    <div class="relative inline-block max-w-full" id="viewerwrap">
-      <img src="{{ url_for('documents.page_image', doc_id=doc.id, rel=img.image_path.split('/')[-1]) }}" id="pageimg" class="max-w-full rounded-lg border border-seam">
-      {% for el in elements if el.bbox %}
-      <div class="absolute rounded-sm border-[1.5px] border-coal/50 transition-colors hover:bg-coal/10"
-           data-type="{{ el.element_type }}" data-text="{{ el.text[:160] }}"
-           style="left:{{ el.bbox | fromjson(0) }}px; top:{{ el.bbox | fromjson(1) }}px; width:{{ el.bbox | fromjson(2) - el.bbox | fromjson(0) }}px; height:{{ el.bbox | fromjson(3) - el.bbox | fromjson(1) }}px">
-        <span class="absolute -top-4 left-0 whitespace-nowrap rounded-sm bg-coal px-1 text-[9px] font-medium text-white opacity-0 transition-opacity hover:opacity-100">{{ el.element_type }}</span>
-      </div>
-      {% endfor %}
-    </div>
+    {% else %}
+    <p class="text-[13.5px] text-stone-500">No elements extracted on this page.</p>
+    {% endfor %}
   </div>
-  {% endif %}
-  <div class="mt-6 rounded-xl border border-seam bg-white p-6 shadow-card animate-rise" style="animation-delay:80ms">
-    <h2 class="text-[15px] font-semibold">Extracted Content</h2>
-    <div class="mt-3 space-y-3">
-      {% for el in elements %}
-      <div class="border-l-2 border-coalline pl-3">
-        <span class="font-mono text-[10px] uppercase tracking-wide text-stone-400">{{ el.element_type }}</span>
-        {% if el.section_path %}<span class="ml-2 font-mono text-[10px] text-stone-400">{{ el.section_path }}</span>{% endif %}
-        <p class="mt-0.5 text-[14px] leading-relaxed text-stone-700">{{ el.text[:800] }}</p>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
+</div>
 
 {% elif sheet_no %}
-  {% for t in tables %}
-  <div class="mt-6 overflow-hidden rounded-xl border border-seam bg-white shadow-card animate-rise" style="animation-delay:{{ loop.index * 60 }}ms">
-    <div class="border-b border-seam bg-paper px-5 py-3 text-[13px] font-semibold">Table {{ t.table_idx + 1 }}
-      {% if t.section_path %}<span class="ml-2 font-normal font-mono text-[11px] text-stone-400">{{ t.section_path }}</span>{% endif %}
-    </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-[13px]">
-        <thead>
-          <tr class="border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500">
-            {% for h in t.headers %}<th class="px-4 py-2.5 font-medium">{{ h }}</th>{% endfor %}
-          </tr>
-        </thead>
-        {% set maxrow = t.rows | map(attribute='row_idx') | max %}
-        {% for r in range(maxrow + 1) %}
-        <tr class="border-b border-seam last:border-0">
-          {% for c in t.rows if c.row_idx == r %}
-          <td class="px-4 py-2 {{ 'font-mono' if c.value_norm is not none }}">{{ c.value_raw }}</td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </table>
-    </div>
+{% for t in tables %}
+<div class="mt-6 overflow-hidden rounded-xl border border-seam bg-white shadow-card animate-rise" style="animation-delay:{{ loop.index * 60 }}ms">
+  <div class="border-b border-seam bg-paper px-5 py-3 text-[13px] font-semibold">Table {{ t.table_idx + 1 }}
+    {% if t.section_path %}<span class="ml-2 font-normal font-mono text-[11px] text-stone-400">{{ t.section_path }}</span>{% endif %}
+    <span class="ml-2 font-normal font-mono text-[11px] text-stone-400">{{ t.n_rows }} rows × {{ t.n_cols }} cols</span>
   </div>
-  {% endfor %}
+  <div class="max-h-[560px] overflow-auto">
+    <table class="w-full text-[13px]">
+      <thead class="sticky top-0 z-10">
+        <tr class="border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500">
+          {% for h in t.headers %}<th class="px-4 py-2.5 font-medium">{{ h }}</th>{% endfor %}
+        </tr>
+      </thead>
+      {% set maxrow = t.rows | map(attribute='row_idx') | max %}
+      {% for r in range(maxrow + 1) %}
+      <tr class="border-b border-seam last:border-0 odd:bg-paper/50">
+        {% for c in t.rows if c.row_idx == r %}
+        <td class="whitespace-nowrap px-4 py-2 {{ 'font-mono' if c.value_norm is not none }}">{{ c.value_raw }}</td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
 {% else %}
-<div class="mt-6 rounded-xl border border-seam bg-white px-6 py-10 text-center text-sm text-stone-500 shadow-card">
-  Select a page or sheet above to inspect the source with extraction overlays.
+<p class="mt-6 text-sm text-stone-500">No tables were detected on this sheet.</p>
+{% endfor %}
+
+{% elif is_pdf or is_sheet %}
+<div class="mt-6 rounded-xl border border-seam bg-white px-6 py-10 text-center text-sm text-stone-500 shadow-card animate-rise">
+  {% if is_sheet %}Pick a sheet above to see it as a spreadsheet.{% else %}Select a page above to inspect its extraction with provenance.{% endif %}
+</div>
+
+{% else %}
+{# DOCX / image / anything without pages or sheets: reading view #}
+<div class="mt-6 rounded-xl border border-seam bg-white p-6 shadow-card animate-rise" style="animation-delay:160ms">
+  <h2 class="text-[15px] font-semibold">Document Reading View</h2>
+  {% if doc.doc_type == 'image' and pages and pages[0].image_path %}
+  <img src="{{ url_for('documents.page_image', doc_id=doc.id, rel=pages[0].image_path.split('/')[-1]) }}"
+       class="mt-4 max-h-[560px] rounded-lg border border-seam" alt="{{ title }}">
+  {% endif %}
+  <div class="mt-4 space-y-4">
+    {% for el in reading_elements %}
+    {% if el.element_type == 'HEADING' %}
+    <h3 class="mt-6 text-[17px] font-semibold tracking-tight">{{ el.text }}</h3>
+    {% elif el.element_type == 'TABLE' %}
+    <p class="rounded-lg border border-coalline bg-coalsoft px-4 py-2.5 text-[13px] text-coal">Table extracted on this document — see its cells in the extracted tables below the search index.</p>
+    {% else %}
+    <p class="max-w-[85ch] text-[14.5px] leading-relaxed text-stone-700">{{ el.text }}</p>
+    {% endif %}
+    {% else %}
+    <p class="text-[13.5px] text-stone-500">No text content was extracted from this file.</p>
+    {% endfor %}
+  </div>
 </div>
 {% endif %}
 {% endblock %}

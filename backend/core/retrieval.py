@@ -9,7 +9,7 @@ import math
 import re
 from datetime import date
 
-from backend.core import config
+from backend.core import appsettings, config
 from backend.core.llm import get_backend
 from backend.core.pipeline import vector_store
 from backend.core.pipeline.embedder import embed_texts
@@ -104,7 +104,7 @@ _BASE_SQL = """
 
 def bm25_search(query: str, k: int | None = None, filters: dict | None = None,
                 extra_terms: list[str] | None = None) -> list[dict]:
-    k = k or config.RETRIEVAL_K
+    k = k or appsettings.get("retrieval_k")
     where, params = _filter_sql(filters)
     rows = db.q(
         f"""SELECT sub.*, bm25(chunks_fts) AS score
@@ -119,7 +119,7 @@ def bm25_search(query: str, k: int | None = None, filters: dict | None = None,
 
 
 def vector_search(query: str, k: int | None = None, filters: dict | None = None) -> list[dict]:
-    k = k or config.RETRIEVAL_K
+    k = k or appsettings.get("retrieval_k")
     where, params = _filter_sql(filters)
     allowed = {r["id"] for r in db.q(f"{_BASE_SQL} WHERE {where}", params)}
     if not allowed:
@@ -171,7 +171,7 @@ def _recency(doc_date_norm: str | None, upload_ts: str) -> float:
 
 def hybrid_search(query: str, k: int | None = None, filters: dict | None = None) -> list[dict]:
     """Weighted fusion over BM25, vector and title/keyword/recency signals."""
-    k = k or config.RETRIEVAL_K
+    k = k or appsettings.get("retrieval_k")
     expansions = expand_query(query)
     bm = bm25_search(query, k=k * 4, filters=filters, extra_terms=expansions)
     vs = vector_search(query, k=k * 3, filters=filters)

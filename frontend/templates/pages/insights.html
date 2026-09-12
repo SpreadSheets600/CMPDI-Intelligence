@@ -57,7 +57,14 @@
 
 {% block scripts %}
 <script>
-const COLOR = '#d97706', COLOR_ALT = '#f59e0b', GRID = '#e7e5e4';
+const COLOR = '#d97706', COLOR_ALT = '#f59e0b';
+
+function chartTheme() {
+  const c = window.cmpdiColors ? cmpdiColors() : {};
+  return {grid: c.seam || '#e7e5e4', label: c.muted2 || '#78716c', empty: c.muted1 || '#a8a29e'};
+}
+
+let lastSeries = null, lastMeta = null;
 
 async function loadSummary() {
   const s = await (await fetch('/api/insights/summary')).json();
@@ -81,6 +88,8 @@ async function loadFacts() {
 }
 
 function drawChart(data) {
+  lastSeries = data.series || []; lastMeta = data;
+  const T = chartTheme();
   const canvas = document.getElementById('factchart');
   const ctx = canvas.getContext('2d');
   const dpr = devicePixelRatio;
@@ -92,7 +101,7 @@ function drawChart(data) {
 
   const series = data.series || [];
   if (!series.length) {
-    ctx.fillStyle = '#a8a29e';
+    ctx.fillStyle = T.empty;
     ctx.font = '13px "IBM Plex Mono", monospace';
     ctx.textAlign = 'center';
     ctx.fillText('No reported values for this combination.', W / 2, H / 2);
@@ -105,8 +114,8 @@ function drawChart(data) {
 
   ctx.font = '10px "IBM Plex Mono", monospace';
   ctx.textAlign = 'right';
-  ctx.fillStyle = '#a8a29e';
-  ctx.strokeStyle = GRID;
+  ctx.fillStyle = T.empty;
+  ctx.strokeStyle = T.grid;
   for (let i = 0; i <= 4; i++) {
     const y = pad.t + plotH - (plotH * i / 4);
     const v = maxV * i / 4;
@@ -123,7 +132,7 @@ function drawChart(data) {
     ctx.fillRect(x, y, bw, h);
     ctx.save();
     ctx.translate(x + bw / 2, H - pad.b + 12);
-    ctx.fillStyle = '#78716c';
+    ctx.fillStyle = T.label;
     ctx.textAlign = 'center';
     const yr = (s.period_norm || '').slice(0, 4);
     ctx.fillText(yr ? yr.slice(2) + "'" : '?', 0, 0);
@@ -156,5 +165,6 @@ document.querySelectorAll('.preset').forEach(b => b.addEventListener('click', ()
 }));
 loadSummary();
 loadFacts();
+document.addEventListener('themechange', () => { if (lastMeta) drawChart(lastMeta); });
 </script>
 {% endblock %}

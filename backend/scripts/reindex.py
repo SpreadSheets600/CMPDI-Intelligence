@@ -1,17 +1,20 @@
 """Rebuild derived indexes for an existing library: keywords/tags,
-metadata-enriched chunk embeddings, and the FAISS index. Run after upgrading
-the embedding model or enabling keyword enrichment on an old database.
+metadata-enriched chunk embeddings, the FAISS index, normalized content
+labels and (with --summaries) document summaries. Run after upgrading the
+embedding model or ingesting on an older database.
 
-Usage: python -m backend.scripts.reindex"""
+Usage: python -m backend.scripts.reindex [--summaries]"""
 
 import sys
 
 import numpy as np
 
-from backend.core import config, db
+from backend.core import config
 from backend.core.keywords import extract_keywords
+from backend.core.pipeline import pipeline as pl
 from backend.core.pipeline import vector_store
 from backend.core.pipeline.embedder import embed_texts, model_info
+from backend.db import database as db
 
 
 def main():
@@ -19,6 +22,11 @@ def main():
     db.init_db()
     docs = db.q("SELECT id, doc_type, subsidiary FROM documents WHERE status='completed'")
     print(f"Reindexing {len(docs)} documents")
+
+    # backfill the normalized content label introduced after these documents
+    for d in db.q("SELECT id, doc_type FROM documents"):
+        label = pl.NORMALIZED_TYPES.get(d["doc_type"], d["doc_type"])
+        db.execute("UPDATE documents SET content_norm=? WHERE id=?", (label, d["id"]))
 
     # keywords first so embeddings can use them
     for d in docs:
@@ -41,7 +49,11 @@ def main():
     meta = {r["id"]: r for r in db.q("SELECT id, doc_type, subsidiary, filename FROM documents")}
 
     db.execute("DELETE FROM chunk_embeddings")
-    db.execute("DELETE FROM chunks_fts")
+    db.execute("DROP TABLE IF EXISTS chunks_fts")  # contentless FTS5 rejects row deletes
+    db.execute(
+        "CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts USING fts5("
+        "text, content='', content_rowid='id', tokenize='porter unicode61')")
+    db.execute("DELETE FROM chunks WHERE content_type='SUMMARY'")
     vector_store.invalidate()
     count = 0
     for d in docs:
@@ -49,7 +61,7 @@ def main():
         if not chunks:
             continue
         m = meta[d["id"]]
-        prefix = (f"Title: {d['id'][:0]}{m['filename']}\n"
+        prefix = (f"Title: {m['filename']}\n"
                   f"Subsidiary: {m['subsidiary'] or ''}\n"
                   f"Doc Type: {d['doc_type']}\n"
                   f"Keywords: {', '.join(kw_map.get(d['id'], []))}\n\n")
@@ -66,6 +78,15 @@ def main():
         count += len(chunks)
         print(f"  embedded {len(chunks):3d} chunks: {m['filename']}")
     print(f"Done. {count} chunks re-embedded with {model_name}; FAISS index at {config.DATA_DIR / 'faiss_index.bin'}")
+
+    if "--summaries" in sys.argv:
+        from backend.core.summary import generate_summary, has_summaries
+        rows = db.q("""SELECT id FROM documents WHERE status='completed'
+                       AND (summary IS NULL OR summary='')""")
+        for r in rows:
+            generate_summary(r["id"])
+        done, total = has_summaries()
+        print(f"Summaries: {done}/{total}")
     return 0
 
 

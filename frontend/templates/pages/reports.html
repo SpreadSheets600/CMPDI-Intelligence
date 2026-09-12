@@ -33,7 +33,7 @@
     {% for r in reports %}
     <tr class="border-b border-seam last:border-0">
       <td class="px-5 py-3.5 font-medium">#{{ r.id }}</td>
-      <td class="px-4 py-3.5 font-mono text-[12px] text-stone-600">{{ r.template }}</td>
+      <td class="px-4 py-3.5 font-mono text-[12px] text-stone-600">{{ {'agent_run': 'agent report'}.get(r.template, r.template) }}</td>
       <td class="px-4 py-3.5 font-mono text-[12px] text-stone-500">{{ r.params_json }}</td>
       <td class="px-4 py-3.5">
         <div class="flex items-center gap-3">

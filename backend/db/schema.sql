@@ -5,7 +5,10 @@ CREATE TABLE IF NOT EXISTS documents (
     id TEXT PRIMARY KEY,
     sha256 TEXT UNIQUE NOT NULL,
     filename TEXT NOT NULL,
+    display_name TEXT,                  -- user rename; falls back to filename
     doc_type TEXT NOT NULL,             -- digital_pdf | scanned_pdf | mixed_pdf | docx | xlsx | csv | image
+    content_norm TEXT,                  -- normalized representation label, e.g. "Structured Tabular Document"
+    summary TEXT,                       -- LLM summary; doubles as a searchable semantic layer
     subsidiary TEXT,
     doc_date_raw TEXT,
     doc_date_norm TEXT,                 -- ISO start date of detected period
@@ -143,5 +146,14 @@ CREATE TABLE IF NOT EXISTS doc_topics (
     label TEXT NOT NULL,
     keywords_json TEXT NOT NULL,
     doc_ids_json TEXT NOT NULL,
+    created_ts TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS agent_runs (
+    id INTEGER PRIMARY KEY,
+    task TEXT NOT NULL,
+    steps_json TEXT NOT NULL,           -- full thought/tool/observation trace
+    answer TEXT,
+    citations_json TEXT,
     created_ts TEXT NOT NULL DEFAULT (datetime('now'))
 );

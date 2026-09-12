@@ -7,8 +7,8 @@ from pathlib import Path
 
 from flask import Flask
 
-from backend.api.routes import ask, chat, documents, ingest, insights, reports, search, topics
-from backend.core import facts
+from backend.api.routes import agent, ask, chat, dashboard, documents, ingest, insights, reports, search, settings, topics
+from backend.core import appsettings, facts
 from backend.core.pipeline import pipeline
 from backend.db import database
 
@@ -27,6 +27,7 @@ def create_app() -> Flask:
     facts.ensure_subsidiary_entities()
     pipeline.start_worker()
 
+    app.register_blueprint(dashboard.bp)
     app.register_blueprint(ingest.bp)
     app.register_blueprint(documents.bp)
     app.register_blueprint(search.bp)
@@ -35,6 +36,8 @@ def create_app() -> Flask:
     app.register_blueprint(insights.bp)
     app.register_blueprint(topics.bp)
     app.register_blueprint(reports.bp)
+    app.register_blueprint(agent.bp)
+    app.register_blueprint(settings.bp)
 
     @app.template_filter("fromjson")
     def fromjson(seq, i):
@@ -47,7 +50,8 @@ def create_app() -> Flask:
     @app.context_processor
     def inject_globals():
         row = database.q1("SELECT COUNT(*) c FROM documents WHERE status='completed'")
-        return {"library_size": row["c"] if row else 0}
+        return {"library_size": row["c"] if row else 0,
+                "settings_retrieval_k": appsettings.get("retrieval_k")}
 
     return app
 

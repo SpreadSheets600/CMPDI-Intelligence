@@ -9,13 +9,13 @@ from backend.db import database as db
 bp = Blueprint("ingest", __name__)
 
 
-@bp.route("/")
+@bp.route("/pipeline")
 def index():
     stats = {
-        "documents": db.q1("SELECT COUNT(*) c FROM documents")["c"],
+        "documents": db.q1("SELECT COUNT(*) c FROM documents WHERE status='completed'")["c"],
         "chunks": db.q1("SELECT COUNT(*) c FROM chunks")["c"],
         "facts": db.q1("SELECT COUNT(*) c FROM facts")["c"],
-        "conflicts": db.q1("SELECT COUNT(*) c FROM conflicts WHERE status='open'")["c"],
+        "tags": db.q1("SELECT COUNT(DISTINCT keyword) c FROM doc_keywords")["c"],
     }
     jobs = db.q(
         """SELECT j.*, d.filename, d.doc_type FROM jobs j

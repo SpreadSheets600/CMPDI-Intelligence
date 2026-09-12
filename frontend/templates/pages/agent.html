@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Agent · CMPDI Intelligence{% endblock %}
+{% block body %}
+<div class="animate-rise">
+  <h1 class="text-2xl font-semibold tracking-tight">Agent</h1>
+  <p class="mt-1 max-w-[70ch] text-[15px] text-stone-500">A tool-calling analyst over your library. It searches documents, queries the fact index and runs sandboxed Python (pandas, numpy, matplotlib) so every number is computed, never guessed. Results arrive with receipts.</p>
+</div>
+
+<div class="mt-6 grid gap-5 lg:grid-cols-3">
+  <div class="lg:col-span-2">
+    <div class="rounded-xl border border-seam bg-white p-5 shadow-card animate-rise">
+      <textarea id="task" rows="3" placeholder="e.g. Compare CIL's raw coal production across the reports in this library, compute the year-over-year change, and chart it."
+                class="w-full resize-y rounded-lg border border-seamdark bg-paper px-3.5 py-3 text-[14.5px] leading-relaxed focus:border-coal focus:outline-none"></textarea>
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <button id="run" class="rounded-lg bg-coal px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:bg-amber-500 active:translate-y-px">Run Agent</button>
+        <div class="flex flex-wrap gap-1.5" id="pills">
+          <button class="pill rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal hover:bg-amber-100"
+                  data-task="What was CIL's raw coal production in the most recent year reported here, and which document says it?">CIL production lookup</button>
+          <button class="pill rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal hover:bg-amber-100"
+                  data-task="Load the production facts, compute each subsidiary's share of total production in the latest year, and draw a bar chart.">Subsidiary share chart</button>
+          <button class="pill rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal hover:bg-amber-100"
+                  data-task="Find what the library says about coal off-take and summarize the key numbers with citations.">Off-take summary</button>
+          <button class="pill rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal hover:bg-amber-100"
+                  data-task="Explore the extracted tables with Python and report anything notable: totals, outliers or trends you can verify.">Explore the data</button>
+        </div>
+      </div>
+      <div id="working" class="mt-4 hidden items-center gap-3 text-[13.5px] text-stone-500">
+        <span class="flex gap-1">
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-coal [animation-delay:0ms]"></span>
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-coal [animation-delay:150ms]"></span>
+          <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-coal [animation-delay:300ms]"></span>
+        </span>
+        <span id="working-label">Agent is thinking…</span>
+      </div>
+    </div>
+
+    <div id="trace" class="mt-5 hidden rounded-xl border border-seam bg-white p-5 shadow-card animate-rise">
+      <h2 class="text-[15px] font-semibold">Reasoning Trace</h2>
+      <div id="steps" class="mt-3 space-y-2 border-l-2 border-coalline pl-4"></div>
+    </div>
+
+    <div id="answer-card" class="mt-5 hidden rounded-xl border border-coalline bg-coalsoft/50 p-6 shadow-card animate-rise">
+      <div class="flex items-center justify-between">
+        <h2 class="text-[15px] font-semibold">Answer</h2>
+        <button id="make-report" class="hidden rounded-lg border border-coal px-3 py-1.5 text-[12.5px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white">Generate DOCX Report</button>
+      </div>
+      <div id="answer" class="prose-sm mt-3 max-w-none text-[14.5px] leading-relaxed text-stone-700"></div>
+      <div id="evidence" class="mt-4 space-y-1.5"></div>
+    </div>
+
+    <div id="error-box" class="mt-5 hidden rounded-xl border border-red-200 bg-red-50 p-4 text-[13.5px] text-red-700"></div>
+  </div>
+
+  <div class="animate-rise" style="animation-delay:80ms">
+    <div class="rounded-xl border border-seam bg-white shadow-card">
+      <div class="border-b border-seam px-5 py-3.5 text-[15px] font-semibold">Recent Runs</div>
+      <div id="runs">
+        {% for r in runs %}
+        <button class="run-row block w-full border-b border-seam px-5 py-3 text-left transition-colors last:border-0 hover:bg-paper"
+                data-run="{{ r.id }}">
+          <p class="truncate text-[13.5px] font-medium">{{ r.task }}</p>
+          <p class="mt-0.5 font-mono text-[11px] text-stone-400">{{ r.created_ts }}</p>
+        </button>
+        {% else %}
+        <p class="px-5 py-6 text-center text-[13px] text-stone-500">No runs yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="mt-4 rounded-xl border border-seam bg-white p-5 text-[13px] leading-relaxed text-stone-500 shadow-card">
+      <p class="font-semibold text-ink">How it works</p>
+      <p class="mt-2">The agent proposes one action per turn and the host executes it: hybrid search over chunks, exact lookups over the fact index, or a 60-second run in a sandbox that blocks file, network and system access. Figures it draws are captured automatically; everything it cites links back to the source page or sheet.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function mdLite(text) {
+  const lines = esc(text).split('\n');
+  let html = '', inList = false, buf = [];
+  const inline = s => s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code class="rounded bg-paper px-1 font-mono text-[13px]">$1</code>')
+    .replace(/\[E(\d+)\]/g, '<sup class="mx-0.5 rounded bg-coalsoft px-1 font-mono text-[10.5px] font-semibold text-coal border border-coalline" data-cite="$1">E$1</sup>');
+  const flush = () => { if (buf.length) { html += `<p class="mt-2">${buf.map(inline).join('<br>')}</p>`; buf = []; } };
+  for (const line of lines) {
+    const t = line.trim();
+    if (/^#{1,6}\s/.test(t)) { flush(); closeList(); html += `<h3 class="mt-4 text-[15.5px] font-semibold">${inline(t.replace(/^#+\s/, ''))}</h3>`; }
+    else if (/^[-*]\s/.test(t)) { buf.length && flush(); if (!inList) { html += '<ul class="mt-2 list-disc space-y-1 pl-5">'; inList = true; } html += `<li>${inline(t.replace(/^[-*]\s/, ''))}</li>`; }
+    else if (t === '') { closeList(); flush(); }
+    else { closeList(); buf.push(t); }
+  }
+  function closeList() { if (inList) { html += '</ul>'; inList = false; } }
+  closeList(); flush();
+  return html;
+}
+
+const TOOL_LABEL = {search_documents: 'Search Documents', get_facts: 'Fact Index', run_python: 'Python', finish: 'Finish'};
+
+function renderRun(data) {
+  const stepsEl = document.getElementById('steps');
+  stepsEl.innerHTML = data.steps.map(s => {
+    if (s.type === 'thought')
+      return `<div class="py-1"><span class="font-mono text-[10px] uppercase tracking-wide text-stone-400">thought</span><p class="text-[13.5px] text-stone-600">${esc(s.text)}</p></div>`;
+    if (s.type === 'tool') {
+      const preview = JSON.stringify(s.args || {}).slice(0, 180);
+      return `<div class="py-1"><span class="rounded bg-ink px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-paper">${TOOL_LABEL[s.tool] || esc(s.tool)}</span><p class="mt-1 font-mono text-[11.5px] text-stone-500 break-all">${esc(preview)}</p></div>`;
+    }
+    if (s.type === 'observation') {
+      const short = s.text.length <= 220;
+      const pre = `<pre class="mt-1 max-h-56 overflow-auto whitespace-pre-wrap rounded-lg border border-seam bg-paper p-3 font-mono text-[11.5px] text-stone-600">${esc(s.text)}</pre>`;
+      return `<div class="py-1">${short ? pre : `<details class="group"><summary class="cursor-pointer list-none font-mono text-[10px] uppercase tracking-wide text-stone-400 hover:text-coal">observation · ${s.text.length} chars</summary>${pre}</details>`}</div>`;
+    }
+    if (s.type === 'chart')
+      return `<div class="my-3"><img src="${s.src}" class="max-w-full rounded-lg border border-seam shadow-card"></div>`;
+    if (s.type === 'note')
+      return `<div class="py-1 rounded-lg border border-coalline bg-coalsoft px-3 py-2 text-[13px] text-coal">${esc(s.text)}</div>`;
+    return '';
+  }).join('');
+  document.getElementById('trace').classList.remove('hidden');
+  document.getElementById('answer').innerHTML = mdLite(data.answer || '');
+  document.getElementById('evidence').innerHTML = (data.evidence || []).map((e, i) => `
+    <div class="flex items-baseline gap-2 text-[12.5px]">
+      <sup class="rounded bg-coalsoft px-1 font-mono text-[10.5px] font-semibold text-coal border border-coalline">E${i + 1}</sup>
+      <a class="text-stone-600 hover:text-coal" href="/doc/${e.doc_id}${e.page_no ? '/?page=' + e.page_no : e.sheet_no ? '?sheet=' + e.sheet_no : ''}">${esc(e.filename)}${e.page_no ? ', page ' + e.page_no : e.sheet_no ? ', sheet ' + e.sheet_no : ''}</a>
+    </div>`).join('');
+  document.getElementById('answer-card').classList.remove('hidden');
+  window.__lastRun = {rowId: data.row_id, answer: data.answer};
+  document.getElementById('make-report').classList.toggle('hidden', !(data.evidence || []).length);
+}
+
+document.getElementById('make-report').addEventListener('click', async function () {
+  if (!window.__lastRun) return;
+  this.disabled = true; this.textContent = 'Assembling…';
+  try {
+    const resp = await fetch('/api/agent/report', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({run_id: (window.__lastRun.rowId)})});
+    if (!resp.ok) throw new Error('Report assembly failed');
+    const {download} = await resp.json();
+    window.location.href = download;
+  } catch (e) { alert(e.message); }
+  this.disabled = false; this.textContent = 'Generate DOCX Report';
+});
+
+async function runAgent(task) {
+  const btn = document.getElementById('run');
+  btn.disabled = true; btn.classList.add('opacity-50');
+  document.getElementById('working').classList.remove('hidden');
+  document.getElementById('working').classList.add('flex');
+  document.getElementById('error-box').classList.add('hidden');
+  const labels = ['Agent is thinking…', 'Searching documents…', 'Querying the fact index…', 'Running Python…', 'Composing the answer…'];
+  let li = 0;
+  const timer = setInterval(() => { document.getElementById('working-label').textContent = labels[li++ % labels.length]; }, 4000);
+  try {
+    const resp = await fetch('/api/agent', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({task})});
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Agent run failed');
+    renderRun(data);
+  } catch (e) {
+    const box = document.getElementById('error-box');
+    box.textContent = e.message; box.classList.remove('hidden');
+  } finally {
+    clearInterval(timer);
+    document.getElementById('working').classList.add('hidden');
+    document.getElementById('working').classList.remove('flex');
+    btn.disabled = false; btn.classList.remove('opacity-50');
+  }
+}
+
+document.getElementById('run').addEventListener('click', () => {
+  const task = document.getElementById('task').value.trim();
+  if (task) runAgent(task);
+});
+document.querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => {
+  document.getElementById('task').value = p.dataset.task;
+  runAgent(p.dataset.task);
+}));
+document.querySelectorAll('.run-row').forEach(r => r.addEventListener('click', async () => {
+  const data = await (await fetch('/api/agent/runs/' + r.dataset.run)).json();
+  renderRun({steps: data.steps, answer: data.answer, evidence: data.citations, figures: []});
+  window.__lastRun = {rowId: data.id, answer: data.answer};
+}));
+</script>
+{% endblock %}

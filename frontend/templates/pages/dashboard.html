@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · CMPDI Intelligence{% endblock %}
+{% block body %}
+<div class="animate-rise">
+  <h1 class="text-2xl font-semibold tracking-tight">Dashboard</h1>
+  <p class="mt-1 max-w-[70ch] text-[15px] text-stone-500">The state of your document intelligence workspace: what is indexed, which models are live, and what the pipeline has been doing.</p>
+</div>
+
+<!-- corpus -->
+<div class="mt-6 grid grid-cols-2 divide-x divide-seam rounded-xl border border-seam bg-white shadow-card md:grid-cols-4 animate-rise">
+  {% for label, key in [('Documents', 'documents'), ('Chunks Indexed', 'chunks'), ('Facts With Receipts', 'facts'), ('Extracted Tags', 'tags')] %}
+  <div class="px-6 py-5">
+    <div class="font-mono text-[26px] font-semibold tracking-tight">{{ stats[key] }}</div>
+    <div class="mt-0.5 text-[13px] text-stone-500">{{ label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- models -->
+<div class="mt-5 grid gap-5 md:grid-cols-2 animate-rise" style="animation-delay:70ms">
+  <div class="rounded-xl border border-seam bg-white p-5 shadow-card">
+    <div class="flex items-center gap-2">
+      <span class="h-2 w-2 rounded-full bg-emerald-600"></span>
+      <h2 class="text-[15px] font-semibold">Embeddings</h2>
+      <span class="ml-auto font-mono text-[11px] uppercase tracking-wide text-stone-400">always loaded</span>
+    </div>
+    <p class="mt-2.5 font-mono text-[13px]">{{ emb_name }}</p>
+    <p class="mt-1 text-[13px] text-stone-500">{{ emb_dim }}-dimensional vectors · {{ vectors }} in the index</p>
+  </div>
+  <div class="rounded-xl border border-seam bg-white p-5 shadow-card">
+    <div class="flex items-center gap-2">
+      <span class="h-2 w-2 rounded-full {{ 'bg-emerald-600' if llm_status.available else 'bg-coal' }}"></span>
+      <h2 class="text-[15px] font-semibold">Language Model</h2>
+      <span class="ml-auto font-mono text-[11px] uppercase tracking-wide text-stone-400">{{ llm_status.backend or llm_status.configured }}</span>
+    </div>
+    <p class="mt-2.5 font-mono text-[13px]">{{ llm_status.model or 'evidence-only mode' }}</p>
+    <p class="mt-1 text-[13px] text-stone-500">{{ llm_status.detail }}</p>
+  </div>
+</div>
+
+<!-- quick actions -->
+<div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-rise" style="animation-delay:140ms">
+  {% for href, title, desc in [
+    (url_for('ingest.index'), 'Ingest Files', 'Upload PDFs, Word, Excel, CSV or scans'),
+    (url_for('ask.ask'), 'Ask The Corpus', 'Cited answers with per-cell receipts'),
+    (url_for('agent.agent_page'), 'Run The Agent', 'Tool-calling analysis with Python'),
+    (url_for('reports.reports_page'), 'Generate A Report', 'DOCX reports with provenance'),
+  ] %}
+  <a href="{{ href }}" class="group rounded-xl border border-seam bg-white p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-coal hover:shadow-lift">
+    <p class="text-[14px] font-semibold group-hover:text-coal">{{ title }}</p>
+    <p class="mt-1 text-[12.5px] leading-snug text-stone-500">{{ desc }}</p>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="mt-5 grid gap-5 lg:grid-cols-5 animate-rise" style="animation-delay:210ms">
+  <!-- recent documents -->
+  <div class="rounded-xl border border-seam bg-white shadow-card lg:col-span-3">
+    <div class="flex items-center justify-between border-b border-seam px-5 py-3.5">
+      <h2 class="text-[15px] font-semibold">Recent Documents</h2>
+      <a href="{{ url_for('documents.documents') }}" class="text-[13px] font-medium text-coal hover:underline">View all</a>
+    </div>
+    {% for d in recent_docs %}
+    <a href="{{ url_for('documents.viewer', doc_id=d.id) }}" class="flex items-center gap-3 border-b border-seam px-5 py-3 transition-colors last:border-0 hover:bg-paper">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-[14px] font-medium">{{ d.display_name or d.filename }}</p>
+        <p class="mt-0.5 font-mono text-[11px] uppercase tracking-wide text-stone-400">
+          {{ d.doc_type }}{% if d.subsidiary %} · {{ d.subsidiary }}{% endif %}
+          {% if not d.has_summary %} · summary pending{% endif %}
+        </p>
+      </div>
+      {% if d.content_norm %}
+      <span class="hidden rounded-full border border-coalline bg-coalsoft px-2.5 py-0.5 font-mono text-[10.5px] text-coal sm:block">{{ d.content_norm }}</span>
+      {% endif %}
+    </a>
+    {% else %}
+    <p class="px-5 py-8 text-center text-sm text-stone-500">Nothing indexed yet — start by ingesting files.</p>
+    {% endfor %}
+  </div>
+
+  <!-- activity -->
+  <div class="rounded-xl border border-seam bg-white shadow-card lg:col-span-2">
+    <div class="flex items-center justify-between border-b border-seam px-5 py-3.5">
+      <h2 class="text-[15px] font-semibold">Pipeline Activity</h2>
+      <a href="{{ url_for('ingest.index') }}" class="text-[13px] font-medium text-coal hover:underline">Pipeline</a>
+    </div>
+    <div class="space-y-0">
+      {% for j in jobs %}
+      <div class="flex items-center gap-3 border-b border-seam px-5 py-2.5 last:border-0">
+        <span class="h-1.5 w-1.5 shrink-0 rounded-full {{ 'bg-emerald-600' if j.status == 'completed' else 'bg-red-600' if j.status == 'failed' else 'bg-coal animate-pulse' }}"></span>
+        <p class="min-w-0 flex-1 truncate text-[13px]">{{ j.filename or 'unknown file' }}</p>
+        <span class="font-mono text-[11px] uppercase {{ 'text-emerald-700' if j.status == 'completed' else 'text-red-700' if j.status == 'failed' else 'text-coal' }}">{{ j.stage }}</span>
+      </div>
+      {% else %}
+      <p class="px-5 py-8 text-center text-sm text-stone-500">No jobs yet.</p>
+      {% endfor %}
+    </div>
+    {% if stats.failed %}
+    <div class="border-t border-seam px-5 py-2.5 text-[13px] text-red-700">{{ stats.failed }} failed job(s) — see the pipeline page for errors.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="mt-5 flex flex-wrap gap-x-8 gap-y-1 px-1 font-mono text-[11.5px] text-stone-400 animate-rise" style="animation-delay:280ms">
+  <span>library storage: {{ '%.2f'|format(storage_gb) }} GB</span>
+  <span>jobs in flight: {{ stats.processing }}</span>
+  <span>failed jobs: {{ stats.failed }}</span>
+  <span>retrieval_k: {{ settings_retrieval_k }}</span>
+</div>
+{% endblock %}

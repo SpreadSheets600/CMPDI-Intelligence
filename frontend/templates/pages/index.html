@@ -6,9 +6,9 @@
 </div>
 
 <div class="mt-8 grid grid-cols-2 divide-x divide-seam rounded-xl border border-seam bg-white shadow-card md:grid-cols-4">
-  {% for label, key in [('Documents', 'documents'), ('Chunks Indexed', 'chunks'), ('Facts With Receipts', 'facts'), ('Open Conflicts', 'conflicts')] %}
+  {% for label, key in [('Documents', 'documents'), ('Chunks Indexed', 'chunks'), ('Facts With Receipts', 'facts'), ('Extracted Tags', 'tags')] %}
   <div class="px-6 py-5 animate-rise" style="animation-delay:{{ loop.index * 60 }}ms">
-    <div class="font-mono text-[26px] font-semibold tracking-tight {{ 'text-red-700' if key == 'conflicts' and stats.conflicts else '' }}">{{ stats[key] }}</div>
+    <div class="font-mono text-[26px] font-semibold tracking-tight">{{ stats[key] }}</div>
     <div class="mt-0.5 text-[13px] text-stone-500">{{ label }}</div>
   </div>
   {% endfor %}

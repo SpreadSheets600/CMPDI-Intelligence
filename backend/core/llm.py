@@ -1,23 +1,26 @@
 """LLM backends: Ollama, raw Transformers, and extractive mode. Resolution
-order follows CMPDI_LLM_BACKEND; "auto" probes Ollama, then a locally cached
-HF model, then extractive. Generation is optional: when no model answers, the
-caller falls back to verbatim evidence snippets with citations."""
+order follows the llm_backend setting; "auto" probes Ollama, then a locally
+cached HF model, then extractive. Generation is optional: when no model
+answers, the caller falls back to verbatim evidence snippets with citations."""
 
 import json
 import logging
+import time
 import urllib.request
 
-from backend.core import config
+from backend.core import appsettings, config
 
 log = logging.getLogger("cmpdi.llm")
 
 _transformers_model = None
 _transformers_failed = False
+_status_cache = None
+_status_ts = 0.0
 
 
 def _probe_ollama() -> bool:
     try:
-        req = urllib.request.Request(f"{config.OLLAMA_URL}/api/tags", method="GET")
+        req = urllib.request.Request(f"{appsettings.get('ollama_url')}/api/tags", method="GET")
         with urllib.request.urlopen(req, timeout=1.5):
             return True
     except Exception:
@@ -36,7 +39,7 @@ class OllamaBackend:
     name = "ollama"
 
     def __init__(self):
-        self.model = config.OLLAMA_MODEL
+        self.model = appsettings.get("ollama_model")
 
     def generate(self, system: str, user: str) -> str | None:
         payload = json.dumps({
@@ -47,7 +50,7 @@ class OllamaBackend:
             "options": {"temperature": 0.1},
         }).encode()
         req = urllib.request.Request(
-            f"{config.OLLAMA_URL}/api/chat", data=payload,
+            f"{appsettings.get('ollama_url')}/api/chat", data=payload,
             headers={"Content-Type": "application/json"}, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=180) as resp:
@@ -89,9 +92,46 @@ class ExtractiveBackend:
 
 
 def get_backend():
-    mode = config.LLM_BACKEND
+    mode = appsettings.get("llm_backend")
+    if mode == "none":
+        return ExtractiveBackend()
     if mode == "ollama" or (mode == "auto" and _probe_ollama()):
         return OllamaBackend()
     if mode == "transformers" or (mode == "auto" and _hf_model_cached(config.LLM_MODEL)):
         return TransformersBackend()
     return ExtractiveBackend()
+
+
+def status() -> dict:
+    """Dashboard/settings probe of the active backend, cached for 60s so page
+    loads never block on Ollama timeouts."""
+    global _status_cache, _status_ts
+    if _status_cache and time.time() - _status_ts < 60:
+        return _status_cache
+    mode = appsettings.get("llm_backend")
+    info = {"configured": mode, "model": None, "available": False, "detail": ""}
+    if mode == "none":
+        info["detail"] = "Generation disabled; answers use verbatim evidence."
+    elif mode == "ollama" or (mode == "auto" and _probe_ollama()):
+        backend = OllamaBackend()
+        info.update(model=backend.model, available=True, backend="ollama")
+        try:
+            req = urllib.request.Request(f"{appsettings.get('ollama_url')}/api/tags")
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                models = [m["name"] for m in json.loads(resp.read()).get("models", [])]
+            info["detail"] = f"{len(models)} model(s) installed"
+        except Exception as e:
+            info["detail"] = f"probe failed: {e}"
+    elif mode == "transformers" or (mode == "auto" and _hf_model_cached(config.LLM_MODEL)):
+        info.update(backend="transformers", model=config.LLM_MODEL, available=True,
+                    detail="locally cached HF model")
+    else:
+        info["backend"] = "extractive"
+        info["detail"] = "No generation backend reachable; evidence-only answers."
+    _status_cache, _status_ts = info, time.time()
+    return info
+
+
+def reset_status_cache():
+    global _status_cache
+    _status_cache = None

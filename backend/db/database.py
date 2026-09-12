@@ -25,7 +25,21 @@ def init_db():
     conn = connect()
     schema = (pathlib.Path(__file__).parent / "schema.sql").read_text()
     conn.executescript(schema)
+    _migrate(conn)
     conn.commit()
+
+
+def _migrate(conn):
+    """Idempotent column additions for databases created before these fields
+    existed; CREATE TABLE IF NOT EXISTS alone never amends an existing table."""
+    existing = {r["name"] for r in conn.execute("PRAGMA table_info(documents)")}
+    for col, ddl in [
+        ("display_name", "TEXT"),
+        ("summary", "TEXT"),
+        ("content_norm", "TEXT"),
+    ]:
+        if col not in existing:
+            conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {ddl}")
 
 
 def q(sql: str, params=()) -> list[sqlite3.Row]:

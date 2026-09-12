@@ -12,6 +12,9 @@ const COLORS = {
   entity: {fill: '#0369a1', text: '#fff', r: 7},
 };
 
+// Edge/label colors follow the active theme; node fills read on both.
+function theme() { return window.cmpdiColors ? cmpdiColors() : {seam: '#e7e5e4', muted3: '#57534e', coal: '#d97706'}; }
+
 let nodes = [];
 let edges = [];
 let hovered = null;
@@ -85,9 +88,10 @@ function draw() {
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   ctx.scale(devicePixelRatio, devicePixelRatio);
+  const t = theme();
   for (const e of edges) {
     const hot = hovered && (e.source === hovered || e.target === hovered);
-    ctx.strokeStyle = hot ? '#d97706' : '#e7e5e4';
+    ctx.strokeStyle = hot ? t.coal : t.seam;
     ctx.lineWidth = hot ? 1.6 : 1;
     ctx.beginPath();
     ctx.moveTo(e.source.x, e.source.y);
@@ -106,7 +110,7 @@ function draw() {
     ctx.globalAlpha = 1;
     if (n.type !== 'document' || hot) {
       ctx.font = `${hot ? '600 ' : ''}11px "IBM Plex Mono", monospace`;
-      ctx.fillStyle = '#57534e';
+      ctx.fillStyle = t.muted3;
       ctx.fillText(n.label.length > 26 ? n.label.slice(0, 24) + '…' : n.label,
                    n.x, n.y + n.r + 13);
     }

@@ -22,7 +22,21 @@ from backend.core.pipeline.embedder import embed_texts, model_info
 log = logging.getLogger("cmpdi.pipeline")
 
 STAGES = ["uploaded", "classifying", "extracting", "ocr", "normalizing",
-          "chunking", "embedding", "indexing", "completed"]
+          "chunking", "embedding", "indexing", "summarizing", "completed"]
+
+# User-facing label for what each file became inside the intelligence layer;
+# shown on documents and the dashboard so format differences stay visible.
+NORMALIZED_TYPES = {
+    "pdf": "Textual Document",
+    "digital_pdf": "Textual Document",
+    "mixed_pdf": "Textual Document (mixed scans)",
+    "scanned_pdf": "Scanned Document (OCR)",
+    "docx": "Textual Document",
+    "xlsx": "Structured Tabular Document",
+    "csv": "Structured Tabular Document",
+    "image": "Image Document (OCR)",
+    "unknown": "Unrecognized File",
+}
 
 
 def delete_document(doc_id: str) -> bool:
@@ -137,6 +151,10 @@ def process_document(doc_id: str):
         facts.extract_for_doc(doc_id)
         _assign_version_group(doc_id)
 
+        _stage(doc_id, "summarizing", "running")
+        from backend.core import summary as summary_mod
+        summary_mod.generate_summary(doc_id)
+
         _stage(doc_id, "completed", "completed",
                stats={"chunks": len(chunks), "embedding_model": model_name,
                       "keywords": keywords, "keyword_source": keyword_source})
@@ -172,12 +190,26 @@ def _embedding_prefix(doc_type: str, cdoc, keywords: list[str]) -> str:
     return "\n".join(lines) + "\n\n"
 
 
+def summary_embedding_prefix(doc, keywords: list[str]) -> str:
+    """Same metadata envelope the content chunks use, so the SUMMARY chunk
+    lives in the same embedding space as everything else in its document."""
+    lines = [
+        f"Title: {doc['display_name'] or doc['filename']}",
+        f"Subsidiary: {doc['subsidiary'] or ''}",
+        f"Doc Type: {doc['doc_type']}",
+        f"Keywords: {', '.join(keywords)}",
+    ]
+    return "\n".join(lines) + "\n\n"
+
+
 def _persist_document(doc_id: str, doc_type: str, cdoc):
+    # the parser refines the coarse classify() result (pdf -> digital/scanned/mixed)
+    refined = cdoc.doc_type or doc_type
     db.execute(
-        """UPDATE documents SET doc_type=?, subsidiary=?, doc_date_raw=?, doc_date_norm=?,
-           page_count=? WHERE id=?""",
-        (doc_type, cdoc.meta.get("subsidiary"), cdoc.meta.get("doc_date_raw"),
-         cdoc.meta.get("doc_date_norm"), len(cdoc.pages), doc_id))
+        """UPDATE documents SET doc_type=?, content_norm=?, subsidiary=?, doc_date_raw=?,
+           doc_date_norm=?, page_count=? WHERE id=?""",
+        (refined, NORMALIZED_TYPES.get(refined, refined), cdoc.meta.get("subsidiary"),
+         cdoc.meta.get("doc_date_raw"), cdoc.meta.get("doc_date_norm"), len(cdoc.pages), doc_id))
 
 
 def _persist_pages(doc_id: str, cdoc):

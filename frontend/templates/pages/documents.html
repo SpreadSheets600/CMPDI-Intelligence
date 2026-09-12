@@ -33,9 +33,10 @@
     {% for d in docs %}
     <tr class="border-b border-seam last:border-0 transition-colors hover:bg-paper">
       <td class="px-5 py-3.5 font-medium">
-        <a href="{{ url_for('documents.viewer', doc_id=d.id) }}" class="text-ink hover:text-coal">{{ d.filename }}</a>
+        <a href="{{ url_for('documents.viewer', doc_id=d.id) }}" class="text-ink hover:text-coal">{{ d.display_name or d.filename }}</a>
+        {% if d.display_name %}<p class="mt-0.5 text-[11.5px] font-normal text-stone-400">{{ d.filename }}</p>{% endif %}
       </td>
-      <td class="px-4 py-3.5"><span class="font-mono text-[11px] uppercase text-stone-500">{{ d.doc_type }}</span></td>
+      <td class="px-4 py-3.5"><span class="font-mono text-[11px] uppercase text-stone-500" title="{{ d.content_norm or '' }}">{{ d.doc_type }}</span></td>
       <td class="px-4 py-3.5 text-stone-600">{{ d.subsidiary or '—' }}</td>
       <td class="px-4 py-3.5 font-mono text-[13px] text-stone-600">{{ d.doc_date_raw or '—' }}</td>
       <td class="px-4 py-3.5 text-center font-mono text-[13px]">{{ d.page_count }}</td>
