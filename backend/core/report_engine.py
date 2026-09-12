@@ -146,6 +146,7 @@ def _verification_notes(attribute: str) -> list[str]:
 
 
 def generate_comprehensive(params: dict) -> int:
+    _t0 = time.time()
     entity = (params.get("entity") or "").strip() or None
     focus = f" for {entity}" if entity else ""
     stamp = int(time.time())
@@ -329,6 +330,8 @@ def generate_comprehensive(params: dict) -> int:
 
     out_path = config.REPORTS_DIR / f"comprehensive_{stamp}.docx"
     doc.save(str(out_path))
+    from backend.core import quality
+    quality.record_report_time(time.time() - _t0)
     return db.execute(
         "INSERT INTO reports (template, params_json, docx_path, provenance_json) VALUES (?,?,?,?)",
         ("comprehensive", json.dumps(params), str(out_path),

@@ -4,7 +4,7 @@ database or a real backend probe; nothing decorative."""
 
 from flask import Blueprint, render_template
 
-from backend.core import config, llm
+from backend.core import config, conflicts, llm, quality
 from backend.core.pipeline import embedder, vector_store
 from backend.db import database as db
 
@@ -59,8 +59,16 @@ def dashboard():
     jobs = db.q(
         """SELECT j.stage, j.status, j.updated_ts, d.filename FROM jobs j
            LEFT JOIN documents d ON d.id = j.doc_id ORDER BY j.id DESC LIMIT 6""")
+    eval_metrics = quality._eval_metrics() or {}
     return render_template(
         "pages/dashboard.html", stats=stats, emb_name=emb_name, emb_dim=emb_dim,
         llm_status=llm.status(), vectors=vectors,
         storage_gb=_dir_size(config.DATA_DIR) / 1e9,
-        recent_docs=recent_docs, jobs=jobs)
+        recent_docs=recent_docs, jobs=jobs,
+        open_conflicts=_open_conflicts(),
+        extraction_accuracy=eval_metrics.get("accuracy"),
+        kpi=quality.kpi_stats())
+
+
+def _open_conflicts() -> int:
+    return sum(1 for c in conflicts.detect(limit=500) if c["status"] == "open")

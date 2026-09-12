@@ -48,3 +48,27 @@ def ingest():
             results.append({"filename": f.filename, "error": str(e)})
     pipeline.notify_worker()
     return render_template("pages/ingested.html", results=results)
+
+@bp.route("/pipeline/demo", methods=["POST"])
+def load_demo():
+    """One-click demonstration dataset: generates the curated corpus and
+    ingests it, so a fresh install shows a working library immediately."""
+    import threading
+
+    def _run():
+        from backend.scripts import make_demo_corpus
+        make_demo_corpus.main()
+        corpus = config.DATA_DIR / "demo_corpus"
+        if corpus.exists():
+            for f in sorted(corpus.iterdir()):
+                try:
+                    pipeline.ingest_file(f)
+                except Exception as e:
+                    import logging
+                    logging.getLogger("cmpdi.pipeline").warning("Demo ingest failed: %s", e)
+            pipeline.notify_worker()
+
+    threading.Thread(target=_run, name="cmpdi-demo", daemon=True).start()
+    from flask import flash, redirect, url_for
+    flash("Demonstration dataset is being generated and ingested; watch the pipeline below.", "ok")
+    return redirect(url_for("ingest.index"))

@@ -27,6 +27,11 @@
   </div>
   <div id="file-list" class="mt-3 flex flex-wrap gap-1.5"></div>
   <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+    <form method="post" action="{{ url_for('ingest.load_demo') }}">
+      <button class="flex items-center gap-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:text-coal" title="Generate and ingest a curated demonstration corpus">
+        {{ icon('package', 'h-3.5 w-3.5 text-stone-400') }} No files handy? Load the demonstration dataset
+      </button>
+    </form>
     <p class="flex items-center gap-1.5 text-[13px] text-stone-500">
       {{ icon('info', 'h-4 w-4 shrink-0 text-stone-400') }}
       Duplicates are rejected by SHA-256. Revised reports join version chains automatically.

@@ -1,54 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Insights · CMPDI Intelligence{% endblock %}
-{% block body %}
-<h1 class="text-2xl font-semibold tracking-tight">Insights</h1>
-<p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">The fact index, made visible. Pick any entity and metric to see every value reported across the library, each bar linked to its source.</p>
-
-<div class="mt-6 grid grid-cols-2 divide-x divide-seam rounded-xl border border-seam bg-white shadow-card md:grid-cols-4">
-  {% for label, key in [('Documents', 'documents'), ('Chunks Indexed', 'chunks'), ('Facts With Receipts', 'facts'), ('Extracted Tags', 'tags')] %}
-  <div class="px-6 py-5">
-    <div class="font-mono text-[26px] font-semibold tracking-tight" id="stat-{{ key }}">…</div>
-    <div class="mt-0.5 text-[13px] text-stone-500">{{ label }}</div>
-  </div>
-  {% endfor %}
-</div>
-
-<div class="mt-6 rounded-xl border border-seam bg-white p-5 shadow-card animate-rise">
-  <div class="flex flex-wrap items-center gap-3">
-    <select id="entity" class="rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none">
-      {% for e in entities %}<option value="{{ e.canonical_name }}">{{ e.canonical_name }} ({{ e.n }} facts)</option>{% endfor %}
-    </select>
-    <select id="attribute" class="rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none">
-      {% for a in attributes %}<option value="{{ a.attribute }}">{{ a.attribute | replace('_', ' ') }}</option>{% endfor %}
-    </select>
-    <button id="loadfacts" class="rounded-lg bg-coal px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-amber-500 active:translate-y-px">Explore</button>
-    <div class="ml-auto flex flex-wrap gap-1.5" id="presets">
-      <span class="self-center font-mono text-[10px] uppercase tracking-wide text-stone-400">try</span>
-      <button class="preset rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal hover:bg-amber-100"
-              data-entity="CIL" data-attribute="production">CIL · production</button>
-      <button class="preset rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal hover:bg-amber-100"
-              data-entity="SECL" data-attribute="production">SECL · production</button>
-      <button class="preset rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal hover:bg-amber-100"
-              data-entity="MCL" data-attribute="offtake">MCL · offtake</button>
-    </div>
-  </div>
-  <canvas id="factchart" class="mt-4 h-64 w-full"></canvas>
-  <p id="chartnote" class="mt-2 text-center text-[12px] text-stone-400">Select an entity and metric, then Explore. Multiple bars under one year mean different documents report different values; click a bar for its receipt.</p>
-  <div id="receipts" class="mt-3 hidden rounded-lg border border-seam bg-paper p-3 text-[13px]"></div>
-</div>
-
-<h2 class="mt-10 text-lg font-semibold tracking-tight">Data Quality By Document</h2>
-<div class="mt-4 overflow-hidden rounded-xl border border-seam bg-white shadow-card">
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500">
-        <th class="px-5 py-3 font-medium">Document</th>
-        <th class="px-4 py-3 font-medium">Type</th>
-        <th class="px-4 py-3 text-center font-medium">Pages</th>
-        <th class="px-4 py-3 text-center font-medium">Tables → Chunks</th>
-        <th class="px-4 py-3 text-center font-medium">Facts</th>
-        <th class="px-4 py-3 text-center font-medium">Tags</th>
-      </tr>
+{% block title %}Insights · CMPDI Intelligence      </tr>
     </thead>
     <tbody id="quality"></tbody>
   </table>
@@ -56,6 +7,64 @@
 {% endblock %}
 
 {% block scripts %}
+<h2 id="quality" class="mt-10 text-lg font-semibold tracking-tight">Data Quality</h2>
+<p class="mt-1 max-w-[65ch] text-[13.5px] text-stone-500">Measured from the live library: how much survived processing, how trustworthy the OCR layer is, and how much of the fact index is clean of quarantine flags.</p>
+
+<div class="mt-4 grid gap-4 sm:grid-cols-3">
+  {% set qs = quality_stats %}
+  <div class="rounded-xl border border-seam bg-white p-5 shadow-card">
+    <div class="flex items-center justify-between">
+      <span class="text-[13px] font-medium text-stone-500">Documents processed</span>
+      <span class="font-mono text-[20px] font-semibold">{{ qs.documents.pct }}%</span>
+    </div>
+    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-paper">
+      <div class="h-full rounded-full bg-emerald-600" style="width: {{ qs.documents.pct }}%"></div>
+    </div>
+    <p class="mt-2 text-[12px] text-stone-400">{{ qs.documents.completed }} of {{ qs.documents.total }} · {{ qs.documents.failed }} failed</p>
+  </div>
+  <div class="rounded-xl border border-seam bg-white p-5 shadow-card">
+    <div class="flex items-center justify-between">
+      <span class="text-[13px] font-medium text-stone-500">High-confidence OCR</span>
+      <span class="font-mono text-[20px] font-semibold">{{ qs.ocr.pct if qs.ocr.pct is not none else '-' }}%</span>
+    </div>
+    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-paper">
+      <div class="h-full rounded-full bg-coal" style="width: {{ qs.ocr.pct or 0 }}%"></div>
+    </div>
+    <p class="mt-2 text-[12px] text-stone-400">{{ qs.ocr.high_confidence }} of {{ qs.ocr.documents }} OCR documents (threshold 88%)</p>
+  </div>
+  <div class="rounded-xl border border-seam bg-white p-5 shadow-card">
+    <div class="flex items-center justify-between">
+      <span class="text-[13px] font-medium text-stone-500">Facts without quarantine</span>
+      <span class="font-mono text-[20px] font-semibold">{{ qs.facts.pct }}%</span>
+    </div>
+    <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-paper">
+      <div class="h-full rounded-full bg-emerald-600" style="width: {{ qs.facts.pct }}%"></div>
+    </div>
+    <p class="mt-2 text-[12px] text-stone-400">{{ qs.facts.verified | int }} of {{ qs.facts.total | int }} flagged clean</p>
+  </div>
+</div>
+
+<div class="mt-4 overflow-hidden rounded-xl border border-seam bg-white shadow-card">
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500">
+        <th class="px-5 py-3 font-medium">Document Type</th>
+        <th class="px-4 py-3 text-center font-medium">Documents</th>
+        <th class="px-4 py-3 text-center font-medium">Processed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in qs.by_type %}
+      <tr class="border-b border-seam last:border-0">
+        <td class="px-5 py-3 font-mono text-[12px] uppercase text-stone-600">{{ r.doc_type }}</td>
+        <td class="px-4 py-3 text-center font-mono text-[13px]">{{ r.documents }}</td>
+        <td class="px-4 py-3 text-center font-mono text-[13px] {{ 'text-emerald-700' if r.processed_pct >= 95 else 'text-coal' }}">{{ r.processed_pct }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 <script>
 const COLOR = '#d97706', COLOR_ALT = '#f59e0b';
 

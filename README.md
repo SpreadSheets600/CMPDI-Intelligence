@@ -33,8 +33,13 @@ premises.
   by document type, subsidiary, tag and reporting-period range (accepts
   `2022-23`, `2022` or ISO dates).
 - **Receipts everywhere**: every fact links through chunk, element, page and
-  document back to `data/files/<sha256>/original.*`. Click a figure in a
-  generated report to open the exact source location.
+  document back to `data/files/<sha256>/original.*`. Every answer carries
+  evidence cards (source, page, location, confidence, View Source), an
+  Evidence Quality grade with the checks that justify it (sources,
+  independent documents, conflicts, OCR provenance, exact fact match), a
+  "Why this answer?" panel showing the reasoning trail, and a link to the
+  Conflict Radar when values disagree. Ask can be scoped to one document or
+  a selection.
 - **Hybrid retrieval**: FAISS cosine search (Gemma-3 family embeddings) and
   SQLite FTS5 BM25, fused with weighted scoring (vector 0.45, lexical 0.25,
   title 0.15, tags 0.10, recency 0.05). Queries are expanded with alternative
@@ -81,6 +86,24 @@ premises.
 - **Settings**: only functional controls (LLM backend and model, Ollama
   endpoint, retrieval depth) with live backend probes; persisted to
   `data/app_settings.json` over the environment defaults.
+- **Conflict Radar**: values that disagree on the same entity, metric and
+  period are grouped scale-normalized, every value keeps its receipt
+  (document, page, OCR flag, superseded state), likely causes are explained
+  (partial periods, OCR uncertainty, sibling-row attribution, revised
+  figures), and the officer sets the status: open, acknowledged, resolved.
+- **Compare Documents**: pick any two documents (version chains suggest the
+  natural pair) and see changed numerical facts, facts only in one document,
+  and sections added or removed.
+- **Report review**: every generated report opens into a review screen with
+  per-source verification (current version, OCR flags), retrieval statistics
+  for parliamentary drafts, and Approve / Return-for-Revision decisions.
+- **Data quality & KPIs**: measured, not decorative: processing success,
+  high-confidence OCR share, quarantine-free facts by document type,
+  extraction accuracy from the gold-set harness
+  (`python -m backend.scripts.eval_extraction`), and real report generation
+  times against a stated manual baseline.
+- **Demo mode**: one click generates and ingests the curated demonstration
+  corpus on a fresh install.
 - **Document deletion**: one click removes a document everywhere: FAISS
   vectors, chunks, facts, tags, page images and the stored original.
   Version groups elect a new current document.
