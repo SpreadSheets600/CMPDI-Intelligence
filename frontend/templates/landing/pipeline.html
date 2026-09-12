@@ -12,7 +12,7 @@
     </div>
 
     <ol class="reveal-group relative mt-14 grid gap-4 md:grid-cols-4">
-      <div class="pipeline-line absolute left-0 right-0 top-[52px] hidden md:block" aria-hidden="true"></div>
+      <div class="pipeline-line reveal absolute left-0 right-0 top-[52px] hidden md:block" aria-hidden="true"></div>
       {% for num, name, icon_name, text in [
         ('01', 'Ingest', 'upload', 'PDFs, Word, Excel, CSV and scans land in a content-addressed store, deduplicated by SHA-256.'),
         ('02', 'Extract', 'scan-text', 'OCR, ruled-table detection and section structure become one canonical model.'),

@@ -96,9 +96,11 @@
 }
 
 .cta-primary {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+  overflow: hidden;
   border-radius: 9999px;
   background: rgb(var(--c-coal));
   padding: 0.95rem 2rem;
@@ -115,6 +117,34 @@
 }
 .cta-primary:active { transform: translateY(0); }
 
+/* shine sweep across the button on hover */
+.cta-primary::after {
+  content: "";
+  position: absolute;
+  top: -25%;
+  bottom: -25%;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(105deg, transparent, rgb(255 255 255 / 0.4), transparent);
+  transform: translateX(-170%) skewX(-18deg);
+}
+.cta-primary:hover::after {
+  transform: translateX(330%) skewX(-18deg);
+  transition: transform 0.7s ease;
+}
+
+/* the receipt "prints out" of the hero on load */
+.receipt-in {
+  opacity: 0;
+  animation: receipt-out 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--rd, 450ms);
+}
+@keyframes receipt-out {
+  0% { opacity: 0; transform: translateY(-38px) rotate(-2deg); }
+  55% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) rotate(0deg); }
+}
+
 /* floating annotation cards */
 .float-slow { animation: float-y 7s ease-in-out infinite; }
 .float-slower { animation: float-y 9s ease-in-out 1.2s infinite; }
@@ -122,6 +152,10 @@
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-9px); }
 }
+
+/* capability card icons tilt toward the cursor on card hover */
+.icon-tile { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.group:hover .icon-tile { transform: rotate(-6deg) scale(1.08); }
 
 /* ---------- evidence chain ---------- */
 
@@ -136,6 +170,14 @@
   width: 25%;
   border-top: 1px dashed rgb(var(--c-coal) / 0.55);
 }
+/* and draws itself left-to-right when scrolled into view */
+.pipeline-line.reveal {
+  opacity: 1;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
+}
+.pipeline-line.reveal.is-visible { transform: scaleX(1); }
 
 /* ---------- marquee ---------- */
 
@@ -143,6 +185,7 @@
 @keyframes marquee {
   to { transform: translateX(-50%); }
 }
+.marquee:hover { animation-play-state: paused; }
 
 /* ---------- scroll reveals ---------- */
 
@@ -185,6 +228,12 @@
 .cta-jumbo {
   padding: 1.15rem 2.75rem;
   font-size: 1.05rem;
+  animation: cta-breathe 3.4s ease-in-out 1.8s infinite;
+}
+/* slow, faint breathing glow so the last-chance button draws the eye */
+@keyframes cta-breathe {
+  0%, 100% { box-shadow: 0 4px 18px rgb(var(--c-coal) / 0.35); }
+  50% { box-shadow: 0 6px 32px rgb(var(--c-coal) / 0.6); }
 }
 /* perforation separating the CTA band from the page, like torn paper */
 .cta-tear {
@@ -197,12 +246,13 @@
 /* ---------- reduced motion: land everything instantly ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-word, .float-slow, .float-slower, .marquee {
+  .hero-word, .float-slow, .float-slower, .marquee, .receipt-in, .cta-jumbo {
     animation: none !important;
   }
-  .hero-word, .reveal {
+  .hero-word, .reveal, .receipt-in {
     opacity: 1 !important;
     transform: none !important;
   }
+  .pipeline-line.reveal { transform: scaleX(1) !important; }
   .faq-body { transition: none; }
 }

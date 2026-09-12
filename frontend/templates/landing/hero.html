@@ -28,7 +28,7 @@
           {{ icon('arrow-right', 'h-4 w-4 transition-transform duration-300 group-hover:translate-x-1') }}
         </a>
         <a href="#pipeline"
-           class="flex items-center gap-2 rounded-full border border-seamdark px-6 py-3.5 text-sm font-semibold text-ink transition-colors hover:border-coal hover:text-coal">
+           class="flex items-center gap-2 rounded-full border border-seamdark px-6 py-3.5 text-sm font-semibold text-ink transition-colors hover:border-coal hover:bg-coal/5 hover:text-coal">
           {{ icon('scan-text', 'h-4 w-4') }} How evidence works
         </a>
       </div>
@@ -40,7 +40,7 @@
 
     {# The product's own citation UI, rendered as a paper receipt #}
     <div class="md:col-span-5">
-      <div class="relative animate-pop" style="animation-delay:480ms">
+      <div class="receipt-in relative" style="--rd:520ms">
         <div class="absolute -inset-4 -rotate-2 rounded-3xl border border-coalline bg-coalsoft/40" aria-hidden="true"></div>
         <div class="receipt relative rounded-2xl border border-seam bg-white p-7 shadow-lift">
           <div class="flex items-center justify-between">
