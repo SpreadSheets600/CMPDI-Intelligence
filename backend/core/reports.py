@@ -204,54 +204,53 @@ def receipt(report_id: int, ref: str) -> dict | None:
 
 
 def generate_from_run(run: dict) -> int:
-    """Assemble the agent's finished analysis into an officer-editable DOCX:
-    findings from the agent answer, captured charts, cited evidence, and a
-    sources appendix carrying the provenance chain."""
-    import re
+    """Assemble the agent's finished analysis into an officer-editable DOCX.
+    The body is composed as markdown, then converted to real Word elements
+    (headings, tables, lists), so agent output with markdown tables renders
+    as actual document tables."""
     import time
 
     from docx import Document
-    from docx.shared import Inches, Pt
+    from docx.shared import Inches
 
     doc = Document()
     doc.add_heading(f"Agent Report: {run['task'][:150]}", level=0)
     doc.add_paragraph(f"Prepared by CMPDI Intelligence Agent · {time.strftime('%d %B %Y')} · "
                       "every figure traces to a cited source document.")
 
-    doc.add_heading("Findings", level=1)
-    for line in run["answer"].splitlines():
-        text = line.strip()
-        if not text:
-            continue
-        text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
-        text = re.sub(r"`([^`]+)`", r"\1", text)
-        if re.match(r"^#{1,6}\s", text):
-            doc.add_heading(re.sub(r"^#{1,6}\s", "", text), level=2)
-        elif re.match(r"^[-*]\s", text):
-            doc.add_paragraph(re.sub(r"^[-*]\s", "", text), style="List Bullet")
-        else:
-            doc.add_paragraph(text)
-
     # charts captured during the run live under data/agent_runs/<run_id>/
+    figure_paths = []
     for step in run["steps"]:
         if step["type"] == "chart":
             name = step["src"].rsplit("/", 1)[-1]
             path = config.DATA_DIR / "agent_runs" / step["src"].split("/")[-2] / name
             if path.exists():
-                doc.add_picture(str(path), width=Inches(5.8))
+                figure_paths.append(path)
+
+    md_parts = [run["answer"].strip(), ""]
+    if figure_paths:
+        md_parts += ["## Charts", ""]
+    doc_markdown = "\n".join(md_parts)
+
+    from backend.core.md_docx import markdown_to_document
+    markdown_to_document(doc_markdown, base_document=doc)
+    for path in figure_paths:
+        doc.add_picture(str(path), width=Inches(5.8))
 
     doc.add_heading("Key Evidence", level=1)
     provenance = {"slots": {}, "sources": {}, "chain_note": (
         "ref -> agent evidence -> chunk -> page/sheet -> document -> "
         "original file (data/files/<sha256>/)")}
+    md_evidence = []
     for i, e in enumerate(run["citations"], 1):
         ref = f"E{i}"
         loc = f"page {e['page_no']}" if e.get("page_no") else f"sheet {e.get('sheet_no')}"
-        doc.add_paragraph(f"[{ref}] {e['filename']}{', ' + loc if loc else ''}: "
-                          f"{e['snippet'][:280]}")
+        md_evidence.append(f"- **[{ref}]** {e['filename']}{', ' + loc if loc else ''}: "
+                           f"{e['snippet'][:280]}")
         provenance["slots"][ref] = {"doc_id": e["doc_id"], "page_no": e.get("page_no"),
                                     "sheet_no": e.get("sheet_no")}
         provenance["sources"][ref] = f"{e['filename']}{', ' + loc if loc else ''}"
+    markdown_to_document("\n".join(md_evidence), base_document=doc)
 
     out_path = config.REPORTS_DIR / f"agent_{run['id']}_{int(time.time())}.docx"
     doc.save(str(out_path))

@@ -1,46 +1,43 @@
 <aside id="sidebar"
-       class="fixed inset-y-0 left-0 z-40 flex w-24 flex-col border-r border-white/10 bg-ink text-paper transition-[width,transform] duration-200 md:w-[var(--sidebar-w,240px)]">
+       class="fixed inset-y-0 left-0 z-40 flex flex-col overflow-hidden border-r border-black/40 bg-side text-sidetext shadow-[1px_0_0_rgb(0_0_0/0.2)] transition-[width,transform] duration-300 ease-out max-md:-translate-x-full"
+       style="width: var(--sidebar-w, 240px)">
   <!-- brand -->
-  <div class="flex h-16 shrink-0 items-center gap-2.5 overflow-hidden px-4">
-    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-coal font-mono text-[14px] font-bold text-white">C</span>
-    <span class="sidebar-label whitespace-nowrap text-[15px] font-semibold tracking-tight">CMPDI&nbsp;Intelligence</span>
+  <div class="flex h-16 shrink-0 items-center gap-3 px-4">
+    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-coal font-mono text-[15px] font-bold text-white shadow-[0_2px_10px_rgb(217_119_6/0.4)]">C</span>
+    <span class="sb-label whitespace-nowrap text-[15px] font-semibold tracking-tight">CMPDI&nbsp;Intelligence</span>
   </div>
 
-  <nav class="sidebar-label-none flex-1 space-y-4 overflow-y-auto px-3 py-3">
+  <nav class="flex-1 space-y-5 overflow-y-auto overflow-x-hidden px-3 py-3">
     {% set groups = [
       ('Workspace', [
-        ('dashboard.index', 'Dashboard', 'M2.25 12l8.954-8.955a1.5 1.5 0 012.123 0L22.5 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75'),
-        ('ingest.index', 'Pipeline', 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z'),
-        ('documents.documents', 'Documents', 'M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z'),
+        ('dashboard.dashboard', 'Dashboard', 'layout-dashboard'),
+        ('ingest.index', 'Pipeline', 'workflow'),
+        ('documents.documents', 'Documents', 'files'),
       ]),
       ('Intelligence', [
-        ('search.search', 'Search', 'M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z'),
-        ('ask.ask', 'Ask', 'M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z'),
-        ('agent.agent_page', 'Agent', 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z'),
+        ('search.search', 'Search', 'search'),
+        ('ask.ask', 'Ask', 'message-circle'),
+        ('chat.graph_page', 'Knowledge', 'network'),
       ]),
       ('Discover', [
-        ('chat.graph_page', 'Knowledge', 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25'),
-        ('insights.insights', 'Insights', 'M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z'),
-        ('topics.topics_page', 'Topics', 'M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m16.5 0H21m-1.5 0H12m-8.457 3.077l1.41-.536m2.517-1.001l1.41-.536m2.518-1l1.41-.537m2.517-1l1.41-.537M6.963 7.26l1.41.536m2.518 1l1.41.537m2.518 1l1.41.536'),
-      ]),
-      ('Output', [
-        ('reports.reports_page', 'Reports', 'M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z'),
+        ('insights.insights', 'Insights', 'chart-column'),
+        ('topics.topics_page', 'Topics', 'shapes'),
+        ('reports.reports_page', 'Reports', 'file-chart-column'),
       ]),
       ('System', [
-        ('settings.settings_page', 'Settings', 'M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.506-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.108-1.204l-.526-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z M15 12a3 3 0 11-6 0 3 3 0 016 0z'),
+        ('settings.settings_page', 'Settings', 'settings'),
       ]),
     ] %}
     {% for group, items in groups %}
     <div>
-      <p class="sidebar-label mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-paper/40">{{ group }}</p>
+      <p class="sb-label sb-hide mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidemute">{{ group }}</p>
       <div class="space-y-0.5">
-        {% for route, label, path in items %}
+        {% for route, label, icon_name in items %}
         <a href="{{ url_for(route) }}" title="{{ label }}"
-           class="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition-colors {{ 'bg-coal/15 text-coal' if request.endpoint == route else 'text-paper/60 hover:bg-white/5 hover:text-paper' }}">
-          <svg class="h-[18px] w-[18px] shrink-0 {{ 'text-coal' if request.endpoint == route }}" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" d="{{ path }}"/>
-          </svg>
-          <span class="sidebar-label whitespace-nowrap">{{ label }}</span>
+           class="group relative flex items-center gap-3 rounded-lg px-2.5 py-2 text-[13.5px] font-medium transition-colors duration-150 {{ 'bg-coal/15 text-coal' if request.endpoint == route else 'text-sidemute hover:bg-sidecard hover:text-sidetext' }}">
+          <span class="absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r bg-coal transition-opacity duration-200 {{ 'opacity-100' if request.endpoint == route else 'opacity-0 group-hover:opacity-40' }}"></span>
+          {{ icon(icon_name, 'sb-icon h-[18px] w-[18px] shrink-0') }}
+          <span class="sb-label whitespace-nowrap">{{ label }}</span>
         </a>
         {% endfor %}
       </div>
@@ -48,33 +45,30 @@
     {% endfor %}
   </nav>
 
-  <div class="shrink-0 space-y-1 border-t border-white/10 p-3">
+  <div class="shrink-0 space-y-0.5 border-t border-sideline p-3">
     <button id="theme-toggle" title="Toggle theme"
-            class="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-paper/60 transition-colors hover:bg-white/5 hover:text-paper">
-      <svg class="hidden h-[18px] w-[18px] dark:block" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>
-      </svg>
-      <svg class="h-[18px] w-[18px] dark:hidden" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/>
-      </svg>
-      <span class="sidebar-label whitespace-nowrap">Theme</span>
+            class="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidemute transition-colors hover:bg-sidecard hover:text-sidetext">
+      <span class="hidden dark:block">{{ icon('sun', 'sb-icon h-[18px] w-[18px] shrink-0') }}</span>
+      <span class="dark:hidden">{{ icon('moon', 'sb-icon h-[18px] w-[18px] shrink-0') }}</span>
+      <span class="sb-label whitespace-nowrap">Theme</span>
     </button>
+    <a href="{{ url_for('settings.settings_page') }}" title="Model status"
+       class="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidemute transition-colors hover:bg-sidecard hover:text-sidetext">
+      {{ icon('activity', 'sb-icon h-[18px] w-[18px] shrink-0') }}
+      <span class="sb-label flex items-center gap-2 whitespace-nowrap">Offline
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-600 shadow-[0_0_6px_rgb(16_185_129/0.8)]"></span>
+      </span>
+    </a>
     <button id="sidebar-collapse" title="Collapse sidebar"
-            class="hidden w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium text-paper/60 transition-colors hover:bg-white/5 hover:text-paper md:flex">
-      <svg class="h-[18px] w-[18px] shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5"/>
-      </svg>
-      <span class="sidebar-label whitespace-nowrap">Collapse</span>
+            class="hidden w-full items-center gap-3 rounded-lg px-2.5 py-2 text-[13px] font-medium text-sidemute transition-colors hover:bg-sidecard hover:text-sidetext md:flex">
+      <span class="sb-icon flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+        {{ icon('panel-left-close', 'h-[18px] w-[18px] transition-transform duration-300') }}
+      </span>
+      <span class="sb-label whitespace-nowrap">Collapse</span>
     </button>
-    <div class="flex items-center gap-2.5 px-2.5 py-1">
-      <span class="h-2 w-2 shrink-0 animate-pulse rounded-full bg-emerald-600"></span>
-      <span class="sidebar-label font-mono text-[10px] uppercase tracking-widest text-paper/40">offline</span>
-    </div>
   </div>
 </aside>
 
-<button id="sidebar-mobile" class="fixed left-3 top-3 z-40 rounded-lg bg-ink p-2 text-paper shadow-lift md:hidden" title="Menu">
-  <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
-  </svg>
+<button id="sidebar-mobile" class="fixed left-3 top-3 z-40 rounded-lg bg-side p-2 text-sidetext shadow-lift md:hidden" title="Menu">
+  {{ icon('menu', 'h-5 w-5') }}
 </button>

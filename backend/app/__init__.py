@@ -4,6 +4,7 @@ SQLite WAL lets reads run while it writes."""
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 from flask import Flask
@@ -15,6 +16,26 @@ from backend.core.pipeline import pipeline
 from backend.db import database
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
+ICONS_DIR = FRONTEND / "static" / "icons"
+
+# vendored Lucide SVGs: license comment stripped, class attribute supplied
+# per use so icons inherit text color like the rest of the design system
+_icon_cache: dict[str, str] = {}
+
+
+def _load_icon(name: str) -> str:
+    if name not in _icon_cache:
+        path = ICONS_DIR / f"{name}.svg"
+        try:
+            raw = path.read_text()
+        except OSError:
+            return ""
+        raw = re.sub(r"<!--.*?-->\s*", "", raw, flags=re.S)
+        raw = re.sub(r'\s*class="[^"]*"\s*', " ", raw, count=1)
+        raw = re.sub(r"\s+", " ", raw).replace("> <", "><").strip()
+        raw = raw.replace("<svg ", '<svg aria-hidden="true" ', 1)
+        _icon_cache[name] = raw
+    return _icon_cache[name]
 
 
 def create_app() -> Flask:
@@ -50,6 +71,15 @@ def create_app() -> Flask:
     @app.template_filter("loads")
     def loads(s):
         return json.loads(s)
+
+    @app.template_global("icon")
+    def icon(name: str, cls: str = "h-[18px] w-[18px]") -> str:
+        from markupsafe import Markup
+
+        svg = _load_icon(name)
+        if not svg:
+            return ""
+        return Markup(svg.replace("<svg ", f'<svg class="{cls}" ', 1))
 
     @app.context_processor
     def inject_globals():

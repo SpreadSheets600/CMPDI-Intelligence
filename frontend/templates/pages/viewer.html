@@ -9,7 +9,7 @@
   </div>
   <div class="flex flex-wrap items-center gap-2">
     <details class="relative">
-      <summary class="cursor-pointer list-none rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">Rename</summary>
+      <summary class="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">{{ icon('pencil', 'h-3.5 w-3.5') }} Rename</summary>
       <form method="post" action="{{ url_for('documents.rename', doc_id=doc.id) }}"
             class="absolute right-0 z-10 mt-2 flex w-72 gap-2 rounded-xl border border-seam bg-white p-3 shadow-lift">
         <input name="display_name" value="{{ title }}" maxlength="200" required
@@ -18,10 +18,10 @@
       </form>
     </details>
     <a href="{{ url_for('documents.original', doc_id=doc.id) }}" target="_blank"
-       class="rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">Open Original</a>
+       class="flex items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">{{ icon('external-link', 'h-3.5 w-3.5') }} Open Original</a>
     <form method="post" action="{{ url_for('documents.delete', doc_id=doc.id) }}"
           onsubmit="return confirm('Delete “{{ title }}” and all its extracted data?')">
-      <button type="submit" class="rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] text-stone-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700">Delete</button>
+      <button type="submit" class="flex items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] text-stone-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700">{{ icon('trash-2', 'h-3.5 w-3.5') }} Delete</button>
     </form>
   </div>
 </div>
@@ -48,8 +48,8 @@
   <div class="flex items-center justify-between gap-3">
     <h2 class="text-[15px] font-semibold">Summary</h2>
     <form method="post" action="{{ url_for('documents.summarize', doc_id=doc.id) }}">
-      <button class="rounded-lg border border-seam px-2.5 py-1 text-[12px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">
-        {{ 'Regenerate' if doc.summary else 'Generate Summary' }}
+      <button class="flex items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1 text-[12px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">
+        {{ icon('refresh-cw', 'h-3.5 w-3.5') }} {{ 'Regenerate' if doc.summary else 'Generate Summary' }}
       </button>
     </form>
   </div>

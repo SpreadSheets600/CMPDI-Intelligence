@@ -66,6 +66,10 @@ def _filter_sql(filters: dict | None) -> tuple[str, list]:
     if filters.get("doc_type"):
         where.append("d.doc_type = ?")
         params.append(filters["doc_type"])
+    if filters.get("doc_types"):
+        marks = ",".join("?" * filters["doc_types"])
+        where.append(f"d.doc_type IN ({marks})")
+        params.extend(filters["doc_types"])
     if filters.get("doc_ids"):
         marks = ",".join("?" * len(filters["doc_ids"]))
         where.append(f"d.id IN ({marks})")
@@ -77,6 +81,12 @@ def _filter_sql(filters: dict | None) -> tuple[str, list]:
     if filters.get("tag"):
         where.append("d.id IN (SELECT doc_id FROM doc_keywords WHERE keyword = ?)")
         params.append(filters["tag"])
+    if filters.get("doc_from"):
+        where.append("d.doc_date_norm IS NOT NULL AND d.doc_date_norm >= ?")
+        params.append(filters["doc_from"])
+    if filters.get("doc_to"):
+        where.append("d.doc_date_norm IS NOT NULL AND d.doc_date_norm <= ?")
+        params.append(filters["doc_to"])
     if filters.get("current_only", True):
         where.append("d.is_current_version = 1")
     return " AND ".join(where), params

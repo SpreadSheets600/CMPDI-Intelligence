@@ -1,19 +1,19 @@
-"""Agent endpoints: the workspace page, the run API, figure serving, run
-history and DOCX report assembly. Runs are synchronous; the UI shows a
-working state while the tool loop executes."""
+"""Agent API: run endpoint, figure serving, run history and DOCX report
+assembly. The agent lives inside the unified Ask interface (/ask); runs are
+synchronous and the UI shows a working state while the tool loop executes."""
 
-from flask import Blueprint, abort, jsonify, render_template, request, send_from_directory, url_for
+from flask import Blueprint, abort, jsonify, redirect, request, send_from_directory, url_for
 
 from backend.core import agent, reports
 from backend.core import config as cfg
-from backend.db import database as db
 
 bp = Blueprint("agent", __name__)
 
 
 @bp.route("/agent")
 def agent_page():
-    return render_template("pages/agent.html", runs=agent.recent_runs())
+    """The dedicated agent page merged into Ask; deep links land there."""
+    return redirect(url_for("ask.ask"))
 
 
 @bp.route("/api/agent", methods=["POST"])

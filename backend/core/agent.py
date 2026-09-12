@@ -18,6 +18,24 @@ log = logging.getLogger("cmpdi.agent")
 
 MAX_STEPS = 8
 
+# capability guides live in editable markdown so the agent's statistical and
+# charting behavior can be improved over time without touching this module
+_DOCS_DIR = Path(__file__).resolve().parents[2] / "docs" / "agent"
+
+
+def _capability_doc(name: str, fallback: str) -> str:
+    try:
+        text = (_DOCS_DIR / name).read_text()
+        # strip markdown headings/comments noise, keep it compact for the prompt
+        lines = [l for l in text.splitlines() if l.strip() and not l.startswith("#")]
+        return "\n".join(lines)
+    except OSError:
+        return fallback
+
+
+_STATISTICS_GUIDE = _capability_doc("statistics.md", "Compute aggregates, growth rates, shares and correlations with run_python; never estimate in prose.")
+_CHARTS_GUIDE = _capability_doc("charts.md", "Draw bar charts for category comparisons, line charts for trends; title charts with the finding and label axes with units.")
+
 SYSTEM_PROMPT = """You are CMPDI Intelligence Agent, an analytical agent over an offline \
 coal-industry document corpus (PDFs, Word, Excel, CSV). You reason step by step and use tools.
 
@@ -44,8 +62,17 @@ Rules:
   (load_facts()/load_table() give you DataFrames). Do not compute in your head.
 - When a question spans several entities, pull all matching facts at once
   (omit the entity filter) and group them in pandas instead of searching pages.
+- When the user asks for charts, plots, visuals or "generate charts for this
+  data", draw them with matplotlib in run_python; choose the chart type that
+  fits the question shape.
 - Compare values across documents before claiming a trend.
-- Finish within %d tool calls; make each call count.""" % MAX_STEPS
+- Finish within %d tool calls; make each call count.
+
+Statistical capabilities:
+%s
+
+Chart capabilities:
+%s""" % (MAX_STEPS, _STATISTICS_GUIDE, _CHARTS_GUIDE)
 
 
 # ---------------------------------------------------------------- tools
@@ -83,13 +110,14 @@ def _tool_facts(args: dict) -> str:
     return json.dumps(rows, default=str)
 
 
-def _tool_python(args: dict, run_dir: Path) -> tuple[str, list[str]]:
+def _tool_python(args: dict, run_dir: Path, figure_start: int) -> tuple[str, list[str]]:
     import os
     import subprocess
     import sys
     env = {**os.environ,
            "CMPDI_DB_PATH": str(config.DB_PATH),
-           "CMPDI_RUN_DIR": str(run_dir)}
+           "CMPDI_RUN_DIR": str(run_dir),
+           "CMPDI_FIGURE_START": str(figure_start)}
     try:
         proc = subprocess.run(
             # -E keeps PYTHON* env out; the runner applies its own import
@@ -160,8 +188,12 @@ def run_task(task: str) -> dict:
         steps.append({"type": "note",
                       "text": "No language backend is reachable, so the agent answered "
                               "directly from retrieval without multi-step reasoning."})
+        evidence = [{"doc_id": c["doc_id"], "filename": c.get("doc_title") or "",
+                     "page_no": c.get("page_no"), "sheet_no": c.get("sheet_no"),
+                     "snippet": (c.get("text") or "")[:300]}
+                    for c in result.get("citations", [])]
         return {"run_id": run_id, "steps": steps, "answer": result["answer"],
-                "evidence": result.get("evidence", []), "figures": []}
+                "evidence": evidence, "figures": []}
 
     for step_no in range(MAX_STEPS):
         user = transcript + "\nEvidence so far (cite these):\n" + (
@@ -169,6 +201,9 @@ def run_task(task: str) -> dict:
                       f"{'page ' + str(e['page_no']) if e.get('page_no') else 'sheet ' + str(e['sheet_no'])}: "
                       f"{e['snippet'][:150]}"
                       for i, e in enumerate(evidence)) or "(none yet)")
+        if step_no == MAX_STEPS - 1:
+            user += ("\n\nFINAL ACTION: you must finish now. Output the finish tool with the "
+                     "best answer you can give from the evidence gathered so far.")
         raw = backend.generate(SYSTEM_PROMPT, user)
         action = _extract_json(raw or "")
         if action is None:
@@ -192,11 +227,15 @@ def run_task(task: str) -> dict:
                 for r in json.loads(observation):
                     evidence.append({"doc_id": r["doc_id"], "filename": r["filename"],
                                      "page_no": r.get("page_no"), "sheet_no": r.get("sheet_no"),
-                                     "snippet": f"{r['entity']} {r['attribute']} {r['period_norm']}: "
+                                     "snippet": f"{r['entity']} {r['attribute']} "
+                                                f"{r['period_norm'] or 'period n/a'}: "
                                                 f"{r['value_raw']} {r['unit'] or ''}".strip()})
         elif tool == "run_python":
-            observation, figures = _tool_python(args, run_dir)
+            observation, figures = _tool_python(
+                args, run_dir, figure_start=len(figure_refs) + 1)
             for f in figures:
+                if any(r["file"] == f for r in figure_refs):
+                    continue
                 figure_refs.append({"run_id": run_id, "file": f})
                 steps.append({"type": "chart", "src": f"/agent/figure/{run_id}/{f}"})
         else:
@@ -206,8 +245,17 @@ def run_task(task: str) -> dict:
         transcript += f"\nAction: {json.dumps(action, default=str)[:600]}\nObservation: {observation[:2500]}\n"
 
     if answer is None:
-        answer = ("I could not complete this task within the step budget. The trace above "
-                  "shows what was checked; try narrowing the request.")
+        # budget exhausted without a finish action: compose a useful summary
+        # from whatever evidence the run gathered instead of giving up
+        lines = ["I ran out of my step budget before completing the full analysis, "
+                 "but here is what the run established:"]
+        for e in evidence[:5]:
+            loc = f"page {e['page_no']}" if e.get("page_no") else f"sheet {e['sheet_no']}"
+            lines.append(f"- {e['filename']}{', ' + loc if loc else ''}: {e['snippet'][:200]}")
+        if figure_refs:
+            lines.append(f"{len(figure_refs)} chart(s) were generated during the run; "
+                         "they appear alongside this answer.")
+        answer = "\n".join(lines)
 
     # deduplicate evidence, keep what the answer cites, and renumber the
     # markers so [E#] in the answer matches the returned evidence order

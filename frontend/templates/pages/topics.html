@@ -1,35 +1,54 @@
 {% extends "base.html" %}
+{% block title %}Topics · CMPDI Intelligence{% endblock %}
 {% block body %}
-<h1 class="text-2xl font-semibold tracking-tight">Topics</h1>
-<p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">Recurring keywords, themes and document clusters across the library. Analysis runs locally on the embeddings.</p>
-
-<form method="post" action="{{ url_for('topics.refresh') }}" class="mt-6 flex flex-wrap items-center gap-3">
-  <select name="scope" class="rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm shadow-card focus:border-coal focus:outline-none">
-    <option value="">Corpus-wide</option>
-    {% for s in subs %}<option value="subsidiary:{{ s.subsidiary }}">{{ s.subsidiary }}</option>{% endfor %}
-  </select>
-  <button type="submit" class="rounded-lg bg-coal px-4 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:bg-amber-500 active:translate-y-px">Analyze</button>
-</form>
-
-<div class="mt-8 rounded-xl border border-seam bg-white p-4 text-center shadow-card animate-rise">
-  <img src="{{ url_for('topics.cloud_image', slug=(scope or 'corpus')) }}" alt="Word cloud for {{ scope }}" class="mx-auto max-w-full rounded-lg">
+<div class="flex flex-wrap items-start justify-between gap-3 animate-rise">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Topics</h1>
+    <p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">Recurring keywords, themes and document clusters across the library. Analysis runs locally on the embeddings.</p>
+  </div>
+  <form method="post" action="{{ url_for('topics.refresh') }}" class="flex flex-wrap items-center gap-2">
+    <select name="scope" class="rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm shadow-card focus:border-coal focus:outline-none">
+      <option value="">Corpus-wide</option>
+      {% for s in subs %}<option value="subsidiary:{{ s.subsidiary }}">{{ s.subsidiary }}</option>{% endfor %}
+    </select>
+    <button type="submit"
+            class="flex items-center gap-2 rounded-lg bg-coal px-4 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:-translate-y-px hover:bg-amber-500 hover:shadow-lift active:translate-y-0">
+      {{ icon('refresh-cw', 'h-4 w-4') }} Analyze
+    </button>
+  </form>
 </div>
 
-<h2 class="mt-10 text-lg font-semibold tracking-tight">Clusters</h2>
+<div class="mt-8 rounded-2xl border border-seam bg-white p-5 text-center shadow-card animate-rise" style="animation-delay:60ms">
+  <div class="mb-3 flex items-center justify-center gap-2 font-mono text-[10.5px] uppercase tracking-widest text-stone-400">
+    {{ icon('eye', 'h-3.5 w-3.5') }} word cloud · {{ scope or 'corpus' }}
+  </div>
+  <img src="{{ url_for('topics.cloud_image', scope=(scope or 'corpus')) }}" alt="Word cloud for {{ scope or 'corpus' }}"
+       class="mx-auto max-w-full rounded-lg">
+</div>
+
+<h2 class="mt-10 flex items-center gap-2 text-lg font-semibold tracking-tight">
+  {{ icon('shapes', 'h-5 w-5 text-coal') }} Clusters
+</h2>
 <div class="mt-4 grid gap-4 md:grid-cols-2">
 {% for t in clusters %}
-  <section class="rounded-xl border border-seam bg-white p-5 shadow-card animate-rise" style="animation-delay:{{ loop.index * 50 }}ms">
+  <section class="rounded-xl border border-seam bg-white p-5 shadow-card animate-rise transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift" style="animation-delay:{{ loop.index * 50 % 400 }}ms">
     <h3 class="text-[15px] font-semibold">{{ t.label }}</h3>
     <div class="mt-2.5 flex flex-wrap gap-1.5">
       {% for k in t.keywords_json | loads %}
       <span class="rounded-full border border-coalline bg-coalsoft px-2.5 py-0.5 text-[12px] text-coal">{{ k }}</span>
       {% endfor %}
     </div>
-    <p class="mt-3 text-[13px] text-stone-500">{{ (t.doc_ids_json | loads | length) }} documents in cluster</p>
+    <div class="mt-3 flex items-center justify-between">
+      <p class="flex items-center gap-1.5 text-[13px] text-stone-500">
+        {{ icon('files', 'h-3.5 w-3.5 text-stone-400') }} {{ (t.doc_ids_json | loads | length) }} document{{ 's' if (t.doc_ids_json | loads | length) != 1 }}
+      </p>
+    </div>
   </section>
 {% else %}
-  <div class="rounded-xl border border-seam bg-white px-6 py-12 text-center text-sm text-stone-500 shadow-card md:col-span-2">
-    No cluster analysis yet. Click Analyze above.
+  <div class="flex flex-col items-center rounded-2xl border border-dashed border-seamdark bg-white px-6 py-14 text-center md:col-span-2">
+    <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-coalsoft text-coal">{{ icon('shapes', 'h-6 w-6') }}</span>
+    <p class="mt-3 text-sm font-semibold">No cluster analysis yet</p>
+    <p class="mt-1 text-[13px] text-stone-500">Pick a scope above and click Analyze; clustering runs on the local embeddings.</p>
   </div>
 {% endfor %}
 </div>

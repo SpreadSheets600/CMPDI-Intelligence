@@ -40,14 +40,15 @@
 
 <!-- quick actions -->
 <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 animate-rise" style="animation-delay:140ms">
-  {% for href, title, desc in [
-    (url_for('ingest.index'), 'Ingest Files', 'Upload PDFs, Word, Excel, CSV or scans'),
-    (url_for('ask.ask'), 'Ask The Corpus', 'Cited answers with per-cell receipts'),
-    (url_for('agent.agent_page'), 'Run The Agent', 'Tool-calling analysis with Python'),
-    (url_for('reports.reports_page'), 'Generate A Report', 'DOCX reports with provenance'),
+  {% for href, icon_name, title, desc in [
+    (url_for('ingest.index'), 'upload', 'Ingest Files', 'Upload PDFs, Word, Excel, CSV or scans'),
+    (url_for('ask.ask'), 'message-circle', 'Ask The Corpus', 'Cited answers, analysis and charts'),
+    (url_for('insights.insights'), 'chart-column', 'Explore Insights', 'Every reported metric, plotted'),
+    (url_for('reports.reports_page'), 'file-chart-column', 'Generate A Report', 'DOCX reports with provenance'),
   ] %}
-  <a href="{{ href }}" class="group rounded-xl border border-seam bg-white p-4 shadow-card transition-all hover:-translate-y-0.5 hover:border-coal hover:shadow-lift">
-    <p class="text-[14px] font-semibold group-hover:text-coal">{{ title }}</p>
+  <a href="{{ href }}" class="group rounded-xl border border-seam bg-white p-4 shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-coal hover:shadow-lift">
+    <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-coalsoft text-coal transition-colors group-hover:bg-coal group-hover:text-white">{{ icon(icon_name, 'h-[18px] w-[18px]') }}</span>
+    <p class="mt-2.5 text-[14px] font-semibold group-hover:text-coal">{{ title }}</p>
     <p class="mt-1 text-[12.5px] leading-snug text-stone-500">{{ desc }}</p>
   </a>
   {% endfor %}

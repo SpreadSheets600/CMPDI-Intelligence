@@ -17,13 +17,15 @@ premises.
 
 ## Features
 
-- **Workspace UI**: collapsible sidebar navigation, dark and light themes
-  (persisted per machine), and a dashboard showing corpus stats, live model
-  status, storage and pipeline activity.
+- **Workspace UI**: a product landing page, collapsible sidebar navigation
+  with Lucide icons, dark and light themes (persisted per machine), and a
+  dashboard showing corpus stats, live model status, storage and pipeline
+  activity.
 - **Ingestion pipeline** with live status: classify, parse, OCR, normalize,
   chunk, embed, index. Digital, scanned and mixed PDFs are decided per page.
-- **Document management**: rename documents, inspect full metadata and the
-  normalized representation each file became, and preview them properly.
+- **Document management**: filter by name, type and subsidiary, rename
+  documents, inspect full metadata and the normalized representation each
+  file became, and preview them properly.
   PDFs render in a real PDF viewer; spreadsheets open as sheet-switchable
   tables; Word documents get a reading view; images show with their OCR text.
 - **Receipts everywhere**: every fact links through chunk, element, page and
@@ -42,11 +44,13 @@ premises.
   follow-up questions are rewritten into standalone search queries before
   retrieval. Numeric questions resolve against a fact index for exact
   values. The system abstains when evidence is weak instead of guessing.
-- **Analytical Agent**: a tool-calling agent that searches documents, queries
-  the fact index and runs sandboxed Python (pandas, numpy, matplotlib) so
-  comparisons, shares and trends are computed, never guessed. Charts it
-  draws are captured and shown; its runs can be assembled into a DOCX
-  report with a sources appendix.
+- **Analytical Ask, one interface**: a single chat over the library. Factual
+  questions get cited answers; when a question needs analysis or charts the
+  tool-calling agent takes over automatically, running sandboxed Python
+  (pandas, numpy, matplotlib) so comparisons, shares and trends are computed,
+  never guessed. Its statistical and charting behavior is guided by editable
+  docs in `docs/agent/`, and any run can be assembled into a DOCX report
+  (markdown converted to real Word tables) with a sources appendix.
 - **Automatic tags**: every ingested document gets keywords (Ollama prompt
   with a deterministic term-frequency fallback) used for filtering,
   search boosts and the knowledge tree.

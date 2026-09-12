@@ -27,6 +27,8 @@ def refresh():
     return redirect(url_for("topics.topics_page", scope=scope or "corpus"))
 
 
-@bp.route("/cloud/<slug>.png")
-def cloud_image(slug):
-    return send_from_directory(config.CLOUDS_DIR, f"cloud_{slug}.png")
+@bp.route("/cloud/<path:scope>.png")
+def cloud_image(scope):
+    # clouds are stored under a scope-derived slug; the URL carries the scope
+    from backend.core.topics import hashlib_slug
+    return send_from_directory(config.CLOUDS_DIR, f"cloud_{hashlib_slug(scope)}.png")

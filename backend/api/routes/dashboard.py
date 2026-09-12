@@ -23,6 +23,18 @@ def _dir_size(path) -> int:
 
 @bp.route("/")
 def index():
+    """Product landing page: what the platform is, in one scroll."""
+    stats = {
+        "documents": db.q1("SELECT COUNT(*) c FROM documents WHERE status='completed'")["c"],
+        "facts": db.q1("SELECT COUNT(*) c FROM facts")["c"],
+        "chunks": db.q1("SELECT COUNT(*) c FROM chunks")["c"],
+    }
+    return render_template("pages/landing.html", stats=stats)
+
+
+@bp.route("/dashboard")
+def dashboard():
+    """Operational overview: corpus stats, model status, storage, activity."""
     stats = {
         "documents": db.q1("SELECT COUNT(*) c FROM documents WHERE status='completed'")["c"],
         "processing": db.q1(

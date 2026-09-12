@@ -31,7 +31,9 @@ BUILTINS_REMOVE = {
 
 DB_PATH = os.environ["CMPDI_DB_PATH"]
 RUN_DIR = os.environ["CMPDI_RUN_DIR"]
-FIGURE_PREFIX = os.environ.get("CMPDI_FIGURE_PREFIX", "chart")
+# successive run_python calls in one task number their charts continuously so
+# they never overwrite each other
+FIGURE_START = int(os.environ.get("CMPDI_FIGURE_START", "1"))
 
 
 def load_table(doc_id: str, sheet_no=None):
@@ -148,7 +150,7 @@ def main():
     figures = []
     for i, num in enumerate(plt.get_fignums()):
         fig = plt.figure(num)
-        path = os.path.join(RUN_DIR, f"{FIGURE_PREFIX}_{i + 1}.png")
+        path = os.path.join(RUN_DIR, f"chart_{FIGURE_START + i}.png")
         fig.savefig(path, dpi=140, bbox_inches="tight", facecolor="white")
         figures.append(os.path.basename(path))
     if figures:

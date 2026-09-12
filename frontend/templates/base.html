@@ -23,7 +23,8 @@ tailwind.config = {
         mono: ['IBM Plex Mono', 'ui-monospace', 'monospace'],
       },
       // Every palette step is a CSS variable that flips under .dark, so the
-      // whole UI re-themes from one place without per-template dark: classes.
+      // whole content area re-themes from one place. The sidebar keeps its
+      // own fixed charcoal palette (--s-*) in both themes.
       colors: {
         paper: 'rgb(var(--c-paper) / <alpha-value>)',
         white: 'rgb(var(--c-surface) / <alpha-value>)',
@@ -33,6 +34,11 @@ tailwind.config = {
         coal: 'rgb(var(--c-coal) / <alpha-value>)',
         coalsoft: 'rgb(var(--c-coalsoft) / <alpha-value>)',
         coalline: 'rgb(var(--c-coalline) / <alpha-value>)',
+        side: 'rgb(var(--s-bg) / <alpha-value>)',
+        sidecard: 'rgb(var(--s-hi) / <alpha-value>)',
+        sidetext: 'rgb(var(--s-text) / <alpha-value>)',
+        sidemute: 'rgb(var(--s-mute) / <alpha-value>)',
+        sideline: 'rgb(var(--s-line) / <alpha-value>)',
         stone: {
           300: 'rgb(var(--c-muted0) / <alpha-value>)',
           400: 'rgb(var(--c-muted1) / <alpha-value>)',
@@ -61,16 +67,26 @@ tailwind.config = {
       },
       boxShadow: {
         card: '0 1px 2px rgb(28 25 23 / 0.05)',
-        lift: '0 6px 16px -6px rgb(28 25 23 / 0.15)',
+        lift: '0 10px 24px -8px rgb(28 25 23 / 0.18)',
       },
       keyframes: {
         rise: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '0%': { opacity: '0', transform: 'translateY(12px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        fade: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        pop: {
+          '0%': { opacity: '0', transform: 'scale(.96)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
       },
       animation: {
-        rise: 'rise .45s cubic-bezier(.16,1,.3,1) both',
+        rise: 'rise .5s cubic-bezier(.16,1,.3,1) both',
+        fade: 'fade .4s ease both',
+        pop: 'pop .3s cubic-bezier(.16,1,.3,1) both',
       },
     },
   },
@@ -88,6 +104,9 @@ tailwind.config = {
     --c-bad-bg: 254 242 242; --c-bad-line: 254 202 202; --c-bad-line2: 252 165 165;
     --c-bad-solid: 220 38 38; --c-bad-text: 185 28 28;
     --c-warn-bg: 254 243 199; --c-warn-text: 120 53 15;
+    /* sidebar palette: identical in both themes so the frame never swaps */
+    --s-bg: 24 21 19; --s-hi: 38 34 31; --s-text: 245 243 241;
+    --s-mute: 148 141 136; --s-line: 46 42 38;
     --shadow-card: 0 1px 2px rgb(28 25 23 / 0.05);
   }
   .dark {
@@ -106,21 +125,58 @@ tailwind.config = {
   html { scroll-behavior: smooth; }
   ::selection { background: rgb(var(--c-coal) / 0.25); }
   .shadow-card { box-shadow: var(--shadow-card); }
+  /* smooth theme swap: enabled briefly while switching so panels glide */
+  html.theming *, html.theming *::before, html.theming *::after {
+    transition: background-color .35s ease, border-color .35s ease,
+                color .35s ease, fill .35s ease, stroke .35s ease !important;
+  }
+  /* collapsed sidebar hides labels by width + opacity, keeping icons centered */
+  .sb-label { transition: opacity .2s ease, max-width .25s cubic-bezier(.16,1,.3,1); max-width: 180px; overflow: hidden; }
+  .sb-collapsed .sb-label { opacity: 0; max-width: 0; }
+  .sb-collapsed .sb-hide { opacity: 0; pointer-events: none; }
+  .sb-hide { transition: opacity .2s ease; }
+  .sb-icon { transition: transform .25s cubic-bezier(.16,1,.3,1); }
+  /* upload dropzone hover/drag state */
+  .dropzone-hot { border-color: rgb(var(--c-coal)) !important; background: rgb(var(--c-coalsoft) / .6); transform: scale(1.005); }
+  .dropzone { transition: border-color .2s ease, background-color .2s ease, transform .2s ease; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 </style>
 <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
 </head>
 <body class="min-h-dvh bg-paper font-sans text-ink antialiased">
+{% block shell %}
 {% include "components/sidebar.html" %}
 <div id="sidebar-backdrop" class="fixed inset-0 z-30 hidden bg-ink/50 md:hidden"></div>
-<main id="app-main" class="min-h-dvh px-5 pb-24 pt-8 transition-[margin] duration-200 md:px-8"
-      style="margin-left: var(--sidebar-w, 240px)">
-  <div class="mx-auto max-w-6xl">
-    {% block body %}{% endblock %}
-  </div>
-  <footer class="mt-16 border-t border-seam pt-6 text-center text-[13px] text-stone-500">
-    CMPDI Intelligence · evidence-backed reporting for coal · runs entirely offline
+<div id="app-shell" style="margin-left: var(--sidebar-w, 240px)"
+     class="flex min-h-dvh flex-col transition-[margin] duration-300 ease-out">
+  <main class="flex-1 px-5 pb-10 pt-8 md:px-8">
+    <div class="mx-auto max-w-6xl">
+      {% block body %}{% endblock %}
+    </div>
+  </main>
+  <footer class="border-t border-seam">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-[12.5px] text-stone-500 md:px-8">
+      <div class="flex items-center gap-2">
+        <span class="flex h-5 w-5 items-center justify-center rounded bg-ink font-mono text-[10px] font-bold text-amber-400">C</span>
+        <span class="font-medium text-ink">CMPDI Intelligence</span>
+        <span class="text-stone-400">for coal, mining and geology reporting</span>
+      </div>
+      <nav class="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <a href="{{ url_for('dashboard.dashboard') }}" class="transition-colors hover:text-coal">Dashboard</a>
+        <a href="{{ url_for('documents.documents') }}" class="transition-colors hover:text-coal">Documents</a>
+        <a href="{{ url_for('ask.ask') }}" class="transition-colors hover:text-coal">Ask</a>
+        <a href="{{ url_for('reports.reports_page') }}" class="transition-colors hover:text-coal">Reports</a>
+        <a href="{{ url_for('settings.settings_page') }}" class="transition-colors hover:text-coal">Settings</a>
+      </nav>
+      <span class="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-widest text-stone-400">
+        {{ icon('shield-check', 'h-3.5 w-3.5') | default('', true) }} fully offline
+      </span>
+    </div>
   </footer>
-</main>
+</div>
+{% endblock %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

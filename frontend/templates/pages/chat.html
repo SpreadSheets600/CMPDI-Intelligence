@@ -1,169 +1,202 @@
 {% extends "base.html" %}
 {% block title %}Ask · CMPDI Intelligence{% endblock %}
 {% block body %}
-<div class="flex h-[calc(100dvh-11rem)] flex-col">
-  <div class="flex items-baseline justify-between gap-4">
+<div class="flex h-[calc(100dvh-11rem)] flex-col animate-rise">
+  <div class="flex items-start justify-between gap-3">
     <div>
-      <h1 class="text-2xl font-semibold tracking-tight">Ask the Library</h1>
-      <p class="mt-1 text-[15px] text-stone-500">Every reply is grounded in retrieved documents and carries its receipts.</p>
+      <h1 class="text-2xl font-semibold tracking-tight">Ask</h1>
+      <p class="mt-1 max-w-[70ch] text-[15px] text-stone-500">One interface over the whole library. It answers with citations, resolves numbers from the fact index, and when a question needs analysis or charts it runs the tools itself: just ask.</p>
     </div>
-    <button id="newchat" class="rounded-lg border border-seamdark bg-white px-3 py-1.5 text-[13px] font-medium text-stone-600 transition-colors hover:border-coal hover:text-coal">New chat</button>
+    <button id="new-chat" title="New conversation"
+            class="flex shrink-0 items-center gap-2 rounded-lg border border-seam px-3 py-2 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">
+      {{ icon('refresh-cw', 'h-3.5 w-3.5') }} New chat
+    </button>
   </div>
 
-  <div id="chatlog" class="mt-6 flex-1 space-y-4 overflow-y-auto pr-1">
-    <div id="welcome" class="mx-auto mt-16 max-w-lg text-center">
-      <span class="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-ink font-mono text-lg font-semibold text-amber-400">C</span>
-      <p class="mt-4 text-[15px] font-medium">Ask about mines, seams, reserves, production figures.</p>
-      <div class="mt-5 flex flex-wrap justify-center gap-2">
-        {% for q in ['coal production of CIL in 2023-24', 'what does the annual report say about production targets', 'coal offtake of SECL in 2022-23', 'summarize the lignite reserves of India'] %}
-        <button class="suggestion rounded-full border border-seam bg-white px-3.5 py-1.5 text-[13px] text-stone-600 transition-colors hover:border-coal hover:text-coal">{{ q }}</button>
+  <div id="chatlog" class="mt-5 flex-1 space-y-5 overflow-y-auto pr-1" aria-live="polite">
+    <div id="welcome" class="mx-auto max-w-xl pt-6 text-center">
+      <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-coalsoft text-coal">{{ icon('message-circle', 'h-7 w-7') }}</span>
+      <p class="mt-4 font-semibold">Ask anything about your documents</p>
+      <p class="mt-1 text-[13.5px] text-stone-500">Factual questions get cited answers; analytical questions get computed results and charts.</p>
+      <div class="mt-6 flex flex-wrap justify-center gap-1.5" id="pills">
+        {% for p in ['raw coal production of CIL in 2023-24', 'compare production across subsidiaries', 'generate a few charts for this data', 'what does the library say about washeries?'] %}
+        <button class="pill rounded-full border border-coalline bg-coalsoft px-3 py-1.5 text-[12.5px] text-coal transition-all hover:-translate-y-px hover:bg-amber-100">{{ p }}</button>
         {% endfor %}
       </div>
     </div>
   </div>
 
-  <form id="chatform" class="mt-4 flex items-end gap-3">
-    <textarea id="chatinput" rows="1" placeholder="Ask a question… (Enter to send, Shift+Enter for a new line)"
-              class="max-h-40 flex-1 resize-none rounded-xl border border-seamdark bg-white px-4 py-3 text-sm shadow-card focus:border-coal focus:outline-none"></textarea>
-    <button type="submit" id="sendbtn"
-            class="rounded-xl bg-coal px-5 py-3 text-sm font-semibold text-white shadow-card transition-all hover:bg-amber-500 active:translate-y-px disabled:opacity-50">Send</button>
+  <form id="chatform" class="mt-4 flex items-end gap-2">
+    <div class="relative flex-1">
+      <textarea id="chatinput" rows="1" placeholder="Ask about production, reserves, offtake... or request charts and analysis"
+                class="w-full resize-none rounded-xl border border-seamdark bg-white py-3 pl-4 pr-12 text-[14.5px] leading-relaxed shadow-card placeholder:text-stone-400 focus:border-coal focus:outline-none"></textarea>
+      <button type="submit" id="sendbtn" title="Send"
+              class="absolute bottom-2.5 right-2.5 flex h-8 w-8 items-center justify-center rounded-lg bg-coal text-white transition-all hover:bg-amber-500 active:scale-95 disabled:opacity-40">
+        {{ icon('send', 'h-4 w-4') }}
+      </button>
+    </div>
   </form>
-  <p class="mt-2 text-center text-[12px] text-stone-400">Answers cite evidence; the assistant abstains when the library cannot support a claim.</p>
+  <p class="mt-2 text-center text-[11.5px] text-stone-400">Answers cite their sources; figures resolve from the fact index where possible.</p>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const log = document.getElementById('chatlog');
 const input = document.getElementById('chatinput');
-const form = document.getElementById('chatform');
-const sendBtn = document.getElementById('sendbtn');
-let history = [];   // {role, content} sent to /api/chat
-let busy = false;
+let history = [];
 
-function el(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
-
-function addUser(text) {
-  document.getElementById('welcome')?.remove();
-  const node = el(`
-    <div class="flex justify-end">
-      <div class="max-w-[80%] rounded-2xl rounded-br-md bg-ink px-4 py-2.5 text-[14px] leading-relaxed text-white whitespace-pre-wrap"></div>
-    </div>`);
-  node.querySelector('div').textContent = text;
-  log.appendChild(node);
-  log.scrollTop = log.scrollHeight;
-}
-
-function citationChip(c) {
-  const href = `/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : '?sheet=' + (c.sheet_no || 1)}`;
-  const loc = c.page_no ? 'p.' + c.page_no : 'sheet ' + (c.sheet_no || '?');
-  return `<a href="${href}" class="cite" title="${c.doc_title} — ${loc}">${c.eid}</a>`;
-}
-
-function addAssistant(p) {
-  const alternatives = (p.alternatives || []).map(c =>
-    `<div class="mt-2 rounded-lg border border-coalline bg-coalsoft/60 px-3 py-2 text-[12px] text-amber-900">
-       <span class="font-semibold">Also reported elsewhere:</span> ${c.key.replace(/\|/g, ' · ')}
-       ${c.fact_values.map(v => `<span class="font-mono">${v.value_raw}</span> (${v.filename})`).join(', ')}
-       <a href="/insights" class="font-semibold underline underline-offset-2">compare</a>
-     </div>`).join('');
-  const cites = (p.citations || []).map(c => `
-    <a href="/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : '?sheet=' + (c.sheet_no || 1)}"
-       class="flex items-center justify-between gap-3 rounded-lg border border-seam px-3 py-2 text-[12px] transition-colors hover:border-coal">
-       <span class="truncate"><span class="font-mono font-semibold text-coal">${c.eid}</span> ${c.doc_title}</span>
-       <span class="shrink-0 font-mono text-stone-400">${c.page_no ? 'p.' + c.page_no : 'sheet ' + (c.sheet_no || '?')}</span>
-     </a>`).join('');
-  const meta = `<div class="mt-2 flex flex-wrap gap-1.5 font-mono text-[10px] uppercase tracking-wide text-stone-400">
-      <span class="rounded-full border border-coalline bg-coalsoft px-2 py-0.5 text-coal">${p.backend}</span>
-      <span class="rounded-full border border-seam px-2 py-0.5">${p.route.toLowerCase()}</span>
-      ${p.abstained ? '<span class="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-red-700">abstained</span>' : ''}
-    </div>`;
-  const node = el(`
-    <div class="flex justify-start">
-      <div class="max-w-[85%]">
-        <div class="rounded-2xl rounded-bl-md border border-seam bg-white px-4 py-3 shadow-card">
-          <div class="answer text-[14px] leading-relaxed whitespace-pre-wrap"></div>
-          ${alternatives}
-          ${meta}
-        </div>
-        ${cites ? `<div class="mt-2 grid gap-1.5">${cites}</div>` : ''}
-      </div>
-    </div>`);
-  node.querySelector('.answer').textContent = p.answer;
-  // re-inject citation chips into the answer text ([E1] markers)
-  const answerEl = node.querySelector('.answer');
-  if ((p.citations || []).length) {
-    let html = answerEl.textContent
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    for (const c of p.citations) {
-      const href = `/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : '?sheet=' + (c.sheet_no || 1)}`;
-      const loc = c.page_no ? 'p.' + c.page_no : 'sheet ' + (c.sheet_no || '?');
-      html = html.replaceAll(`[${c.eid}]`,
-        `<a href="${href}" class="cite" title="${c.doc_title} — ${loc}">${c.eid}</a>`);
-    }
-    answerEl.innerHTML = html;
+function mdLite(text) {
+  const lines = esc(text).split('\n');
+  let html = '', inList = false, buf = [];
+  const inline = s => s
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code class="rounded bg-paper px-1 font-mono text-[12.5px]">$1</code>')
+    .replace(/\[E(\d+)\]/g, '<sup class="mx-0.5 rounded border border-coalline bg-coalsoft px-1 font-mono text-[10px] font-semibold text-coal">E$1</sup>');
+  const flush = () => { if (buf.length) { html += `<p class="mt-2">${buf.map(inline).join('<br>')}</p>`; buf = []; } };
+  const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+  for (const line of lines) {
+    const t = line.trim();
+    if (/^#{1,6}\s/.test(t)) { flush(); closeList(); html += `<h3 class="mt-4 text-[15px] font-semibold">${inline(t.replace(/^#+\s/, ''))}</h3>`; }
+    else if (/^[-*]\s/.test(t)) { buf.length && flush(); if (!inList) { html += '<ul class="mt-2 list-disc space-y-1 pl-5">'; inList = true; } html += `<li>${inline(t.replace(/^[-*]\s/, ''))}</li>`; }
+    else if (t === '') { closeList(); flush(); }
+    else { closeList(); buf.push(t); }
   }
-  log.appendChild(node);
-  log.scrollTop = log.scrollHeight;
+  closeList(); flush();
+  return html;
 }
 
-function addTyping() {
-  const node = el(`
-    <div class="flex justify-start">
-      <div class="flex items-center gap-1.5 rounded-2xl rounded-bl-md border border-seam bg-white px-4 py-3 shadow-card">
-        <span class="h-2 w-2 animate-bounce rounded-full bg-coal [animation-delay:0ms]"></span>
-        <span class="h-2 w-2 animate-bounce rounded-full bg-coal [animation-delay:120ms]"></span>
-        <span class="h-2 w-2 animate-bounce rounded-full bg-coal [animation-delay:240ms]"></span>
-      </div>
-    </div>`);
-  node.id = 'typing';
-  log.appendChild(node);
+const TOOL_LABEL = {search_documents: 'Searched Documents', get_facts: 'Queried Fact Index', run_python: 'Ran Python Analysis'};
+
+function evidenceRow(c, i) {
+  const loc = c.page_no ? `page ${c.page_no}` : c.sheet_no ? `sheet ${c.sheet_no}` : '';
+  return `
+  <a class="flex items-baseline gap-2 text-[12.5px] transition-colors hover:text-coal"
+     href="/doc/${c.doc_id}${c.page_no ? '/?page=' + c.page_no : c.sheet_no ? '?sheet=' + c.sheet_no : ''}">
+    <sup class="rounded border border-coalline bg-coalsoft px-1 font-mono text-[10px] font-semibold text-coal">E${i + 1}</sup>
+    <span class="text-stone-600">${esc(c.doc_title)}${loc ? ', ' + loc : ''}</span>
+  </a>`;
+}
+
+function addMessage(role, html) {
+  const wrap = document.createElement('div');
+  if (role === 'user') {
+    wrap.className = 'flex justify-end animate-rise';
+    wrap.innerHTML = `<div class="max-w-[80%] rounded-2xl rounded-br-md bg-coal px-4 py-2.5 text-[14.5px] leading-relaxed text-white shadow-card">${html}</div>`;
+  } else {
+    wrap.className = 'flex animate-rise';
+    wrap.innerHTML = `<div class="w-full rounded-2xl rounded-tl-md border border-seam bg-white p-5 shadow-card">${html}</div>`;
+  }
+  log.appendChild(wrap);
   log.scrollTop = log.scrollHeight;
+  return wrap;
+}
+
+function renderAnswer(payload) {
+  let html = '';
+  const trace = payload.trace || [];
+  const charts = payload.charts || [];
+  if (trace.length) {
+    const n = trace.filter(s => s.type === 'tool').length;
+    const items = trace.map(s => {
+      if (s.type === 'thought') return `<p class="text-[12.5px] leading-relaxed text-stone-500">${esc(s.text)}</p>`;
+      if (s.type === 'tool') return `<p class="font-mono text-[11px] uppercase tracking-wide text-stone-400">${esc(TOOL_LABEL[s.tool] || s.tool)}</p>`;
+      return '';
+    }).filter(Boolean).join('');
+    html += `<details class="mb-3 rounded-lg border border-seam bg-paper px-3 py-2">
+      <summary class="cursor-pointer list-none select-none font-mono text-[10.5px] uppercase tracking-wide text-stone-400">How this was answered · ${n} step${n === 1 ? '' : 's'}</summary>
+      <div class="mt-2 space-y-1.5 border-l-2 border-coalline pl-3">${items}</div>
+    </details>`;
+  }
+  html += `<div class="text-[14.5px] leading-relaxed text-stone-700">${mdLite(payload.answer || '')}</div>`;
+  for (const src of charts) {
+    html += `<div class="mt-4"><img src="${src}" class="max-h-[420px] w-auto rounded-lg border border-seam bg-white shadow-card animate-pop" alt="Chart generated from library data"></div>`;
+  }
+  const cites = payload.citations || [];
+  if (cites.length) {
+    html += `<div class="mt-4 border-t border-seam pt-3"><p class="font-mono text-[10px] uppercase tracking-widest text-stone-400">sources</p>
+      <div class="mt-1.5 space-y-1">${cites.map(evidenceRow).join('')}</div></div>`;
+  }
+  if (payload.mode === 'agent' && payload.run_row_id) {
+    html += `<button onclick="downloadReport(${payload.run_row_id}, this)"
+      class="mt-3 flex items-center gap-2 rounded-lg border border-coal px-3 py-1.5 text-[12.5px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white">
+      ${esc('Generate DOCX Report')}</button>`;
+  }
+  if ((payload.alternatives || []).length) {
+    html += `<div class="mt-3 rounded-lg border border-coalline bg-coalsoft px-3 py-2.5 text-[12.5px] text-stone-600">
+      <strong class="text-coal">Also reported elsewhere:</strong> ${payload.alternatives.map(a =>
+        `<span class="font-mono">${esc(String(a.fact_values && a.fact_values[0] ? a.fact_values[0].value_raw : ''))}</span> (${esc(a.filename || '')})`).join(', ')}
+    </div>`;
+  }
+  if (payload.abstained) {
+    html = `<div class="text-[14.5px] leading-relaxed text-stone-700">${mdLite(payload.answer || 'Insufficient evidence.')}</div>`;
+  }
+  addMessage('assistant', html);
 }
 
 async function send(text) {
-  if (busy || !text.trim()) return;
-  busy = true; sendBtn.disabled = true;
-  addUser(text);
+  text = (text || input.value).trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+  document.getElementById('welcome')?.classList.add('hidden');
+  addMessage('user', esc(text));
   history.push({role: 'user', content: text});
-  addTyping();
+
+  const btn = document.getElementById('sendbtn');
+  btn.disabled = true;
+  const typing = addMessage('assistant', `
+    <div class="flex items-center gap-3 text-[13.5px] text-stone-500">
+      <span class="flex gap-1">
+        <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-coal"></span>
+        <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-coal [animation-delay:150ms]"></span>
+        <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-coal [animation-delay:300ms]"></span>
+      </span><span id="phase">Looking through the library…</span>
+    </div>`);
+  const phases = ['Looking through the library…', 'Resolving numbers from the fact index…', 'Computing and drawing charts…', 'Composing the answer…'];
+  let pi = 0;
+  const timer = setInterval(() => { const el = document.getElementById('phase'); if (el) el.textContent = phases[++pi % phases.length]; }, 5000);
+
   try {
-    const resp = await fetch('/api/chat', {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({messages: history}),
-    });
-    const p = await resp.json();
-    document.getElementById('typing')?.remove();
-    if (p.error) { history.pop(); addUserUndo(); alert(p.error); return; }
-    history.push({role: 'assistant', content: p.answer});
-    addAssistant(p);
+    const resp = await fetch('/api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({messages: history})});
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Request failed');
+    typing.remove();
+    renderAnswer(data);
+    history.push({role: 'assistant', content: data.answer || ''});
   } catch (e) {
-    document.getElementById('typing')?.remove();
-    history.pop();
+    typing.remove();
+    addMessage('assistant', `<p class="text-[14px] text-red-700">${esc(e.message)}</p>`);
   } finally {
-    busy = false; sendBtn.disabled = false; input.focus();
+    clearInterval(timer);
+    btn.disabled = false;
+    input.focus();
   }
 }
 
-form.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const text = input.value;
-  input.value = ''; input.style.height = 'auto';
-  send(text);
-});
-input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+async function downloadReport(runRowId, btn) {
+  btn.disabled = true; btn.textContent = 'Assembling…';
+  try {
+    const resp = await fetch('/api/agent/report', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({run_id: runRowId})});
+    if (!resp.ok) throw new Error('Report assembly failed');
+    const {download} = await resp.json();
+    window.location.href = download;
+  } catch (e) { alert(e.message); }
+  btn.disabled = false; btn.textContent = 'Generate DOCX Report';
+}
+
+document.getElementById('chatform').addEventListener('submit', e => { e.preventDefault(); send(); });
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
 });
 input.addEventListener('input', () => {
   input.style.height = 'auto';
   input.style.height = Math.min(input.scrollHeight, 160) + 'px';
 });
-document.querySelectorAll('.suggestion').forEach(b =>
-  b.addEventListener('click', () => send(b.textContent.trim())));
-document.getElementById('newchat').addEventListener('click', () => {
-  history = [];
-  log.innerHTML = '';
-  location.reload();
-});
+document.querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => send(p.textContent)));
+document.getElementById('new-chat').addEventListener('click', () => { history = []; location.reload(); });
+input.focus();
 </script>
 {% endblock %}

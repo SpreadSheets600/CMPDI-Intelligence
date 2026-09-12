@@ -16,9 +16,23 @@ bp = Blueprint("documents", __name__)
 @bp.route("/documents")
 def documents():
     subs = db.q("SELECT DISTINCT subsidiary FROM documents WHERE subsidiary IS NOT NULL")
+    types = db.q("SELECT DISTINCT doc_type FROM documents ORDER BY doc_type")
     sel_sub = request.args.get("subsidiary") or ""
-    rows = db.q("SELECT * FROM documents WHERE ?='' OR subsidiary=? ORDER BY upload_ts DESC",
-                (sel_sub, sel_sub))
+    sel_type = request.args.get("type") or ""
+    q = (request.args.get("q") or "").strip()
+    where, params = [], []
+    if sel_sub:
+        where.append("subsidiary=?")
+        params.append(sel_sub)
+    if sel_type:
+        where.append("doc_type=?")
+        params.append(sel_type)
+    if q:
+        where.append("(display_name LIKE ? OR filename LIKE ?)")
+        params += [f"%{q}%", f"%{q}%"]
+    sql = "SELECT * FROM documents" + (" WHERE " + " AND ".join(where) if where else "") + \
+        " ORDER BY upload_ts DESC"
+    rows = db.q(sql, tuple(params))
     tag_filter = request.args.get("tag") or None
     if tag_filter:
         rows = [r for r in rows if tag_filter in
@@ -28,8 +42,11 @@ def documents():
     for r in rows:
         kw_map[r["id"]] = [x["keyword"] for x in db.q(
             "SELECT keyword FROM doc_keywords WHERE doc_id=? ORDER BY keyword", (r["id"],))]
+    counts = {r["doc_type"]: r["n"] for r in db.q(
+        "SELECT doc_type, COUNT(*) n FROM documents GROUP BY doc_type")}
     return render_template("pages/documents.html", docs=rows, subsidiaries=subs,
-                           sel_sub=sel_sub, kw_map=kw_map, tag=tag_filter,
+                           doc_types=types, type_counts=counts, sel_sub=sel_sub,
+                           sel_type=sel_type, q=q, kw_map=kw_map, tag=tag_filter,
                            tags=retrieval.top_tags(30))
 
 
