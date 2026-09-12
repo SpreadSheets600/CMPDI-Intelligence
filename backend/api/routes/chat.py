@@ -5,7 +5,7 @@ through the tool-calling agent automatically."""
 
 import re
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, request
 
 from backend.core import agent, graph, query, retrieval, trust
 from backend.core.llm import get_backend
@@ -82,13 +82,6 @@ def chat():
     payload["charts"] = []
     payload["trace"] = []
     return jsonify(payload)
-
-
-@bp.route("/graph")
-def graph_page():
-    subs = db.q("SELECT DISTINCT subsidiary FROM documents WHERE subsidiary IS NOT NULL")
-    return render_template("pages/graph.html", subs=subs,
-                           tags=retrieval.top_tags(30))
 
 
 @bp.route("/api/graph")

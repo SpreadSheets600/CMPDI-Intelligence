@@ -1,22 +1,11 @@
 """Compare Documents endpoints."""
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, request
 
 from backend.core import compare
 from backend.db import database as db
 
 bp = Blueprint("compare", __name__)
-
-
-@bp.route("/compare")
-def compare_page():
-    doc_id = request.args.get("doc") or None
-    suggested = compare.version_pair(doc_id) if doc_id else None
-    return render_template(
-        "pages/compare.html",
-        docs=db.q("""SELECT id, filename, display_name, doc_date_raw
-                     FROM documents WHERE status='completed' ORDER BY upload_ts DESC"""),
-        suggested=suggested, sel_doc=doc_id or "")
 
 
 @bp.route("/api/compare")

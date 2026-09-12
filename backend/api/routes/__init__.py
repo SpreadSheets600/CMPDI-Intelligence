@@ -1,23 +1,18 @@
 """Blueprint registry: every route package registers its blueprint here and
-the application factory mounts the list in order."""
+the application factory mounts the list in order. ``pages`` carries the
+screen-data endpoints for the React SPA, ``actions`` the JSON mutations."""
 
-from backend.api.routes import (agent, ask, chat, compare, conflicts,
-                                dashboard, documents, ingest, insights,
-                                landing, reports, search, settings, topics)
+from backend.api.routes import (actions, agent, chat, compare, conflicts,
+                                documents, ingest, pages, reports)
 
 ALL_BLUEPRINTS = [
-    landing.bp,
-    dashboard.bp,
+    pages.bp,
+    actions.bp,
     ingest.bp,
     documents.bp,
-    search.bp,
-    ask.bp,
     chat.bp,
-    insights.bp,
-    topics.bp,
     reports.bp,
     agent.bp,
-    settings.bp,
     conflicts.bp,
     compare.bp,
 ]

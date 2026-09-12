@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CMPDI Intelligence</title>
+    <meta name="description" content="Offline document intelligence for coal, mining and geology reporting — every number, with its receipt." />
+    <script>
+      // Theme resolves before first paint so neither mode flashes.
+      (function () {
+        var t = localStorage.getItem('cmpdi-theme') || 'dark';
+        document.documentElement.classList.toggle('dark', t === 'dark');
+      })();
+    </script>
+    <link rel="stylesheet" href="/fonts/fonts.css" />
+  </head>
+  <body class="min-h-dvh bg-paper font-sans text-ink antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

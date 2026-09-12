@@ -1,33 +1,10 @@
 """Conflict Radar: page, API and officer decisions (acknowledge/resolve)."""
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, request
 
 from backend.core import conflicts
 
 bp = Blueprint("conflicts", __name__)
-
-
-@bp.route("/conflicts")
-def conflicts_page():
-    entity = request.args.get("entity") or None
-    attribute = request.args.get("attribute") or None
-    return render_template(
-        "pages/conflicts.html",
-        entities=db_entities(), attributes=db_attributes(),
-        sel_entity=entity or "", sel_attribute=attribute or "")
-
-
-def db_entities():
-    from backend.db import database as db
-    return db.q("""SELECT DISTINCT COALESCE(e.canonical_name, f.entity_text) n
-                   FROM facts f LEFT JOIN entities e ON e.id = f.entity_id
-                   WHERE COALESCE(e.canonical_name, f.entity_text) != ''
-                   ORDER BY n""")
-
-
-def db_attributes():
-    from backend.db import database as db
-    return db.q("SELECT DISTINCT attribute FROM facts ORDER BY attribute")
 
 
 @bp.route("/api/conflicts")

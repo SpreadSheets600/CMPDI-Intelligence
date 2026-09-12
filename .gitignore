@@ -11,3 +11,7 @@ samples/
 
 # local browser-tooling downloads
 *.deb
+
+# react frontend
+frontend/node_modules/
+frontend/dist/

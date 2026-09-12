@@ -122,6 +122,12 @@ uv venv
 uv pip install -e .            # or: uv sync
 ```
 
+Build the React frontend (first run installs dependencies):
+
+```bash
+cd frontend && npm install && npm run build && cd ..
+```
+
 Initialize, generate the demo corpus, and ingest it:
 
 ```bash
@@ -182,10 +188,11 @@ Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```
 backend/
-  app/          Flask factory
-  api/routes/   landing, dashboard, ingest, documents, search,
-                ask, chat, agent, insights, topics, reports, settings,
-                compare, conflicts
+  app/          Flask factory (serves the built SPA + JSON API)
+  api/
+    routes/     screen-data endpoints (pages), JSON mutations (actions),
+                file serving (documents, reports), chat, agent,
+                conflicts, compare
   core/         pipeline, retrieval, facts, query, keywords, graph, llm,
                 agent (+ sandbox runner), summary, appsettings, topics,
                 reports, md_docx (markdown to DOCX)
@@ -193,26 +200,26 @@ backend/
   models/       canonical document dataclasses
   storage/      content-addressed file store
   scripts/      init, CLI ingest, demo corpus, reindex
-frontend/
-  templates/
-    pages/      one template per workspace screen (landing.html composes
-                the public page)
-    landing/    landing page sections: nav, hero, social proof, showcase,
-                pipeline, capabilities, testimonials, FAQ, final CTA,
-                footer
-    components/ shared partials (sidebar)
-  static/
-    js/         app.js (workspace), graph.js, tailwind-config.js (design
-                tokens + landing keyframes), landing.js (landing motion,
-                driven by Motion)
-    vendor/     Tailwind Play build, motion.js (Framer Motion's vanilla
-                engine, self-hosted for offline use)
-    fonts/      self-hosted Archivo + IBM Plex Mono
-    icons/      Lucide SVGs
+frontend/       React SPA (Vite + React Router + Tailwind + Framer Motion)
+  src/
+    api.js          fetch helpers over the Flask JSON API
+    hooks/          theme + sidebar state, page-data fetch, polling,
+                    theme-aware canvas colors
+    layout/         AppShell: sidebar, mobile frame, footer
+    components/     shared UI (page header, rise transitions) and landing
+                    sections (hero, showcase, capabilities, FAQ, CTA)
+    pages/          one component per screen: landing, dashboard, pipeline,
+                    documents, viewer, search, ask, graph, insights,
+                    conflicts, compare, topics, reports, review, settings
+  public/fonts/  self-hosted Archivo + IBM Plex Mono
+  dist/         production build served by Flask (gitignored build output)
 docs/
   agent/        editable capability guides fed to the agent's prompts
   ARCHITECTURE.md, PLAN.md
 ```
+
+Develop the UI with `npm run dev` inside `frontend/` (Vite proxies the API
+to port 5000); ship with `npm run build` and restart the Flask app.
 
 ## Tested Against Real Data
 

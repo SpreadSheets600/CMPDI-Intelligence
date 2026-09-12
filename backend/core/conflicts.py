@@ -91,8 +91,12 @@ def detect(entity: str | None = None, attribute: str | None = None,
         spread = (hi - lo) / lo * 100 if lo else 100.0
         for v in shown:
             import math
-            v["page_no"] = int(v["page_no"]) if v["page_no"] is not None and not math.isnan(v["page_no"]) else None
-            v["sheet_no"] = int(v["sheet_no"]) if v["sheet_no"] is not None and not math.isnan(v["sheet_no"]) else None
+            # pandas turns missing strings (unit) into float NaN; JSON forbids it
+            for k, val in list(v.items()):
+                if isinstance(val, float) and math.isnan(val):
+                    v[k] = None
+            v["page_no"] = int(v["page_no"]) if v["page_no"] is not None else None
+            v["sheet_no"] = int(v["sheet_no"]) if v["sheet_no"] is not None else None
             v["ocr"] = bool(v["ocr_pages"])
             v["low_conf"] = "low_confidence" in (v["flags"] or "")
             v["superseded"] = not v["is_current_version"]
