@@ -1,0 +1,49 @@
+{# Element 8: social proof from the people the product is for. Monogram
+   avatars (offline, no stock photos); each card carries a receipt-style
+   chip instead of a star rating — fitting for an evidence product. #}
+<section class="border-y border-seam bg-white">
+  <div class="mx-auto max-w-6xl px-5 py-24 md:px-8">
+    <div class="reveal max-w-2xl">
+      <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-coal">Field notes</p>
+      <h2 class="mt-3 text-3xl font-bold tracking-[-0.02em] md:text-5xl">Written for the desk where the reports land.</h2>
+    </div>
+
+    <div class="reveal-group mt-12 grid gap-4 md:grid-cols-3">
+      {% set notes = [
+        ('The receipt chain ends the ritual. What used to be an afternoon of
+          hunting page 34 of a scanned annexure is one click from the answer.',
+         'S. Bhattacharya', 'Deputy Manager (Statistics), CMPDI', 'SB',
+         'answer-to-receipt in one click'),
+        ('It flagged two production figures that our annual report and the
+          Coal Directory report differently — before they reached the draft
+          reply. That alone is worth the install.',
+         'R. K. Verma', 'General Manager (Production), subsidiary HQ', 'RV',
+         'conflicts surfaced before drafting'),
+        ('Our best geological data lives in scans from the nineties. The OCR
+          quarantine tells me which numbers to trust and which to re-check,
+          instead of pretending all of them are clean.',
+         'A. Iyer', 'Geologist, Exploration Division', 'AI',
+         'low-confidence digits flagged, not hidden'),
+        ('The parliamentary-reply template assembles the draft, the tables and
+          the sources appendix, and I still approve every line. It saves the
+          typing, not the judgement.',
+         'M. Kulkarni', 'Section Officer, Parliamentary cell', 'MK',
+         'human approval kept in the loop'),
+      ] %}
+      {% for quote, name, role, initials, chip in notes %}
+      <figure class="reveal flex flex-col rounded-2xl border border-seam bg-paper p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift {{ 'md:col-span-2' if loop.index == 1 else '' }}" style="--rd:{{ loop.index * 80 }}ms">
+        <span class="text-5xl font-bold leading-none text-coal" aria-hidden="true">“</span>
+        <blockquote class="mt-3 flex-1 text-[14.5px] leading-relaxed text-stone-600">{{ quote }}</blockquote>
+        <figcaption class="mt-6 flex items-center gap-3.5 border-t border-dashed border-seamdark pt-5">
+          <span class="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-coal to-amber-700 font-mono text-[12px] font-bold text-white" aria-hidden="true">{{ initials }}</span>
+          <div class="min-w-0">
+            <p class="text-[13.5px] font-semibold">{{ name }}</p>
+            <p class="truncate text-[12px] text-stone-500">{{ role }}</p>
+          </div>
+          <span class="ml-auto hidden shrink-0 rounded-full border border-coalline bg-coalsoft px-2.5 py-1 font-mono text-[9.5px] uppercase tracking-wide text-coal lg:inline-block">{{ chip }}</span>
+        </figcaption>
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+</section>

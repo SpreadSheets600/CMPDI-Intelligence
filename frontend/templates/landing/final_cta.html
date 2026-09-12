@@ -1,0 +1,43 @@
+{# Element 10: the last-chance conversion, staged as the loudest moment on
+   the page — a charcoal band torn off the paper above it, with the biggest
+   CTA and the one-click demo corpus as the zero-friction alternative. #}
+<section class="relative">
+  <div class="cta-tear" aria-hidden="true"></div>
+  <div class="relative overflow-hidden bg-side text-sidetext">
+    <div class="pointer-events-none absolute -top-40 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full bg-coal/15 blur-3xl" aria-hidden="true"></div>
+
+    <div class="relative mx-auto max-w-6xl px-5 py-24 text-center md:px-8 md:py-28">
+      <p class="reveal font-mono text-[11px] uppercase tracking-[0.18em] text-coal">Ready when you are</p>
+      <h2 class="reveal mx-auto mt-4 max-w-[20ch] text-4xl font-bold leading-[1.05] tracking-[-0.03em] md:text-6xl" style="--rd:80ms">
+        Stop hunting through PDFs.<br>
+        <span class="text-coal">Start reading the library.</span>
+      </h2>
+      <p class="reveal mx-auto mt-6 max-w-[58ch] text-[15.5px] leading-relaxed text-sidemute" style="--rd:160ms">
+        Set up takes minutes and everything stays on this machine. Drop in
+        your own reports — or generate the demonstration corpus first and see
+        receipts, conflicts and reports working end to end.
+      </p>
+
+      <div class="reveal mt-10 flex flex-wrap items-center justify-center gap-4" style="--rd:240ms">
+        <a href="{{ url_for('dashboard.dashboard') }}"
+           class="cta-primary cta-jumbo group">
+          Open the Workspace
+          {{ icon('arrow-right', 'h-[18px] w-[18px] transition-transform duration-300 group-hover:translate-x-1') }}
+        </a>
+        <form method="post" action="{{ url_for('ingest.load_demo') }}">
+          <button type="submit"
+                  class="flex items-center gap-2 rounded-full border border-sideline px-7 py-[1.13rem] text-[1.05rem] font-semibold text-sidetext transition-colors hover:border-coal hover:text-coal">
+            {{ icon('package', 'h-[18px] w-[18px]') }}
+            Load the demo corpus first
+          </button>
+        </form>
+      </div>
+
+      <p class="reveal mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[10.5px] uppercase tracking-widest text-sidemute" style="--rd:320ms">
+        <span class="flex items-center gap-1.5">{{ icon('shield-check', 'h-3.5 w-3.5 text-coal') }} no cloud, no API calls</span>
+        <span class="flex items-center gap-1.5">{{ icon('hard-drive', 'h-3.5 w-3.5 text-coal') }} one machine, one database</span>
+        <span class="flex items-center gap-1.5">{{ icon('circle-check', 'h-3.5 w-3.5 text-coal') }} every answer you can audit</span>
+      </p>
+    </div>
+  </div>
+</section>

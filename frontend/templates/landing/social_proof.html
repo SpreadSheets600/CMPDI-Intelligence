@@ -1,0 +1,47 @@
+{# Element 5: social proof — live database counts (count-up on scroll) plus
+   a marquee of the paperwork the pipeline digests. #}
+<section class="border-y border-seam bg-white">
+  <div class="mx-auto grid max-w-6xl grid-cols-2 gap-y-8 px-5 py-10 md:grid-cols-4 md:px-8 md:py-12">
+    {% for label, key, suffix in [
+      ('Documents indexed', 'documents', ''),
+      ('Facts with receipts', 'facts', ''),
+      ('Searchable chunks', 'chunks', ''),
+      ('Bytes sent to the cloud', 'zero', ''),
+    ] %}
+    <div class="px-2 text-center md:px-6">
+      <div class="font-mono text-3xl font-semibold tracking-tight md:text-4xl">
+        {% if key == 'zero' %}
+          <span class="text-coal">0</span>
+        {% else %}
+          <span data-count="{{ stats[key] }}">{{ stats[key] }}</span>
+        {% endif %}{{ suffix }}
+      </div>
+      <div class="mt-1.5 text-[12.5px] text-stone-500">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="overflow-hidden border-t border-seam py-3.5" aria-hidden="true">
+    <div class="marquee flex w-max items-center gap-10 font-mono text-[11px] uppercase tracking-[0.2em] text-stone-400">
+      {% for item in [
+        'Digital PDF', 'Scanned PDF + OCR', 'Word documents', 'Excel workbooks',
+        'Multi-sheet CSV', 'Parliamentary replies', 'Image-only pages',
+        'SHA-256 dedupe', 'Version chains', 'Indian number formats',
+      ] %}
+      <span class="flex items-center gap-10">
+        <span class="whitespace-nowrap">{{ item }}</span>
+        <span class="text-coal">·</span>
+      </span>
+      {% endfor %}
+      {% for item in [
+        'Digital PDF', 'Scanned PDF + OCR', 'Word documents', 'Excel workbooks',
+        'Multi-sheet CSV', 'Parliamentary replies', 'Image-only pages',
+        'SHA-256 dedupe', 'Version chains', 'Indian number formats',
+      ] %}
+      <span class="flex items-center gap-10">
+        <span class="whitespace-nowrap">{{ item }}</span>
+        <span class="text-coal">·</span>
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+</section>

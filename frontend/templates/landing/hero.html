@@ -1,0 +1,80 @@
+{# Elements 3-5: SEO hero title, primary CTA, receipt visual as social
+   proof of the product's own promise. Asymmetric split on a blueprint grid. #}
+<section class="hero-grid relative overflow-hidden">
+  <div class="hero-glow" aria-hidden="true"></div>
+  <div class="mx-auto grid max-w-6xl items-center gap-14 px-5 pb-24 pt-32 md:grid-cols-12 md:px-8 md:pb-28 md:pt-40">
+    <div class="md:col-span-7">
+      <p class="animate-rise flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-coal">
+        <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-coal"></span>
+        For CMPDI, CIL and subsidiary teams
+      </p>
+      <h1 class="mt-5 max-w-[13ch] text-5xl font-bold leading-[1.02] tracking-[-0.03em] md:text-7xl">
+        <span class="hero-word" style="--wd:0ms">Every</span>
+        <span class="hero-word" style="--wd:90ms">number,</span><br>
+        <span class="hero-word text-coal" style="--wd:180ms">with</span>
+        <span class="hero-word text-coal" style="--wd:270ms">its</span>
+        <span class="hero-word text-coal" style="--wd:360ms">receipt.</span>
+      </h1>
+      <p class="mt-6 max-w-[54ch] animate-rise text-[17px] leading-relaxed text-stone-500" style="animation-delay:420ms">
+        An offline document-intelligence workspace for coal, mining and geology
+        reporting. Upload reports, scans and spreadsheets; ask questions,
+        generate DOCX reports — and open the exact page, table row or
+        spreadsheet cell behind any figure.
+      </p>
+      <div class="mt-9 flex animate-rise flex-wrap items-center gap-3" style="animation-delay:520ms">
+        <a href="{{ url_for('dashboard.dashboard') }}"
+           class="cta-primary group">
+          Open the Workspace
+          {{ icon('arrow-right', 'h-4 w-4 transition-transform duration-300 group-hover:translate-x-1') }}
+        </a>
+        <a href="#pipeline"
+           class="flex items-center gap-2 rounded-full border border-seamdark px-6 py-3.5 text-sm font-semibold text-ink transition-colors hover:border-coal hover:text-coal">
+          {{ icon('scan-text', 'h-4 w-4') }} How evidence works
+        </a>
+      </div>
+      <p class="mt-6 flex animate-rise items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-stone-400" style="animation-delay:620ms">
+        {{ icon('shield-check', 'h-3.5 w-3.5 text-coal') }}
+        Runs entirely on one machine · no cloud, no API calls
+      </p>
+    </div>
+
+    {# The product's own citation UI, rendered as a paper receipt #}
+    <div class="md:col-span-5">
+      <div class="relative animate-pop" style="animation-delay:480ms">
+        <div class="absolute -inset-4 -rotate-2 rounded-3xl border border-coalline bg-coalsoft/40" aria-hidden="true"></div>
+        <div class="receipt relative rounded-2xl border border-seam bg-white p-7 shadow-lift">
+          <div class="flex items-center justify-between">
+            <span class="rounded-full border border-coalline bg-coalsoft px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-coal">fact</span>
+            <span class="font-mono text-[10.5px] text-stone-400">FY2023-24</span>
+          </div>
+          <p class="mt-5 font-mono text-[42px] font-semibold leading-none tracking-tight">997.83 <span class="text-[16px] font-medium text-stone-500">MT</span></p>
+          <p class="mt-2.5 text-[14px] text-stone-600">Raw coal production, Coal India Limited</p>
+          <div class="mt-6 border-t border-dashed border-seamdark pt-5">
+            <p class="font-mono text-[10px] uppercase tracking-widest text-stone-400">receipt</p>
+            <div class="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+              <span class="rounded-md border border-seam bg-paper px-2 py-1 font-mono">Annual Report 2024-25</span>
+              {{ icon('chevron-right', 'h-3 w-3 text-stone-300') }}
+              <span class="rounded-md border border-seam bg-paper px-2 py-1 font-mono">page 11</span>
+              {{ icon('chevron-right', 'h-3 w-3 text-stone-300') }}
+              <span class="rounded-md border border-seam bg-paper px-2 py-1 font-mono">table 3</span>
+              {{ icon('chevron-right', 'h-3 w-3 text-stone-300') }}
+              <span class="rounded-md border border-coal bg-coal px-2 py-1 font-mono text-white">cell</span>
+            </div>
+          </div>
+          <div class="mt-5 flex items-center justify-between border-t border-dashed border-seamdark pt-4">
+            <span class="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wide text-emerald-700">
+              {{ icon('circle-check', 'h-3.5 w-3.5') }} evidence grade A
+            </span>
+            <span class="font-mono text-[10.5px] text-stone-400">2 independent sources</span>
+          </div>
+        </div>
+        <div class="float-slow absolute -bottom-6 -left-6 hidden rounded-xl border border-seam bg-white px-4 py-3 shadow-lift md:block" style="animation-delay:900ms">
+          <p class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-stone-400">
+            {{ icon('triangle-alert', 'h-3.5 w-3.5 text-coal') }} conflict radar
+          </p>
+          <p class="mt-1 text-[12.5px] font-semibold">2 values disagree · both cited</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

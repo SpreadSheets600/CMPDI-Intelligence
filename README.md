@@ -183,8 +183,9 @@ Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
 ```
 backend/
   app/          Flask factory
-  api/routes/   dashboard (landing + /dashboard), ingest, documents, search,
-                ask, chat, agent, insights, topics, reports, settings
+  api/routes/   landing, dashboard, ingest, documents, search,
+                ask, chat, agent, insights, topics, reports, settings,
+                compare, conflicts
   core/         pipeline, retrieval, facts, query, keywords, graph, llm,
                 agent (+ sandbox runner), summary, appsettings, topics,
                 reports, md_docx (markdown to DOCX)
@@ -193,9 +194,20 @@ backend/
   storage/      content-addressed file store
   scripts/      init, CLI ingest, demo corpus, reindex
 frontend/
-  templates/    pages/ and components/
-  static/       vendored Tailwind, self-hosted fonts, icons/ (Lucide SVGs),
-                app.js, graph.js
+  templates/
+    pages/      one template per workspace screen (landing.html composes
+                the public page)
+    landing/    landing page sections: nav, hero, social proof, showcase,
+                pipeline, capabilities, testimonials, FAQ, final CTA,
+                footer
+    components/ shared partials (sidebar)
+  static/
+    css/        landing.css (the landing page's motion + texture layer)
+    js/         app.js (workspace), graph.js, landing.js entry +
+                js/landing/ ES modules (theme, nav, reveal, countup, faq)
+    fonts/      self-hosted Archivo + IBM Plex Mono
+    icons/      Lucide SVGs
+    vendor/     Tailwind Play build
 docs/
   agent/        editable capability guides fed to the agent's prompts
   ARCHITECTURE.md, PLAN.md

@@ -8,6 +8,9 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = Path(os.environ.get("CMPDI_DATA_DIR", ROOT / "data"))
 DB_PATH = Path(os.environ.get("CMPDI_DB_PATH", DATA_DIR / "cmpdi.db"))
 
+# Frontend assets served by the same process
+FRONTEND_DIR = ROOT / "frontend"
+
 # Filesystem object store layout
 FILES_DIR = DATA_DIR / "files"  # <sha256>/original.<ext>, page images, ocr artifacts
 REPORTS_DIR = DATA_DIR / "reports"  # generated DOCX reports

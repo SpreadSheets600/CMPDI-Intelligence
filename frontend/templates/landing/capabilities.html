@@ -1,0 +1,101 @@
+{# Element 7: benefits — asymmetric bento, not a three-column grid. #}
+<section id="capabilities" class="py-24 md:py-28">
+  <div class="mx-auto max-w-6xl px-5 md:px-8">
+    <div class="reveal flex flex-wrap items-end justify-between gap-6">
+      <div class="max-w-2xl">
+        <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-coal">Capabilities</p>
+        <h2 class="mt-3 text-3xl font-bold tracking-[-0.02em] md:text-5xl">One workspace that reads the library for you.</h2>
+      </div>
+      <a href="{{ url_for('dashboard.dashboard') }}" class="nav-link hidden items-center gap-1.5 text-[14px] font-semibold text-coal md:inline-flex">
+        Try it now {{ icon('arrow-right', 'h-4 w-4') }}
+      </a>
+    </div>
+
+    <div class="reveal-group mt-12 grid gap-4 md:grid-cols-6">
+      <div class="reveal rounded-2xl border border-seam bg-white p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift md:col-span-4 md:row-span-2" style="--rd:0ms">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-coal text-white">{{ icon('message-circle', 'h-5 w-5') }}</div>
+        <h3 class="mt-5 text-xl font-semibold tracking-tight">Ask, with grounded answers</h3>
+        <p class="mt-2.5 max-w-[58ch] text-[14.5px] leading-relaxed text-stone-500">
+          One chat over the whole library. Numbers resolve against a fact index
+          for exact values; when a question needs analysis, a tool-calling agent
+          runs sandboxed Python over the real data — comparisons, shares and
+          trends are computed, never guessed. Every claim carries its citation,
+          and when evidence is weak the system abstains instead of inventing.
+        </p>
+        <div class="mt-6 flex flex-wrap gap-2">
+          {% for t in ['"raw coal production of CIL in 2023-24?"', '"compare offtake across subsidiaries"', '"chart the GCV trend since 2019"'] %}
+          <span class="rounded-full border border-coalline bg-coalsoft px-3.5 py-1.5 font-mono text-[11px] text-coal">{{ t }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="reveal rounded-2xl border border-seam bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift md:col-span-2" style="--rd:90ms">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-coalsoft text-coal">{{ icon('file-chart-column', 'h-5 w-5') }}</div>
+        <h3 class="mt-4 font-semibold tracking-tight">Report studio</h3>
+        <p class="mt-2 text-[13.5px] leading-relaxed text-stone-500">
+          DOCX reports assembled from the library: executive summary, real Word
+          tables, charts from actual figures and a per-item sources appendix.
+          Human review decides approve or return.
+        </p>
+      </div>
+
+      <div class="reveal rounded-2xl border border-sideline bg-side p-6 text-sidetext transition-all duration-300 hover:-translate-y-1 hover:shadow-lift md:col-span-2" style="--rd:180ms">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10 text-coal">{{ icon('triangle-alert', 'h-5 w-5') }}</div>
+        <h3 class="mt-4 font-semibold tracking-tight">Conflict radar</h3>
+        <p class="mt-2 text-[13.5px] leading-relaxed text-sidemute">
+          When documents disagree on the same figure, every value is shown side
+          by side with its receipt — likely causes explained, status tracked
+          open to resolved.
+        </p>
+      </div>
+
+      <div class="reveal rounded-2xl border border-seam bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift md:col-span-2" style="--rd:0ms">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-coalsoft text-coal">{{ icon('chart-column', 'h-5 w-5') }}</div>
+        <h3 class="mt-4 font-semibold tracking-tight">Insights</h3>
+        <p class="mt-2 text-[13.5px] leading-relaxed text-stone-500">
+          Any reported metric plotted per year — and every bar links to the
+          document it came from.
+        </p>
+      </div>
+
+      <div class="reveal rounded-2xl border border-seam bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift md:col-span-2" style="--rd:90ms">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-coalsoft text-coal">{{ icon('network', 'h-5 w-5') }}</div>
+        <h3 class="mt-4 font-semibold tracking-tight">Knowledge tree</h3>
+        <p class="mt-2 text-[13.5px] leading-relaxed text-stone-500">
+          Documents, tags and entities as a navigable force-directed graph of
+          your corpus.
+        </p>
+      </div>
+
+      <div class="reveal rounded-2xl border border-seam bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift md:col-span-2" style="--rd:180ms">
+        <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-coalsoft text-coal">{{ icon('shapes', 'h-5 w-5') }}</div>
+        <h3 class="mt-4 font-semibold tracking-tight">Topics &amp; tags</h3>
+        <p class="mt-2 text-[13.5px] leading-relaxed text-stone-500">
+          Word clouds, keyphrases and document clusters computed locally, then
+          fed back into search and filters.
+        </p>
+      </div>
+
+      <div class="reveal rounded-2xl border border-coalline bg-coalsoft p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift md:col-span-6" style="--rd:270ms">
+        <div class="flex flex-wrap items-start gap-x-10 gap-y-4">
+          <div class="max-w-[62ch]">
+            <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-coal text-white">{{ icon('scan-text', 'h-5 w-5') }}</div>
+            <h3 class="mt-4 text-lg font-semibold tracking-tight">Built for real paperwork, not demo data</h3>
+            <p class="mt-2 text-[14px] leading-relaxed text-stone-600">
+              Indian number formats (1,23,456.78), lakh/crore and MT units,
+              fiscal years starting April, OCR with confidence quarantine,
+              automatic version chains for revised reports, and SHA-256
+              duplicate rejection — tested against live reports from
+              coal.gov.in.
+            </p>
+          </div>
+          <div class="grid flex-1 grid-cols-2 gap-x-6 gap-y-3 self-center font-mono text-[11.5px] text-stone-600 sm:grid-cols-2 md:min-w-[280px]">
+            {% for line in ['lakh / crore aware', 'MT · GCV · % units', 'April-start fiscal years', 'OCR confidence quarantine', 'revised-report chains', 'duplicate rejection'] %}
+            <span class="flex items-center gap-2">{{ icon('check', 'h-3.5 w-3.5 text-coal') }}{{ line }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

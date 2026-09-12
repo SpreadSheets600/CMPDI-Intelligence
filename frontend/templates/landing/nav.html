@@ -1,0 +1,27 @@
+{# Element 2: company logo top-left, sticky nav with blur, theme toggle. #}
+<header id="landing-nav"
+        class="fixed inset-x-0 top-0 z-40 border-b border-transparent transition-all duration-300">
+  <div class="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5 md:px-8">
+    <a href="/" class="group flex items-center gap-2.5" aria-label="CMPDI Intelligence home">
+      <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-coal font-mono text-[14px] font-bold text-white shadow-[0_2px_10px_rgb(217_119_6/0.35)] transition-transform duration-300 group-hover:rotate-[-6deg]">C</span>
+      <span class="text-[16px] font-semibold tracking-tight">CMPDI&nbsp;Intelligence</span>
+    </a>
+    <nav class="ml-auto hidden items-center gap-6 text-[13.5px] font-medium text-stone-500 md:flex" aria-label="Page sections">
+      <a href="#showcase" class="nav-link">Product</a>
+      <a href="#pipeline" class="nav-link">Evidence</a>
+      <a href="#capabilities" class="nav-link">Capabilities</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+    </nav>
+    <button id="landing-theme" type="button"
+            class="flex h-9 w-9 items-center justify-center rounded-lg border border-seam text-stone-500 transition-colors hover:border-coal hover:text-coal"
+            aria-label="Toggle dark and light theme">
+      <span class="hidden dark:inline">{{ icon('sun', 'h-4 w-4') }}</span>
+      <span class="inline dark:hidden">{{ icon('moon', 'h-4 w-4') }}</span>
+    </button>
+    <a href="{{ url_for('dashboard.dashboard') }}"
+       class="flex items-center gap-2 rounded-lg bg-coal px-4 py-2 text-[13.5px] font-semibold text-white shadow-[0_2px_10px_rgb(217_119_6/0.35)] transition-all hover:-translate-y-px hover:shadow-lift active:translate-y-0">
+      Open Workspace
+      {{ icon('arrow-right', 'h-4 w-4') }}
+    </a>
+  </div>
+</header>

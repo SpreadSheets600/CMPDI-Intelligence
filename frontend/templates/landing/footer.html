@@ -1,0 +1,64 @@
+{# Element 11: multi-column footer on the same charcoal band as the final
+   CTA — brand, product links, library tools and the trust story, with the
+   legal bar underneath. #}
+<footer class="border-t border-sideline bg-side text-sidetext">
+  <div class="mx-auto max-w-6xl px-5 pb-10 pt-16 md:px-8">
+    <div class="grid gap-12 md:grid-cols-12">
+      <div class="md:col-span-5">
+        <a href="/" class="flex items-center gap-2.5" aria-label="CMPDI Intelligence home">
+          <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-coal font-mono text-[14px] font-bold text-white">C</span>
+          <span class="text-[16px] font-semibold tracking-tight">CMPDI&nbsp;Intelligence</span>
+        </a>
+        <p class="mt-4 max-w-[46ch] text-[13.5px] leading-relaxed text-sidemute">
+          An offline document-intelligence workspace for coal, mining and
+          geology reporting. Every number, answer and report carries a receipt
+          back to its exact source.
+        </p>
+        <p class="mt-6 inline-flex items-center gap-2 rounded-full border border-sideline px-3.5 py-1.5 font-mono text-[10.5px] uppercase tracking-widest text-sidemute">
+          {{ icon('shield-check', 'h-3.5 w-3.5 text-coal') }} fully offline · no telemetry
+        </p>
+      </div>
+
+      <nav class="md:col-span-2" aria-label="Product">
+        <p class="font-mono text-[10.5px] uppercase tracking-widest text-sidemute">Product</p>
+        <ul class="mt-4 space-y-2.5 text-[13.5px]">
+          <li><a class="footer-link" href="{{ url_for('dashboard.dashboard') }}">Dashboard</a></li>
+          <li><a class="footer-link" href="{{ url_for('ingest.index') }}">Ingest</a></li>
+          <li><a class="footer-link" href="{{ url_for('ask.ask') }}">Ask</a></li>
+          <li><a class="footer-link" href="{{ url_for('reports.reports_page') }}">Reports</a></li>
+          <li><a class="footer-link" href="{{ url_for('settings.settings_page') }}">Settings</a></li>
+        </ul>
+      </nav>
+
+      <nav class="md:col-span-2" aria-label="Library tools">
+        <p class="font-mono text-[10.5px] uppercase tracking-widest text-sidemute">Library tools</p>
+        <ul class="mt-4 space-y-2.5 text-[13.5px]">
+          <li><a class="footer-link" href="{{ url_for('documents.documents') }}">Documents</a></li>
+          <li><a class="footer-link" href="{{ url_for('search.search') }}">Search</a></li>
+          <li><a class="footer-link" href="{{ url_for('insights.insights') }}">Insights</a></li>
+          <li><a class="footer-link" href="{{ url_for('conflicts.conflicts_page') }}">Conflict Radar</a></li>
+          <li><a class="footer-link" href="{{ url_for('chat.graph_page') }}">Knowledge Tree</a></li>
+        </ul>
+      </nav>
+
+      <nav class="md:col-span-3" aria-label="Trust">
+        <p class="font-mono text-[10.5px] uppercase tracking-widest text-sidemute">Trust</p>
+        <ul class="mt-4 space-y-2.5 text-[13.5px]">
+          <li><a class="footer-link" href="#faq">Questions &amp; answers</a></li>
+          <li><a class="footer-link" href="#pipeline">How evidence works</a></li>
+          <li><a class="footer-link" href="{{ url_for('compare.compare_page') }}">Compare documents</a></li>
+          <li><a class="footer-link" href="{{ url_for('agent.agent_page') }}">Analytical agent</a></li>
+        </ul>
+      </nav>
+    </div>
+
+    <div class="mt-14 flex flex-wrap items-center justify-between gap-3 border-t border-sideline pt-6 font-mono text-[10.5px] uppercase tracking-widest text-sidemute">
+      <span>© 2026 CMPDI Intelligence · SIH26023</span>
+      <span class="flex items-center gap-4">
+        <a class="footer-link normal-case tracking-normal" href="{{ url_for('landing.index') }}">Home</a>
+        <span aria-hidden="true" class="text-coal">·</span>
+        <span>built for the desk where the reports land</span>
+      </span>
+    </div>
+  </div>
+</footer>
