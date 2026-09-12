@@ -13,15 +13,35 @@
     </button>
   </div>
 
+  {% if scoped_docs %}
+  <div class="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-coalline bg-coalsoft px-4 py-2.5 text-[13px] animate-rise">
+    <span class="font-mono text-[10.5px] uppercase tracking-widest text-coal">scoped to</span>
+    {% for d in scoped_docs %}
+    <span class="inline-flex items-center gap-1.5 rounded-full border border-coalline bg-white px-2.5 py-0.5 text-[12px] text-stone-600">
+      {{ icon('file-text', 'h-3 w-3 text-coal') }} {{ d.display_name or d.filename }}
+    </span>
+    {% endfor %}
+    <a href="{{ url_for('ask.ask') }}" class="ml-auto flex items-center gap-1 text-[12px] font-medium text-coal hover:underline">
+      {{ icon('x', 'h-3.5 w-3.5') }} clear scope
+    </a>
+  </div>
+  {% endif %}
+
   <div id="chatlog" class="mt-5 flex-1 space-y-5 overflow-y-auto pr-1" aria-live="polite">
     <div id="welcome" class="mx-auto max-w-xl pt-6 text-center">
       <span class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-coalsoft text-coal">{{ icon('message-circle', 'h-7 w-7') }}</span>
       <p class="mt-4 font-semibold">Ask anything about your documents</p>
       <p class="mt-1 text-[13.5px] text-stone-500">Factual questions get cited answers; analytical questions get computed results and charts.</p>
       <div class="mt-6 flex flex-wrap justify-center gap-1.5" id="pills">
+        {% if scoped_docs %}
+        {% for p in ['What was the production reported here?', 'What mines are mentioned?', 'Summarize the key findings.', 'What reserves are reported?', 'What changed from the previous report?'] %}
+        <button class="pill rounded-full border border-coalline bg-coalsoft px-3 py-1.5 text-[12.5px] text-coal transition-all hover:-translate-y-px hover:bg-amber-100">{{ p }}</button>
+        {% endfor %}
+        {% else %}
         {% for p in ['raw coal production of CIL in 2023-24', 'compare production across subsidiaries', 'generate a few charts for this data', 'what does the library say about washeries?'] %}
         <button class="pill rounded-full border border-coalline bg-coalsoft px-3 py-1.5 text-[12.5px] text-coal transition-all hover:-translate-y-px hover:bg-amber-100">{{ p }}</button>
         {% endfor %}
+        {% endif %}
       </div>
     </div>
   </div>
@@ -192,6 +212,9 @@ function renderAnswer(payload) {
   addMessage('assistant', html);
 }
 
+const SCOPED_DOCS = {{ scoped_docs | map(attribute='id') | list | tojson }};
+const SEED_Q = {{ seed_q | tojson }};
+
 async function send(text) {
   text = (text || input.value).trim();
   if (!text) return;
@@ -216,7 +239,7 @@ async function send(text) {
 
   try {
     const resp = await fetch('/api/chat', {method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({messages: history})});
+      body: JSON.stringify({messages: history, doc_ids: SCOPED_DOCS})});
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Request failed');
     typing.remove();
@@ -255,5 +278,6 @@ input.addEventListener('input', () => {
 document.querySelectorAll('.pill').forEach(p => p.addEventListener('click', () => send(p.textContent)));
 document.getElementById('new-chat').addEventListener('click', () => { history = []; location.reload(); });
 input.focus();
+if (SEED_Q) send(SEED_Q);
 </script>
 {% endblock %}

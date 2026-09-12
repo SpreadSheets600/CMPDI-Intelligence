@@ -151,3 +151,17 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshJobs();
   setInterval(refreshJobs, 2500);
 });
+
+// ---------------------------------------------------------------- documents selection
+
+document.addEventListener('change', (e) => {
+  if (!e.target.classList?.contains('doc-select')) return;
+  const bar = document.getElementById('selection-bar');
+  if (!bar) return;
+  const picked = [...document.querySelectorAll('.doc-select:checked')].map(x => x.value);
+  bar.classList.toggle('hidden', !picked.length);
+  bar.classList.toggle('flex', !!picked.length);
+  document.getElementById('sel-count').textContent = picked.length;
+  document.getElementById('ask-selection').href =
+    picked.length ? '/ask?docs=' + picked.join(',') : '#';
+});

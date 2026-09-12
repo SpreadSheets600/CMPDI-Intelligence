@@ -17,6 +17,10 @@
         <button class="rounded-lg bg-coal px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-amber-500">Save</button>
       </form>
     </details>
+    <a href="{{ url_for('ask.ask', doc=doc.id) }}"
+       class="flex items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">
+      {{ icon('message-circle', 'h-3.5 w-3.5') }} Ask About This Document
+    </a>
     <a href="{{ url_for('documents.original', doc_id=doc.id) }}" target="_blank"
        class="flex items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">{{ icon('external-link', 'h-3.5 w-3.5') }} Open Original</a>
     <form method="post" action="{{ url_for('documents.delete', doc_id=doc.id) }}"
