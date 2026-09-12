@@ -6,10 +6,11 @@ import json
 
 from flask import Blueprint, jsonify, request
 
-from backend.core import appsettings, compare as compare_mod, llm, reports, topics
+from backend.core import appsettings, compare as compare_mod, llm, reports
+from backend.core.knowledge import topics
 from backend.core.config import CLOUDS_DIR
 from backend.core.pipeline import pipeline
-from backend.core.summary import generate_summary
+from backend.core.knowledge.summary import generate_summary
 from backend.db import database as db
 
 bp = Blueprint("actions", __name__, url_prefix="/api")
@@ -176,7 +177,7 @@ def reports_parliamentary():
 def cloud_image():
     scope = request.args.get("scope") or "corpus"
     from flask import send_from_directory
-    from backend.core.topics import hashlib_slug
+    from backend.core.knowledge.topics import hashlib_slug
     return send_from_directory(CLOUDS_DIR, f"cloud_{hashlib_slug(scope)}.png")
 
 

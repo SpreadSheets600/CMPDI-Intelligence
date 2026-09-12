@@ -183,7 +183,7 @@ def run_task(task: str) -> dict:
 
     if backend.name == "extractive":
         # no generation: fall back to the direct RAG answer path
-        from backend.core import query as qmod
+        from backend.core.retrieval import query as qmod
         result = qmod.answer(task)
         steps.append({"type": "note",
                       "text": "No language backend is reachable, so the agent answered "

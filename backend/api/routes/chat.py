@@ -7,7 +7,11 @@ import re
 
 from flask import Blueprint, jsonify, request
 
-from backend.core import agent, graph, query, retrieval, trust
+from backend.core import retrieval
+from backend.core.knowledge import graph
+from backend.core.llm import agent
+from backend.core.quality import trust
+from backend.core.retrieval import query
 from backend.core.llm import get_backend
 from backend.db import database as db
 

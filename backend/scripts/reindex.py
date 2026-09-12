@@ -10,7 +10,7 @@ import sys
 import numpy as np
 
 from backend.core import config
-from backend.core.keywords import extract_keywords
+from backend.core.retrieval.keywords import extract_keywords
 from backend.core.pipeline import pipeline as pl
 from backend.core.pipeline import vector_store
 from backend.core.pipeline.embedder import embed_texts, model_info
@@ -80,7 +80,7 @@ def main():
     print(f"Done. {count} chunks re-embedded with {model_name}; FAISS index at {config.DATA_DIR / 'faiss_index.bin'}")
 
     if "--summaries" in sys.argv:
-        from backend.core.summary import generate_summary, has_summaries
+        from backend.core.knowledge.summary import generate_summary, has_summaries
         rows = db.q("""SELECT id FROM documents WHERE status='completed'
                        AND (summary IS NULL OR summary='')""")
         for r in rows:

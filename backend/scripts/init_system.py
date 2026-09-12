@@ -3,7 +3,7 @@
 import sys
 
 from backend.core import config
-from backend.core import facts
+from backend.core.knowledge import facts
 from backend.db import database as db
 
 

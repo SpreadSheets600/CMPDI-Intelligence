@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useScroll, useTransform, motion } from "framer-motion";
 import { ArrowRight, ScanText, ShieldCheck, TriangleAlert, CircleCheck } from "lucide-react";
-import { getJSON } from "../../api.js";
+import { getJSON } from "../../../api.js";
 
 const EASE = [0.16, 1, 0.3, 1];
 const rise = (delay = 0) => ({

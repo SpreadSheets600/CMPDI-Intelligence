@@ -15,8 +15,9 @@ from pathlib import Path
 from docx import Document
 from docx.shared import Inches
 
-from backend.core import config, report_charts, report_content
-from backend.core.md_docx import markdown_to_document
+from backend.core import config
+from backend.core.reporting import charts, content
+from backend.core.reporting.md_docx import markdown_to_document
 from backend.db import database as db
 
 SUBSIDIARY_ENTITIES = ["ECL", "BCCL", "CCL", "NCL", "WCL", "SECL", "MCL", "NEC"]

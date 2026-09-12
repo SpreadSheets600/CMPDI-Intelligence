@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import AppShell from "./layout/AppShell.jsx";
-import Landing from "./pages/Landing.jsx";
+import Landing from "./pages/landing/index.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Pipeline from "./pages/Pipeline.jsx";
 import Documents from "./pages/Documents.jsx";

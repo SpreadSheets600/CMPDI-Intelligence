@@ -193,9 +193,14 @@ backend/
     routes/     screen-data endpoints (pages), JSON mutations (actions),
                 file serving (documents, reports), chat, agent,
                 conflicts, compare
-  core/         pipeline, retrieval, facts, query, keywords, graph, llm,
-                agent (+ sandbox runner), summary, appsettings, topics,
-                reports, md_docx (markdown to DOCX)
+  core/
+    config.py, normalize.py, appsettings.py, compare.py, conflicts.py
+    retrieval/    hybrid retrieval, query answering, keyword extraction
+    knowledge/    fact index, knowledge graph, topics, document summaries
+    llm/          LLM backends, tool-calling agent (+ sandbox runner)
+    reporting/    report engine, content selection, charts, markdown→DOCX
+    quality/      measured quality/KPI stats and the evidence grader
+    pipeline/     ingestion: parsers, OCR, chunking, embeddings
   db/           connection + schema
   models/       canonical document dataclasses
   storage/      content-addressed file store

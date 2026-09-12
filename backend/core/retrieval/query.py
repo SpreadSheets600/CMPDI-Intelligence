@@ -11,7 +11,7 @@ import re
 from backend.core import retrieval
 from backend.db import database as db
 from backend.core.llm import get_backend
-from backend.core import trust
+from backend.core.quality import trust
 from backend.core.normalize import detect_attribute, fy_label, normalize_period
 from backend.core.pipeline.embedder import model_info
 

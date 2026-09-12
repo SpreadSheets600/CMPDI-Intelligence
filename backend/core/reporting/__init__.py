@@ -10,7 +10,8 @@ import time
 
 from docxtpl import DocxTemplate
 
-from backend.core import config, facts, retrieval
+from backend.core import config, retrieval
+from backend.core.knowledge import facts
 from backend.core.normalize import fy_label
 from backend.db import database as db
 
@@ -80,7 +81,7 @@ def generate(template: str, params: dict) -> int:
     if template not in TEMPLATES:
         raise ValueError(f"Unknown Report Template: {template}")
     if template == "comprehensive":
-        from backend.core import report_engine
+        from backend.core.reporting import engine as report_engine
         return report_engine.generate_comprehensive(params)
     entity = params.get("entity") or ""
     period = params.get("period") or ""
@@ -189,7 +190,7 @@ def _fact_section(entity: str, period: str) -> tuple[list, dict, int]:
 def _narrative_section(topic: str, k: int = 5) -> tuple[list, dict]:
     """Supporting prose from the cleaned element structure (deduplicated,
     number-grid junk filtered) instead of raw retrieval snippets."""
-    from backend.core import report_content
+    from backend.core.reporting import content as report_content
     provenance = {}
     paras = []
     for b in report_content.narrative_candidates(topic, k=k):
@@ -242,7 +243,7 @@ def generate_from_run(run: dict) -> int:
         md_parts += ["## Charts", ""]
     doc_markdown = "\n".join(md_parts)
 
-    from backend.core.md_docx import markdown_to_document
+    from backend.core.reporting.md_docx import markdown_to_document
     markdown_to_document(doc_markdown, base_document=doc)
     for path in figure_paths:
         doc.add_picture(str(path), width=Inches(5.8))
@@ -281,8 +282,8 @@ def generate_parliamentary(question: str) -> int:
     from docx import Document as DocxDocument
     from docxtpl import DocxTemplate
 
-    from backend.core import query as qmod
-    from backend.core import report_content as rc
+    from backend.core.retrieval import query as qmod
+    from backend.core.reporting import content as rc
 
     result = qmod.answer(question)
     fact = result.get("fact")

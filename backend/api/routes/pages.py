@@ -325,7 +325,7 @@ def conflicts_filters():
 @bp.get("/settings")
 def settings():
     from backend.core import appsettings
-    from backend.core.summary import has_summaries
+    from backend.core.knowledge.summary import has_summaries
     done, total = has_summaries()
     emb_name, emb_dim = embedder.model_info()
     return jsonify({

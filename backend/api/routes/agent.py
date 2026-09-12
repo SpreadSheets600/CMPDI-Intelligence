@@ -4,7 +4,8 @@ synchronous and the UI shows a working state while the tool loop executes."""
 
 from flask import Blueprint, abort, jsonify, redirect, request, send_from_directory, url_for
 
-from backend.core import agent, reports
+from backend.core import reports
+from backend.core.llm import agent
 from backend.core import config as cfg
 
 bp = Blueprint("agent", __name__)

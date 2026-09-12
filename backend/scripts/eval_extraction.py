@@ -17,7 +17,7 @@ import re
 import sys
 from datetime import date
 
-from backend.core import facts as facts_mod
+from backend.core.knowledge import facts as facts_mod
 from backend.core.normalize import (detect_attribute, in_range, normalize_period,
                                     parse_quantity)
 from backend.db import database as db

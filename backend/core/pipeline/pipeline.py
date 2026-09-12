@@ -147,12 +147,12 @@ def process_document(doc_id: str):
         from backend.core.pipeline import vector_store
         vector_store.add(chunk_db_ids, vectors)
         _link_chunk_tables(chunks, chunk_db_ids, table_ids)
-        from backend.core import facts
+        from backend.core.knowledge import facts
         facts.extract_for_doc(doc_id)
         _assign_version_group(doc_id)
 
         _stage(doc_id, "summarizing", "running")
-        from backend.core import summary as summary_mod
+        from backend.core.knowledge import summary as summary_mod
         summary_mod.generate_summary(doc_id)
 
         _stage(doc_id, "completed", "completed",
@@ -165,7 +165,7 @@ def process_document(doc_id: str):
 
 
 def _extract_keywords(doc_id: str, cdoc) -> tuple[list[str], str]:
-    from backend.core.keywords import extract_keywords
+    from backend.core.retrieval.keywords import extract_keywords
     parts = [p.text for p in cdoc.pages]
     parts += [el.text for el in cdoc.elements if el.text]
     text = "\n".join(parts)

@@ -44,7 +44,7 @@ def detect(entity: str | None = None, attribute: str | None = None,
     pair is not mistaken for a disagreement."""
     import pandas as pd
 
-    from backend.core.report_content import _UNIT_TO_MT
+    from backend.core.reporting.content import _UNIT_TO_MT
 
     rows = [dict(r) for r in db.q("""
         SELECT COALESCE(e.canonical_name, f.entity_text) AS entity,

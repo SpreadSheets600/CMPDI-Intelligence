@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
-import { Nav, Hero, SocialProof } from "../components/landing/hero.jsx";
-import { Showcase, Pipeline, Capabilities, FieldNotes } from "../components/landing/showcase.jsx";
-import { Faq, FinalCta, Footer } from "../components/landing/closing.jsx";
-import { usePageData } from "../hooks/useData.js";
+import { Nav, Hero, SocialProof } from "./sections/Hero.jsx";
+import { Showcase, Pipeline, Capabilities, FieldNotes } from "./sections/Showcase.jsx";
+import { Faq, FinalCta, Footer } from "./sections/Closing.jsx";
+import { usePageData } from "../../hooks/useData.js";
 
 export default function Landing() {
   // live database counts for the social-proof band (like the Jinja page)

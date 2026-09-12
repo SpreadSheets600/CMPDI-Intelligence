@@ -288,7 +288,7 @@ reply) fill docxtpl templates built in memory from the fact index; their
 narrative comes from the cleaned element structure rather than raw retrieval
 snippets. Agent runs compose the answer and evidence as markdown.
 
-The comprehensive engine (`backend/core/report_engine.py`) builds a full
+The comprehensive engine (`backend/core/reporting/engine.py`) builds a full
 report from three extraction layers in `report_content.py`:
 
 - **Narrative**: deduplicated prose blocks from the element structure,
@@ -336,7 +336,10 @@ file ships with the project.
 backend/
   app/          Flask factory, blueprint registration
   api/routes/   one module per surface (dashboard, ingest, documents, agent, ...)
-  core/         config, normalization, pipeline, retrieval, facts, query,
+  core/         config, normalization, appsettings; subpackages:
+                pipeline (ingestion), retrieval (search + query),
+                knowledge (facts, graph, topics, summaries), llm (agent),
+                reporting (engine, charts, DOCX), quality (trust grading),
                 llm backends, agent + sandbox runner, summaries, settings,
                 topics, report generation, md_docx
   db/           SQLite connection, schema.sql

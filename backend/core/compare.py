@@ -6,7 +6,7 @@ Conflict Radar so a tonnes-vs-MT pair is not reported as a change."""
 
 import pandas as pd
 
-from backend.core.report_content import _UNIT_TO_MT
+from backend.core.reporting.content import _UNIT_TO_MT
 from backend.db import database as db
 
 

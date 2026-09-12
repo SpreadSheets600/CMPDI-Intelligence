@@ -11,7 +11,8 @@ import hashlib
 from flask import Flask, send_from_directory
 
 from backend.api.routes import ALL_BLUEPRINTS
-from backend.core import appsettings, facts, config
+from backend.core import appsettings, config
+from backend.core.knowledge import facts
 from backend.core.pipeline import pipeline
 from backend.db import database
 
