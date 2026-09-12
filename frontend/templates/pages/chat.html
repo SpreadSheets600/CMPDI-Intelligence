@@ -104,6 +104,7 @@ function qualityBadge(q) {
   return `
   <div class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border ${color} px-3 py-2">
     <span class="font-mono text-[10.5px] font-bold uppercase tracking-widest">Evidence Quality: ${q.level}</span>
+    ${q.conflicts > 0 ? `<a href="/conflicts" class="rounded-full border ${color} px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide" title="Investigate on the Conflict Radar">${q.conflicts} conflict${q.conflicts !== 1 ? 's' : ''} &rarr;</a>` : ''}
     <details class="min-w-0 flex-1">
       <summary class="cursor-pointer list-none select-none text-right font-mono text-[10.5px] uppercase tracking-wide opacity-70">details</summary>
       <div class="mt-2 space-y-1 text-left text-[12px] normal-case">

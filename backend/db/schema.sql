@@ -149,6 +149,13 @@ CREATE TABLE IF NOT EXISTS doc_topics (
     created_ts TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS conflict_status (
+    conflict_key TEXT PRIMARY KEY,
+    status TEXT NOT NULL DEFAULT 'open',   -- open | acknowledged | resolved
+    note TEXT,
+    updated_ts TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS agent_runs (
     id INTEGER PRIMARY KEY,
     task TEXT NOT NULL,
