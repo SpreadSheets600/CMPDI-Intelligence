@@ -284,12 +284,34 @@ methods follow without code changes.
 ## Report Generation
 
 Template reports (production summary, comparative analysis, parliamentary
-reply) fill docxtpl templates built in memory from the fact index. Agent
-runs assemble through a different path: the answer and evidence are
-composed as markdown, then `backend/core/md_docx.py` converts it with
-`markdown` + `htmldocx`, so markdown tables become real Word tables and no
-markdown syntax reaches the document. Both paths embed the provenance chain
-(ref -> fact/evidence -> chunk -> page/sheet -> document -> original file).
+reply) fill docxtpl templates built in memory from the fact index; their
+narrative comes from the cleaned element structure rather than raw retrieval
+snippets. Agent runs compose the answer and evidence as markdown.
+
+The comprehensive engine (`backend/core/report_engine.py`) builds a full
+report from three extraction layers in `report_content.py`:
+
+- **Narrative**: deduplicated prose blocks from the element structure,
+  number-grid junk filtered, scored on topic coverage and capped per section.
+- **Tables**: extracted tables scored on keyword hits and numeric density,
+  rendered as real Word tables; numbered first rows like `(1)(2)(3)` promote
+  their following row to header; the longest year-wise Quantity column can
+  be mined as a multi-year chart series.
+- **Facts**: cleaned series per attribute with unit normalization to MT
+  (`tonnes` values scale by 1e-6, lakh tonnes by 0.1, capacities and
+  percentages excluded), entity resolution via canonical name or raw
+  mention, and per-entity partial-year detection (a trailing fiscal year
+  that collapses against the previous one, typical of advance releases
+  "up to December", is excluded from tables, charts and highlights).
+
+Charts (`report_charts.py`) are drawn from the cleaned series in one visual
+style: latest-year shares with percentage labels, per-year grouped bars for
+short series, lines only from three points up. All report text is composed
+as markdown and converted by `md_docx.py` (`markdown` + `htmldocx`), so
+markdown tables become real Word tables and no markdown syntax reaches the
+document. Every paragraph, table and figure carries a numbered source
+receipt, and keys with multiple reported values surface in Verification
+Notes instead of being silently averaged.
 
 ## Frontend
 

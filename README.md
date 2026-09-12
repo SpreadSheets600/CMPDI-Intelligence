@@ -67,10 +67,17 @@ premises.
   normalization (MT, lakh tonnes, GCV, %), fiscal-year spans (April start),
   SHA-256 duplicate rejection, automatic version chains with superseded
   revisions excluded from answers.
-- **Report Studio**: template-driven DOCX output (production summary,
-  comparative analysis, parliamentary reply) plus agent-run reports, with
-  verification flags, sources appendix, and human-approval workflow.
-  Templates are built in memory; no artifacts ship with the code.
+- **Report generation**: a comprehensive engine extracts the most meaningful
+  content the library holds (cleaned prose from the section structure, the
+  best-matching extracted tables, cleaned and unit-normalized fact series),
+  draws charts from the real numbers (latest-year shares, trends, a long-run
+  series mined from the extracted tables), and composes a DOCX with an
+  executive summary, real Word tables, verification notes where sources
+  disagree, and a per-item sources appendix. Partial-year figures (advance
+  releases "up to December") are detected and excluded rather than shown as
+  a collapse. Template reports (production summary, comparative analysis,
+  parliamentary reply) and agent-run reports share the same receipts and
+  markdown-to-Word conversion; templates are built in memory.
 - **Settings**: only functional controls (LLM backend and model, Ollama
   endpoint, retrieval depth) with live backend probes; persisted to
   `data/app_settings.json` over the environment defaults.

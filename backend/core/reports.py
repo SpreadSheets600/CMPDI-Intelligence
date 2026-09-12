@@ -15,6 +15,10 @@ from backend.core.normalize import fy_label
 from backend.db import database as db
 
 TEMPLATES = {
+    "comprehensive": {
+        "title": "Comprehensive Analysis",
+        "body": [],  # composed dynamically by the report engine
+    },
     "production_summary": {
         "title": "Production Summary",
         "body": [
@@ -75,6 +79,9 @@ def _template_stream(name: str) -> io.BytesIO:
 def generate(template: str, params: dict) -> int:
     if template not in TEMPLATES:
         raise ValueError(f"Unknown Report Template: {template}")
+    if template == "comprehensive":
+        from backend.core import report_engine
+        return report_engine.generate_comprehensive(params)
     entity = params.get("entity") or ""
     period = params.get("period") or ""
     question = params.get("question", "")
@@ -180,17 +187,20 @@ def _fact_section(entity: str, period: str) -> tuple[list, dict, int]:
 
 
 def _narrative_section(topic: str, k: int = 5) -> tuple[list, dict]:
-    evidence = retrieval.hybrid_search(
-        topic, k=k, filters={"content_type": ["TEXT", "LIST", "FIGURE_CAPTION"]})
-    if not evidence:
-        evidence = retrieval.hybrid_search(topic, k=k)
+    """Supporting prose from the cleaned element structure (deduplicated,
+    number-grid junk filtered) instead of raw retrieval snippets."""
+    from backend.core import report_content
     provenance = {}
     paras = []
-    for i, ev in enumerate(evidence, start=1):
-        ref = f"N{i}"
-        paras.append(f"{ev['text'][:600]} [{ref}]")
-        provenance[ref] = {"chunk_id": ev["chunk_id"], "doc_id": ev["doc_id"],
-                           "page_no": ev["page_no"], "sheet_no": ev["sheet_no"]}
+    for b in report_content.narrative_candidates(topic, k=k):
+        ref = f"N{len(paras) + 1}"
+        text = b["text"]
+        if len(text) > 480:
+            cut = text.find(". ", 480)
+            text = text[:cut + 1] if cut > 0 else text[:480] + "..."
+        paras.append(f"{text} [{ref}]")
+        provenance[ref] = {"chunk_id": None, "doc_id": b["doc_id"],
+                           "page_no": b["page_no"], "sheet_no": b["sheet_no"]}
     return paras, provenance
 
 
