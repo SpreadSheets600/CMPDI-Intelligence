@@ -268,3 +268,67 @@ def generate_from_run(run: dict) -> int:
         "INSERT INTO reports (template, params_json, docx_path, provenance_json) VALUES (?,?,?,?)",
         ("agent_run", json.dumps({"run_id": run["id"], "task": run["task"]}),
          str(out_path), json.dumps(provenance)))
+
+def generate_parliamentary(question: str) -> int:
+    """Parliamentary Question -> Final Draft workflow. Retrieves the evidence
+    behind the question, composes a draft reply grounded in the fact index,
+    and records the retrieval statistics so the reviewer sees exactly what
+    the draft stands on."""
+    import io
+    import json as _json
+    import time
+
+    from docx import Document as DocxDocument
+    from docxtpl import DocxTemplate
+
+    from backend.core import query as qmod
+    from backend.core import report_content as rc
+
+    result = qmod.answer(question)
+    fact = result.get("fact")
+    evidence = result.get("citations", [])
+    entity = fact["entity"] if fact else None
+    attribute = fact["attribute"] if fact else None
+
+    prose = rc.narrative_candidates(question, k=3)
+    fact_rows, provenance, conflicts_pending = [], {"slots": {}, "sources": {}}, 0
+    if entity:
+        fact_rows, provenance, conflicts_pending = _fact_section(entity, "")
+    provenance["slots"].update({
+        f"N{i}": {"doc_id": e.get("doc_id"), "page_no": e.get("page_no"),
+                  "sheet_no": e.get("sheet_no")}
+        for i, e in enumerate(evidence, 1) if e.get("doc_id")})
+    stats = {
+        "documents_searched": db.q1("SELECT COUNT(*) c FROM documents WHERE status='completed'")["c"],
+        "relevant_passages": len(evidence),
+        "facts_used": len(fact_rows) or (len(fact["all"]) if fact else 0),
+        "conflicts": conflicts_pending or len(result.get("alternatives") or []),
+        "quality": result.get("quality", {}).get("level", "MEDIUM"),
+    }
+
+    lead = None
+    if fact:
+        ft = fact["top"]
+        val = ft["value_raw"] + (f" {ft['unit']}" if ft["unit"] and not any(c.isalpha() for c in ft["value_raw"]) else "")
+        lead = f"{fact['entity']} {fact['attribute'].replace('_', ' ')} for {fact['period']}: {val}"
+
+    narrative = [f"{lead}."] if lead else []
+    for b in prose:
+        narrative.append(f"{b['text'][:400]}")
+
+    ctx = {
+        "question": question, "fact_rows": fact_rows, "narrative": narrative,
+        "conflicts_pending": conflicts_pending,
+        "stats": stats, "quality": result.get("quality", {}),
+    }
+    tpl = DocxTemplate(_template_stream("parliamentary_reply"))
+    tpl.render(ctx)
+    out_path = config.REPORTS_DIR / f"parliamentary_{int(time.time())}.docx"
+    tpl.save(str(out_path))
+    provenance["stats"] = stats
+    provenance["chain_note"] = ("ref -> fact/evidence -> chunk -> page/sheet -> "
+                                "document -> original file (data/files/<sha256>/)")
+    return db.execute(
+        "INSERT INTO reports (template, params_json, docx_path, provenance_json) VALUES (?,?,?,?)",
+        ("parliamentary_reply", _json.dumps({"question": question}), str(out_path),
+         _json.dumps(provenance)))

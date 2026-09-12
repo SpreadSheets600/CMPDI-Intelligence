@@ -129,6 +129,8 @@ CREATE TABLE IF NOT EXISTS reports (
     docx_path TEXT,
     provenance_json TEXT,               -- slot -> fact -> chunk -> page -> file chain
     human_approved INTEGER NOT NULL DEFAULT 0,
+    review_status TEXT NOT NULL DEFAULT 'pending',   -- pending | approved | returned
+    review_note TEXT,
     created_ts TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

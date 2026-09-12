@@ -40,6 +40,11 @@ def _migrate(conn):
     ]:
         if col not in existing:
             conn.execute(f"ALTER TABLE documents ADD COLUMN {col} {ddl}")
+    rcols = {r["name"] for r in conn.execute("PRAGMA table_info(reports)")}
+    for col, ddl in [("review_status", "TEXT NOT NULL DEFAULT 'pending'"),
+                     ("review_note", "TEXT")]:
+        if col not in rcols:
+            conn.execute(f"ALTER TABLE reports ADD COLUMN {col} {ddl}")
 
 
 def q(sql: str, params=()) -> list[sqlite3.Row]:

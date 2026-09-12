@@ -1,12 +1,35 @@
 {% extends "base.html" %}
+{% block title %}Report Studio · CMPDI Intelligence{% endblock %}
 {% block body %}
-<h1 class="text-2xl font-semibold tracking-tight">Report Studio</h1>
-<p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">Template-driven DOCX reports where every figure carries a receipt. Low-confidence OCR digits are quarantined; conflicts are flagged in place.</p>
+<h1 class="animate-rise text-2xl font-semibold tracking-tight">Report Studio</h1>
+<p class="mt-1 max-w-[65ch] text-[15px] text-stone-500">Report generation with receipts: comprehensive analysis from the whole library, template reports, and a parliamentary question-to-draft workflow. Every output goes through review before approval.</p>
 
-<div class="mt-8 rounded-xl border border-seam bg-white p-5 shadow-card animate-rise">
-  <form method="post" action="{{ url_for('reports.generate') }}" class="flex flex-wrap items-center gap-3">
+<!-- parliamentary workflow -->
+<div class="mt-6 rounded-xl border border-coalline bg-coalsoft/50 p-5 shadow-card animate-rise">
+  <div class="flex items-center gap-2">
+    {{ icon('landmark', 'h-4 w-4 text-coal') }}
+    <h2 class="text-[15px] font-semibold">Parliamentary Question to Draft</h2>
+  </div>
+  <p class="mt-1 text-[13.5px] text-stone-500">Paste the question; the system retrieves the evidence, drafts the reply and records what it stands on for review.</p>
+  <form method="post" action="{{ url_for('reports.parliamentary') }}" class="mt-3 flex flex-wrap items-start gap-3">
+    <textarea name="question" rows="2" required
+              placeholder="e.g. What was the raw coal production of CIL in 2023-24 and how does it compare with the previous year?"
+              class="min-w-[240px] flex-1 resize-y rounded-lg border border-seamdark bg-white px-3.5 py-2.5 text-[14px] focus:border-coal focus:outline-none"></textarea>
+    <button class="rounded-lg bg-coal px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-all hover:-translate-y-px hover:bg-amber-500">
+      Generate Draft
+    </button>
+  </form>
+</div>
+
+<!-- template reports -->
+<div class="mt-5 rounded-xl border border-seam bg-white p-5 shadow-card animate-rise" style="animation-delay:60ms">
+  <div class="flex items-center gap-2">
+    {{ icon('file-chart-column', 'h-4 w-4 text-coal') }}
+    <h2 class="text-[15px] font-semibold">Template and Comprehensive Reports</h2>
+  </div>
+  <form method="post" action="{{ url_for('reports.generate') }}" class="mt-3 flex flex-wrap items-center gap-3">
     <select name="template" class="rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm focus:border-coal focus:outline-none">
-      {% for t in templates %}<option value="{{ t }}">{{ t.replace('_', ' ') | title }}</option>{% endfor %}
+      {% for t in templates %}<option value="{{ t }}">{{ {'comprehensive': 'Comprehensive Analysis (full extraction + charts)'}.get(t, t.replace('_', ' ') | title) }}</option>{% endfor %}
     </select>
     <select name="entity" class="rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm focus:border-coal focus:outline-none">
       <option value="">Any entity</option>
@@ -20,38 +43,36 @@
   </form>
 </div>
 
-<div class="mt-8 overflow-hidden rounded-xl border border-seam bg-white shadow-card animate-rise" style="animation-delay:80ms">
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500">
-        <th class="px-5 py-3 font-medium">Report</th>
-        <th class="px-4 py-3 font-medium">Template</th>
-        <th class="px-4 py-3 font-medium">Parameters</th>
-        <th class="px-4 py-3 font-medium">Actions</th>
-      </tr>
-    </thead>
-    {% for r in reports %}
-    <tr class="border-b border-seam last:border-0">
-      <td class="px-5 py-3.5 font-medium">#{{ r.id }}</td>
-      <td class="px-4 py-3.5 font-mono text-[12px] text-stone-600">{{ {'agent_run': 'agent report'}.get(r.template, r.template) }}</td>
-      <td class="px-4 py-3.5 font-mono text-[12px] text-stone-500">{{ r.params_json }}</td>
-      <td class="px-4 py-3.5">
-        <div class="flex items-center gap-3">
-          <a href="{{ url_for('reports.download', rid=r.id) }}"
-             class="rounded-lg border border-seamdark bg-white px-3 py-1.5 text-[13px] font-medium transition-colors hover:border-coal hover:text-coal">Download</a>
-          {% if r.human_approved %}
-          <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700">approved</span>
-          {% else %}
-          <form method="post" action="{{ url_for('reports.approve', rid=r.id) }}">
-            <button type="submit" class="rounded-lg border border-coalline bg-coalsoft px-3 py-1.5 text-[13px] font-medium text-coal transition-colors hover:bg-amber-100">Approve</button>
-          </form>
-          {% endif %}
-        </div>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="4" class="px-6 py-10 text-center text-sm text-stone-500">No reports yet. Generate one above.</td></tr>
-    {% endfor %}
-  </table>
+<!-- report history -->
+<h2 class="mt-10 text-lg font-semibold tracking-tight animate-rise">Generated Reports</h2>
+<div class="mt-4 grid gap-4 md:grid-cols-2">
+  {% for r in reports %}
+  <article class="flex flex-col rounded-xl border border-seam bg-white p-5 shadow-card animate-rise transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift" style="animation-delay:{{ loop.index * 40 % 300 }}ms">
+    <div class="flex items-start justify-between gap-2">
+      <div class="min-w-0">
+        <p class="font-semibold">{{ {'agent_run': 'Agent Report', 'comprehensive': 'Comprehensive Analysis', 'parliamentary_reply': 'Parliamentary Draft Reply'}.get(r.template, r.template | replace('_', ' ') | title) }}</p>
+        <p class="mt-0.5 font-mono text-[11.5px] text-stone-400">#{{ r.id }} · {{ r.created_ts[:16] }}</p>
+      </div>
+      <span class="shrink-0 rounded-full border px-2.5 py-0.5 font-mono text-[10.5px] uppercase {{ 'border-emerald-200 bg-emerald-50 text-emerald-700' if r.review_status == 'approved' else 'border-red-200 bg-red-50 text-red-700' if r.review_status == 'returned' else 'border-seam bg-paper text-stone-500' }}">{{ r.review_status }}</span>
+    </div>
+    <p class="mt-2 line-clamp-1 font-mono text-[11.5px] text-stone-400">{{ r.params_json }}</p>
+    <div class="mt-auto flex flex-wrap items-center gap-2 pt-3">
+      <a href="{{ url_for('reports.review', rid=r.id) }}"
+         class="flex items-center gap-1.5 rounded-lg border border-coal px-3 py-1.5 text-[12.5px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white">
+        {{ icon('eye', 'h-3.5 w-3.5') }} Review
+      </a>
+      <a href="{{ url_for('reports.download', rid=r.id) }}"
+         class="flex items-center gap-1.5 rounded-lg border border-seam px-3 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal">
+        {{ icon('download', 'h-3.5 w-3.5') }} DOCX
+      </a>
+    </div>
+  </article>
+  {% else %}
+  <div class="flex flex-col items-center rounded-2xl border border-dashed border-seamdark bg-white px-6 py-14 text-center md:col-span-2">
+    <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-coalsoft text-coal">{{ icon('file-chart-column', 'h-6 w-6') }}</span>
+    <p class="mt-3 text-sm font-semibold">No reports yet</p>
+    <p class="mt-1 text-[13px] text-stone-500">Generate a comprehensive analysis or paste a parliamentary question above.</p>
+  </div>
+  {% endfor %}
 </div>
 {% endblock %}
