@@ -21,13 +21,17 @@ premises.
   with Lucide icons, dark and light themes (persisted per machine), and a
   dashboard showing corpus stats, live model status, storage and pipeline
   activity.
-- **Ingestion pipeline** with live status: classify, parse, OCR, normalize,
-  chunk, embed, index. Digital, scanned and mixed PDFs are decided per page.
+- **Ingestion pipeline** with live status: a large drag-and-drop upload zone
+  (plus click-to-browse), no-flicker job polling, and per-page OCR decisions
+  for digital, scanned and mixed PDFs.
 - **Document management**: filter by name, type and subsidiary, rename
   documents, inspect full metadata and the normalized representation each
   file became, and preview them properly.
   PDFs render in a real PDF viewer; spreadsheets open as sheet-switchable
   tables; Word documents get a reading view; images show with their OCR text.
+- **Search with library filters**: hybrid lexical + semantic results narrowed
+  by document type, subsidiary, tag and reporting-period range (accepts
+  `2022-23`, `2022` or ISO dates).
 - **Receipts everywhere**: every fact links through chunk, element, page and
   document back to `data/files/<sha256>/original.*`. Click a figure in a
   generated report to open the exact source location.
@@ -54,7 +58,7 @@ premises.
 - **Automatic tags**: every ingested document gets keywords (Ollama prompt
   with a deterministic term-frequency fallback) used for filtering,
   search boosts and the knowledge tree.
-- **Insights**: the fact index made visible — explore any metric (entity ×
+- **Insights**: the fact index made visible: explore any metric (entity ×
   attribute) as a chart where every bar links to its reporting document,
   plus per-document data quality. When documents report the same fact
   differently, chat and reports show all values side by side instead of
@@ -149,23 +153,28 @@ Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
 ```
 backend/
   app/          Flask factory
-  api/routes/   dashboard, ingest, documents, search, ask, chat, agent,
-                insights, topics, reports, settings
+  api/routes/   dashboard (landing + /dashboard), ingest, documents, search,
+                ask, chat, agent, insights, topics, reports, settings
   core/         pipeline, retrieval, facts, query, keywords, graph, llm,
-                agent (+ sandbox runner), summary, appsettings, topics, reports
+                agent (+ sandbox runner), summary, appsettings, topics,
+                reports, md_docx (markdown to DOCX)
   db/           connection + schema
   models/       canonical document dataclasses
   storage/      content-addressed file store
   scripts/      init, CLI ingest, demo corpus, reindex
 frontend/
   templates/    pages/ and components/
-  static/       vendored Tailwind, self-hosted fonts, app.js, graph.js
+  static/       vendored Tailwind, self-hosted fonts, icons/ (Lucide SVGs),
+                app.js, graph.js
+docs/
+  agent/        editable capability guides fed to the agent's prompts
+  ARCHITECTURE.md, PLAN.md
 ```
 
 ## Tested Against Real Data
 
 The library ingests and answers over live documents from
-[coal.gov.in](https://coal.gov.in) — annual report chapters (digital pages
+[coal.gov.in](https://coal.gov.in): annual report chapters (digital pages
 plus image-only pages through OCR) and the Coal Directory statistics
 workbooks (multi-sheet, hundreds of table regions, thousands of numeric
 cells). Drop any of them into `samples/` and ingest:

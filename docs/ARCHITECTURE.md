@@ -16,16 +16,16 @@ flowchart TB
 
     subgraph backend["Backend (backend/)"]
         APP["app/<br/>Flask factory"]
-        API["api/routes/<br/>ingest · documents · search · ask<br/>conflicts · topics · reports"]
+        API["api/routes/<br/>dashboard · ingest · documents · search<br/>ask · chat · agent · insights · topics<br/>reports · settings"]
 
         subgraph core["core/"]
             PIPE["pipeline/<br/>classify · parse · chunk · embed · index"]
-            RET["retrieval<br/>BM25 + vectors + RRF"]
-            FACTS["facts<br/>extraction · conflicts"]
+            RET["retrieval<br/>BM25 + vectors, weighted fusion"]
+            FACTS["facts<br/>extraction · plausibility bands"]
             QUERY["query<br/>router · RAG · abstention"]
             LLM["llm<br/>ollama | transformers | extractive"]
             TOPICS["topics<br/>keyphrases · clusters · clouds"]
-            REPORTS["reports<br/>docxtpl generation"]
+            REPORTS["reports<br/>docxtpl + markdown-to-DOCX"]
             NORM["normalize<br/>numbers · units · fiscal years"]
         end
 
@@ -84,7 +84,8 @@ flowchart LR
     E --> F[Chunk]
     F --> G[Embed]
     G --> H[Index]
-    H --> I[Completed]
+    H --> S[Summarize]
+    S --> I[Completed]
     B -.-> X[Failed]
     C -.-> X
     H -.-> X
@@ -100,7 +101,8 @@ Stage behavior:
 | Normalize | Indian number formats, lakh/crore, unit dictionary, fiscal-year spans |
 | Chunk | Structure-aware: section-bound text, whole tables or self-describing row chunks |
 | Embed | Local sentence-transformers model; vectors stored as float32 BLOBs |
-| Index | Rows in SQLite + FTS5; fact extraction and conflict detection run here |
+| Index | Rows in SQLite + FTS5; fact extraction with noise guards and plausibility bands runs here |
+| Summarize | LLM summary (deterministic fallback) stored on the document and indexed as a SUMMARY chunk |
 
 ## Retrieval Fusion
 
@@ -123,6 +125,10 @@ when a generative model is available, a deterministic term-frequency
 fallback otherwise. Tags drive document filtering, the search boost, and
 the knowledge tree.
 
+Library filters apply inside both retrieval layers before scoring: document
+type, subsidiary, tag, and a reporting-period range (`doc_from`/`doc_to`,
+normalized to ISO dates, so `2022-23` and `2022` both work).
+
 ## Knowledge Tree
 
 `/graph` renders a force-directed canvas of three node types: documents
@@ -133,11 +139,19 @@ every tag to a filtered search.
 
 ## Chat
 
-The Ask page is a conversation. The client sends the full message list to
-`/api/chat`; the backend rewrites follow-up questions ("which document says
-that?") into standalone queries using the history, retrieves, and grounds
-the reply with citations. Extractive mode keeps the same contract with no
-LLM installed.
+Ask (`/ask`) is the single conversation surface. The client sends the full
+message list to `/api/chat`; the backend rewrites follow-up questions ("which
+document says that?") into standalone queries using the history, then routes:
+
+- **Factual and lookup questions** run the grounded RAG path: numeric
+  questions resolve deterministically from the fact index (the composed
+  answer quotes the extracted value and its receipt; no LLM step can alter
+  it), open questions retrieve and generate with numbered evidence.
+- **Analytical questions** (compare, trend, share, rank, "generate a few
+  charts", ...) route to the tool-calling agent automatically. Its trace,
+  charts and evidence render inline in the same thread.
+
+Extractive mode keeps the same contract with no LLM installed.
 
 ## Query Flow
 
@@ -155,9 +169,9 @@ sequenceDiagram
     Q->>Q: classify (numeric fact / semantic / listing)
     alt numeric question
         Q->>F: exact lookup (entity, attribute, period)
-        F-->>Q: fact + provenance + open conflicts
+        F-->>Q: fact + provenance + alternative values
     end
-    Q->>R: hybrid_search (BM25 + vectors + RRF)
+    Q->>R: hybrid_search (BM25 + vectors, weighted fusion)
     R-->>Q: ranked evidence with receipts
     Q->>Q: abstention check (score distribution)
     alt evidence is weak
@@ -166,7 +180,7 @@ sequenceDiagram
         Q->>L: generate with numbered evidence
         L-->>Q: answer or None
         Q->>Q: validate citations against evidence ids
-        Q-->>API: grounded answer + citations + conflicts
+        Q-->>API: grounded answer + citations + alternative values
     end
 ```
 
@@ -186,7 +200,6 @@ erDiagram
     chunks ||--o| chunk_embeddings : "1:1 vector"
     chunks ||--o{ facts : "provenance"
     entities ||--o{ facts : resolves
-    facts ||--o{ conflicts : "groups into"
 
     documents {
         text id "sha256, also the file directory name"
@@ -248,28 +261,52 @@ reach spreadsheets and scans whose raw cells never contain the query words.
 
 ## Agent
 
-A model-agnostic ReAct loop. Each turn the LLM emits one JSON action:
+A model-agnostic ReAct loop living behind the unified Ask interface
+(`/api/chat` routes to it on analytical intent; `/api/agent` runs it
+directly). Each turn the LLM emits one JSON action:
 `search_documents` (hybrid retrieval), `get_facts` (fact index), or
 `run_python`. The Python tool spawns an isolated runner process with a
 60-second budget; user code gets preloaded pandas/numpy/matplotlib plus
 `load_table()`/`load_facts()` readers over SQLite, restricted builtins
 (no `open`, `exec`, `eval`, `compile`), and a static AST import scan that
-rejects network and system modules. Every matplotlib figure is captured to
-`data/agent_runs/<run_id>/` and shown in the trace. The final answer cites
-numbered evidence entries that are deduplicated and renumbered to match the
-returned receipts, and any run can be assembled into a DOCX report.
+rejects network and system modules. Successive calls number their charts
+continuously so figures never overwrite each other; every matplotlib figure
+is captured to `data/agent_runs/<run_id>/` and shown in the trace. The
+final answer cites numbered evidence entries that are deduplicated and
+renumbered to match the returned receipts, and any run can be assembled
+into a DOCX report.
+
+The agent's statistical and charting behavior is described in two editable
+markdown guides, `docs/agent/statistics.md` and `docs/agent/charts.md`,
+loaded into the system prompt at startup: adjust the guides and the agent's
+methods follow without code changes.
+
+## Report Generation
+
+Template reports (production summary, comparative analysis, parliamentary
+reply) fill docxtpl templates built in memory from the fact index. Agent
+runs assemble through a different path: the answer and evidence are
+composed as markdown, then `backend/core/md_docx.py` converts it with
+`markdown` + `htmldocx`, so markdown tables become real Word tables and no
+markdown syntax reaches the document. Both paths embed the provenance chain
+(ref -> fact/evidence -> chunk -> page/sheet -> document -> original file).
 
 ## Frontend
 
 Server-rendered Jinja templates styled with Tailwind (vendored locally, no
 build step). The design system lives in the Tailwind config inside
 `frontend/templates/base.html`: Archivo for text, IBM Plex Mono for numbers
-and labels, a paper/ink/amber palette. Every palette step is a CSS variable
-that flips under `.dark`, so dark mode re-themes the whole UI (canvas
-visuals included) without per-template overrides; the choice persists in
-`localStorage`. Navigation is a collapsible sidebar. `app.js` polls
-`/api/jobs` for the live pipeline strip. No custom CSS file ships with the
-project.
+and labels, a paper/ink/amber palette. Every palette step in the content
+area is a CSS variable that flips under `.dark`; the sidebar keeps a fixed
+charcoal palette (`--s-*`) in both themes so the frame never swaps colors.
+The choice persists in `localStorage`, and a temporary `theming` class
+cross-fades panels when switching. Icons are vendored Lucide SVGs
+(`frontend/static/icons/`) exposed through the `icon()` template global.
+Navigation is a collapsible sidebar (one width variable plus label opacity,
+with tooltips when collapsed); `/` is a product landing page and
+`/dashboard` the operational overview. `app.js` polls `/api/jobs` and
+re-renders the pipeline strip only when the payload changes. No custom CSS
+file ships with the project.
 
 ## Directory Layout
 
@@ -279,12 +316,15 @@ backend/
   api/routes/   one module per surface (dashboard, ingest, documents, agent, ...)
   core/         config, normalization, pipeline, retrieval, facts, query,
                 llm backends, agent + sandbox runner, summaries, settings,
-                topics, report generation
+                topics, report generation, md_docx
   db/           SQLite connection, schema.sql
   models/       canonical document dataclasses
   storage/      content-addressed file store
   scripts/      init, CLI ingestion, demo corpus generator, reindex
 frontend/
   templates/    base.html, components/, pages/
-  static/       vendor/tailwind.js, fonts/, js/app.js, js/graph.js
+  static/       vendor/tailwind.js, fonts/, icons/ (Lucide SVGs),
+                js/app.js, js/graph.js
+docs/
+  agent/        statistics.md and charts.md capability guides for the agent
 ```
