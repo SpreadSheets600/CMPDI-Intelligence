@@ -25,4 +25,7 @@ def api_compare():
     b = request.args.get("b") or ""
     if not a or not b or a == b:
         return jsonify({"error": "pick two different documents"}), 400
+    from backend.core.compare import _doc
+    if not _doc(a) or not _doc(b):
+        return jsonify({"error": "unknown document id"}), 404
     return jsonify(compare.compare(a, b))
