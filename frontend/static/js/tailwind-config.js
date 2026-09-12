@@ -67,11 +67,29 @@ tailwind.config = {
           '0%': { opacity: '0', transform: 'scale(.96)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
+        // landing page: format marquee, floating annotation cards and the
+        // breathing glow on the final call-to-action (all pure CSS loops;
+        // entrance/scroll animations are driven by Motion in landing.js)
+        marquee: {
+          to: { transform: 'translateX(-50%)' },
+        },
+        'float-y': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-9px)' },
+        },
+        'cta-breathe': {
+          '0%, 100%': { boxShadow: '0 4px 18px rgb(var(--c-coal) / 0.35)' },
+          '50%': { boxShadow: '0 6px 32px rgb(var(--c-coal) / 0.6)' },
+        },
       },
       animation: {
         rise: 'rise .5s cubic-bezier(.16,1,.3,1) both',
         fade: 'fade .4s ease both',
         pop: 'pop .3s cubic-bezier(.16,1,.3,1) both',
+        marquee: 'marquee 36s linear infinite',
+        'float-y': 'float-y 7s ease-in-out infinite',
+        'float-y-slow': 'float-y 9s ease-in-out 1.2s infinite',
+        'cta-breathe': 'cta-breathe 3.4s ease-in-out 1.8s infinite',
       },
     },
   },

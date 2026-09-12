@@ -1,39 +1,41 @@
 {# Element 10: the last-chance conversion, staged as the loudest moment on
    the page — a charcoal band torn off the paper above it, with the biggest
-   CTA and the one-click demo corpus as the zero-friction alternative. #}
+   CTA (breathing glow via the cta-breathe keyframe) and the one-click demo
+   corpus as the zero-friction alternative. #}
 <section class="relative">
-  <div class="cta-tear" aria-hidden="true"></div>
+  <div class="h-3.5 bg-[radial-gradient(circle_at_8px_-4px,transparent_8px,rgb(var(--s-bg))_8.5px)] bg-[length:16px_14px] bg-repeat-x" aria-hidden="true"></div>
   <div class="relative overflow-hidden bg-side text-sidetext">
     <div class="pointer-events-none absolute -top-40 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full bg-coal/15 blur-3xl" aria-hidden="true"></div>
 
     <div class="relative mx-auto max-w-6xl px-5 py-24 text-center md:px-8 md:py-28">
-      <p class="reveal font-mono text-[11px] uppercase tracking-[0.18em] text-coal">Ready when you are</p>
-      <h2 class="reveal mx-auto mt-4 max-w-[20ch] text-4xl font-bold leading-[1.05] tracking-[-0.03em] md:text-6xl" style="--rd:80ms">
+      <p data-reveal class="font-mono text-[11px] uppercase tracking-[0.18em] text-coal">Ready when you are</p>
+      <h2 data-reveal data-reveal-delay="0.08" class="mx-auto mt-4 max-w-[20ch] text-4xl font-bold leading-[1.05] tracking-[-0.03em] md:text-6xl">
         Stop hunting through PDFs.<br>
         <span class="text-coal">Start reading the library.</span>
       </h2>
-      <p class="reveal mx-auto mt-6 max-w-[58ch] text-[15.5px] leading-relaxed text-sidemute" style="--rd:160ms">
+      <p data-reveal data-reveal-delay="0.16" class="mx-auto mt-6 max-w-[58ch] text-[15.5px] leading-relaxed text-sidemute">
         Set up takes minutes and everything stays on this machine. Drop in
         your own reports — or generate the demonstration corpus first and see
         receipts, conflicts and reports working end to end.
       </p>
 
-      <div class="reveal mt-10 flex flex-wrap items-center justify-center gap-4" style="--rd:240ms">
+      <div data-reveal data-reveal-delay="0.24" class="mt-10 flex flex-wrap items-center justify-center gap-4">
         <a href="{{ url_for('dashboard.dashboard') }}"
-           class="cta-primary cta-jumbo group">
+           class="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-full bg-coal px-11 py-[1.15rem] text-[1.05rem] font-semibold text-white shadow-[0_4px_18px_rgb(var(--c-coal)/0.35)] transition-transform duration-300 hover:-translate-y-0.5 active:translate-y-0 animate-cta-breathe">
           Open the Workspace
+          <span class="pointer-events-none absolute inset-y-[-25%] left-0 w-[45%] -translate-x-[180%] skew-x-[-18deg] bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[340%]" aria-hidden="true"></span>
           {{ icon('arrow-right', 'h-[18px] w-[18px] transition-transform duration-300 group-hover:translate-x-1') }}
         </a>
         <form method="post" action="{{ url_for('ingest.load_demo') }}">
           <button type="submit"
-                  class="flex items-center gap-2 rounded-full border border-sideline px-7 py-[1.13rem] text-[1.05rem] font-semibold text-sidetext transition-all hover:border-coal hover:bg-coal/10 hover:text-coal">
+                  class="flex items-center gap-2 rounded-full border border-sideline px-7 py-[1.13rem] text-[1.05rem] font-semibold text-sidetext transition-all duration-300 hover:border-coal hover:bg-coal/10 hover:text-coal">
             {{ icon('package', 'h-[18px] w-[18px]') }}
             Load the demo corpus first
           </button>
         </form>
       </div>
 
-      <p class="reveal mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[10.5px] uppercase tracking-widest text-sidemute" style="--rd:320ms">
+      <p data-reveal data-reveal-delay="0.32" class="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 font-mono text-[10.5px] uppercase tracking-widest text-sidemute">
         <span class="flex items-center gap-1.5">{{ icon('shield-check', 'h-3.5 w-3.5 text-coal') }} no cloud, no API calls</span>
         <span class="flex items-center gap-1.5">{{ icon('hard-drive', 'h-3.5 w-3.5 text-coal') }} one machine, one database</span>
         <span class="flex items-center gap-1.5">{{ icon('circle-check', 'h-3.5 w-3.5 text-coal') }} every answer you can audit</span>

@@ -7,17 +7,21 @@
     "every number carries its receipt", so the page itself is typeset like
     one: IBM Plex Mono for receipts, eyebrows and stats; Archivo at display
     scale for headlines; warm stone paper; coal-amber as the single accent.
-  · Dark-first (the workspace default), fully theme-aware via CSS variables.
-  · Motion: one orchestrated hero entrance (staggered words), scroll reveals
-    everywhere else, count-up on the stats band. CSS-driven, GPU-friendly,
-    disabled under prefers-reduced-motion.
-  · Layout: asymmetric splits and a bento grid; section backgrounds alternate
-    paper / surface / charcoal to give the scroll a rhythm.
+  · Styling is 100% Tailwind: design tokens come from tailwind-config.js
+    (CSS variables that flip under .dark) and every effect — grids, glows,
+    perforated receipt edges, marquees — is expressed as utilities. There is
+    no bespoke stylesheet for this page.
+  · Motion is driven by Motion (motion.dev, Framer Motion's vanilla engine,
+    vendored at static/vendor/motion.js): spring entrances, staggered
+    reveals, scroll-linked parallax and pointer-tilt are set up in
+    static/js/landing.js; elements declare intent via data-attributes.
+    Infinite loops (marquee, float, glow breathe) are Tailwind keyframes.
+  · Layout: asymmetric splits and a bento grid; section backgrounds
+    alternate paper / surface / charcoal to give the scroll a rhythm.
 
-  Sections live in templates/landing/ and are composed below in conversion
-  order: logo+nav, hero (title, CTA, receipt visual), social proof, product
-  showcase, evidence pipeline, capabilities bento, field notes, FAQ, final
-  CTA, footer.
+  Sections in conversion order: logo+nav, hero (title, CTA, receipt
+  visual), social proof, product showcase, evidence pipeline, capabilities
+  bento, field notes, FAQ, final CTA, footer.
 #}
 {% block title %}CMPDI Intelligence · Evidence-backed document intelligence for coal{% endblock %}
 {% block meta %}
@@ -25,9 +29,6 @@
 <meta property="og:title" content="CMPDI Intelligence · Every number, with its receipt">
 <meta property="og:description" content="Offline document intelligence for coal reporting: grounded answers, conflict radar, DOCX report studio — every figure with a receipt back to its source.">
 <meta property="og:type" content="website">
-{% endblock %}
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
 {% endblock %}
 {% block shell %}
 <div class="min-h-dvh bg-paper text-ink">
@@ -46,5 +47,6 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script type="module" src="{{ url_for('static', filename='js/landing.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/motion.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/landing.js') }}" defer></script>
 {% endblock %}

@@ -1,18 +1,19 @@
-{# Element 9: FAQ — accessible accordion (button + aria-expanded), smooth
-   grid-rows animation, first item open. #}
+{# Element 9: FAQ — accessible accordion (button + aria-expanded). Heights
+   animate with Motion springs from landing.js; without JS every answer
+   simply stays visible. First item open. #}
 <section id="faq" class="py-24 md:py-28">
   <div class="mx-auto grid max-w-6xl gap-12 px-5 md:grid-cols-12 md:px-8">
-    <div class="reveal md:col-span-4">
+    <div data-reveal class="md:col-span-4">
       <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-coal">Questions</p>
       <h2 class="mt-3 text-3xl font-bold tracking-[-0.02em] md:text-4xl">Before you open the workspace.</h2>
       <p class="mt-4 max-w-[44ch] text-[14.5px] leading-relaxed text-stone-500">
         Everything else is in the
-        <a href="#" class="nav-link font-medium text-coal" onclick="return false">architecture notes</a>
+        <a href="#" class="font-medium text-coal transition-colors hover:underline" onclick="return false">architecture notes</a>
         — or just load the demonstration corpus and poke at it.
       </p>
     </div>
 
-    <div class="reveal md:col-span-8">
+    <div data-reveal data-reveal-delay="0.1" class="md:col-span-8">
       {% set faqs = [
         ('Does any data leave my machine?',
          'No. Parsing, OCR, embeddings and language models all run locally. After the one-time model download the network cable can stay unplugged — the app never calls an external service, and there is no telemetry.'),
@@ -29,18 +30,20 @@
       ] %}
       <div class="space-y-3">
         {% for q, a in faqs %}
-        <div class="faq-item overflow-hidden rounded-2xl border border-seam bg-white transition-colors {{ 'is-open' if loop.first }}" style="--rd:{{ loop.index * 60 }}ms">
-          <button type="button" class="faq-trigger flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
+        <div data-faq-item data-open="{{ 'true' if loop.first else 'false' }}"
+             class="overflow-hidden rounded-2xl border bg-white transition-colors duration-300 {{ 'border-coalline' if loop.first else 'border-seam hover:border-coalline' }}">
+          <button type="button" data-faq-trigger
+                  class="flex w-full items-center justify-between gap-4 px-6 py-5 text-left"
                   aria-expanded="{{ 'true' if loop.first else 'false' }}">
             <span class="text-[15px] font-semibold tracking-tight">{{ q }}</span>
-            <span class="faq-plus flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-seam text-stone-400 transition-colors" aria-hidden="true">
+            <span data-faq-icon
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-seam text-stone-400 transition-all duration-300 {{ 'rotate-45 border-coal text-coal' if loop.first else '' }}"
+                  aria-hidden="true">
               {{ icon('plus', 'h-3.5 w-3.5') }}
             </span>
           </button>
-          <div class="faq-body grid">
-            <div class="overflow-hidden">
-              <p class="px-6 pb-6 text-[14px] leading-relaxed text-stone-500">{{ a }}</p>
-            </div>
+          <div data-faq-body>
+            <p class="px-6 pb-6 text-[14px] leading-relaxed text-stone-500">{{ a }}</p>
           </div>
         </div>
         {% endfor %}

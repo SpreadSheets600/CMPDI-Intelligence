@@ -1,13 +1,13 @@
-{# Element 6: media — the product shown honestly, rebuilt in HTML/CSS from
-   the real Ask interface (no stock imagery, works offline). #}
+{# Element 6: media — the product shown honestly, rebuilt in HTML/Tailwind
+   from the real Ask interface (no stock imagery, works offline). #}
 <section id="showcase" class="relative overflow-hidden py-24 md:py-28">
   <div class="mx-auto max-w-6xl px-5 md:px-8">
-    <div class="reveal mx-auto max-w-2xl text-center">
+    <div data-reveal class="mx-auto max-w-2xl text-center">
       <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-coal">The workspace</p>
       <h2 class="mt-3 text-3xl font-bold tracking-[-0.02em] md:text-5xl">Ask the library.<br class="hidden md:block"> Get the answer and its paper trail.</h2>
     </div>
 
-    <div class="reveal relative mx-auto mt-14 max-w-4xl">
+    <div data-reveal data-reveal-delay="0.1" class="relative mx-auto mt-14 max-w-4xl">
       {# amber bloom behind the window #}
       <div class="absolute -inset-8 rounded-[2rem] bg-coal/5 blur-2xl" aria-hidden="true"></div>
 
@@ -36,12 +36,12 @@
             <p class="text-[14.5px] leading-relaxed text-stone-600">
               Coal India Limited reported raw coal production of
               <strong class="font-mono text-ink">997.83&nbsp;MT</strong>
-              <a href="#" class="receipt-chip" onclick="return false">FY2023-24 · p.11</a>,
+              <a href="#" class="mx-0.5 inline-flex items-center gap-1 rounded-md border border-coalline bg-coalsoft px-2 py-0.5 align-middle font-mono text-[10.5px] text-coal transition-colors hover:bg-coal hover:text-white" onclick="return false">FY2023-24 · p.11</a>,
               against an offtake of
               <strong class="font-mono text-ink">957.11&nbsp;MT</strong>
-              <a href="#" class="receipt-chip" onclick="return false">Coal Directory · sheet 4</a>.
+              <a href="#" class="mx-0.5 inline-flex items-center gap-1 rounded-md border border-coalline bg-coalsoft px-2 py-0.5 align-middle font-mono text-[10.5px] text-coal transition-colors hover:bg-coal hover:text-white" onclick="return false">Coal Directory · sheet 4</a>.
               Mahanadi Coalfields led subsidiary offtake
-              <a href="#" class="receipt-chip" onclick="return false">p.34</a>.
+              <a href="#" class="mx-0.5 inline-flex items-center gap-1 rounded-md border border-coalline bg-coalsoft px-2 py-0.5 align-middle font-mono text-[10.5px] text-coal transition-colors hover:bg-coal hover:text-white" onclick="return false">p.34</a>.
             </p>
 
             {# evidence cards row #}
@@ -76,7 +76,7 @@
       </div>
 
       {# floating chart card: the agent answers analysis questions too #}
-      <div class="float-slow absolute -bottom-10 -left-4 hidden w-56 rounded-xl border border-seam bg-white p-4 shadow-lift md:block lg:-left-16">
+      <div class="animate-float-y absolute -bottom-10 -left-4 hidden w-56 rounded-xl border border-seam bg-white p-4 shadow-lift md:block lg:-left-16">
         <p class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-stone-400">
           {{ icon('chart-column', 'h-3.5 w-3.5 text-coal') }} agent · computed, not guessed
         </p>
@@ -89,7 +89,7 @@
       </div>
 
       {# floating abstain card: honesty as a feature #}
-      <div class="float-slower absolute -top-8 -right-4 hidden rounded-xl border border-seam bg-white px-4 py-3 shadow-lift md:block lg:-right-14">
+      <div class="animate-float-y-slow absolute -top-8 -right-4 hidden rounded-xl border border-seam bg-white px-4 py-3 shadow-lift md:block lg:-right-14">
         <p class="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-stone-400">
           {{ icon('circle-check', 'h-3.5 w-3.5 text-emerald-600') }} weak evidence
         </p>

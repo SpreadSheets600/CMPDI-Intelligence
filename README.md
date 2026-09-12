@@ -202,12 +202,13 @@ frontend/
                 footer
     components/ shared partials (sidebar)
   static/
-    css/        landing.css (the landing page's motion + texture layer)
-    js/         app.js (workspace), graph.js, landing.js entry +
-                js/landing/ ES modules (theme, nav, reveal, countup, faq)
+    js/         app.js (workspace), graph.js, tailwind-config.js (design
+                tokens + landing keyframes), landing.js (landing motion,
+                driven by Motion)
+    vendor/     Tailwind Play build, motion.js (Framer Motion's vanilla
+                engine, self-hosted for offline use)
     fonts/      self-hosted Archivo + IBM Plex Mono
     icons/      Lucide SVGs
-    vendor/     Tailwind Play build
 docs/
   agent/        editable capability guides fed to the agent's prompts
   ARCHITECTURE.md, PLAN.md

@@ -21,7 +21,7 @@
     {% endfor %}
   </div>
   <div class="overflow-hidden border-t border-seam py-3.5" aria-hidden="true">
-    <div class="marquee flex w-max items-center gap-10 font-mono text-[11px] uppercase tracking-[0.2em] text-stone-400">
+    <div class="flex w-max animate-marquee items-center gap-10 font-mono text-[11px] uppercase tracking-[0.2em] text-stone-400 hover:[animation-play-state:paused]">
       {% for item in [
         'Digital PDF', 'Scanned PDF + OCR', 'Word documents', 'Excel workbooks',
         'Multi-sheet CSV', 'Parliamentary replies', 'Image-only pages',

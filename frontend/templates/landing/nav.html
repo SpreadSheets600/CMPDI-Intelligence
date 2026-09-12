@@ -1,4 +1,5 @@
-{# Element 2: company logo top-left, sticky nav with blur, theme toggle. #}
+{# Element 2: company logo top-left, sticky nav with blur, theme toggle and
+   a scroll-progress hairline driven by landing.js. #}
 <header id="landing-nav"
         class="fixed inset-x-0 top-0 z-40 border-b border-transparent transition-all duration-300">
   <div id="scroll-progress" class="absolute inset-x-0 top-0 h-[2px] origin-left scale-x-0 bg-gradient-to-r from-coal to-amber-500" aria-hidden="true"></div>
@@ -8,10 +9,10 @@
       <span class="text-[16px] font-semibold tracking-tight">CMPDI&nbsp;Intelligence</span>
     </a>
     <nav class="ml-auto hidden items-center gap-6 text-[13.5px] font-medium text-stone-500 md:flex" aria-label="Page sections">
-      <a href="#showcase" class="nav-link">Product</a>
-      <a href="#pipeline" class="nav-link">Evidence</a>
-      <a href="#capabilities" class="nav-link">Capabilities</a>
-      <a href="#faq" class="nav-link">FAQ</a>
+      <a href="#showcase" class="relative transition-colors after:absolute after:-bottom-1 after:left-0 after:h-[1.5px] after:w-full after:origin-left after:scale-x-0 after:bg-coal after:transition-transform after:duration-300 hover:text-coal hover:after:scale-x-100">Product</a>
+      <a href="#pipeline" class="relative transition-colors after:absolute after:-bottom-1 after:left-0 after:h-[1.5px] after:w-full after:origin-left after:scale-x-0 after:bg-coal after:transition-transform after:duration-300 hover:text-coal hover:after:scale-x-100">Evidence</a>
+      <a href="#capabilities" class="relative transition-colors after:absolute after:-bottom-1 after:left-0 after:h-[1.5px] after:w-full after:origin-left after:scale-x-0 after:bg-coal after:transition-transform after:duration-300 hover:text-coal hover:after:scale-x-100">Capabilities</a>
+      <a href="#faq" class="relative transition-colors after:absolute after:-bottom-1 after:left-0 after:h-[1.5px] after:w-full after:origin-left after:scale-x-0 after:bg-coal after:transition-transform after:duration-300 hover:text-coal hover:after:scale-x-100">FAQ</a>
     </nav>
     <button id="landing-theme" type="button"
             class="flex h-9 w-9 items-center justify-center rounded-lg border border-seam text-stone-500 transition-colors hover:border-coal hover:text-coal"
