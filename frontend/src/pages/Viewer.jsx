@@ -163,6 +163,26 @@ export default function Viewer() {
         </Disclosure>
       </Rise>
 
+      {isPdf && pages.length > 0 && pages.some((p) => p.summary) && (
+        <Rise delay={0.1}>
+          <div className='mt-4 rounded-xl border border-seam bg-white p-5 shadow-card'>
+            <h2 className='text-[15px] font-semibold'>Page Summaries</h2>
+            <p className='mt-1 text-[12.5px] text-stone-500'>Each page summarized by the configured LLM and indexed for search. Attached to the document summary above.</p>
+            <div className='mt-3 space-y-2.5'>
+              {pages.filter((p) => p.summary).map((p) => (
+                <div key={p.page_no} className='border-l-2 border-coalline pl-3'>
+                  <button onClick={() => setParams({ page: String(p.page_no) })}
+                          className='font-mono text-[11px] font-semibold uppercase tracking-wide text-coal hover:underline'>
+                    Page {p.page_no}
+                  </button>
+                  <p className='mt-0.5 text-[13.5px] leading-relaxed text-stone-700'>{p.summary}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Rise>
+      )}
+
       {isPdf && pages.length > 0 && (
         <Rise delay={0.14}>
           <div className='mt-6 flex flex-wrap items-center gap-1'>
@@ -201,6 +221,12 @@ export default function Viewer() {
         <Rise delay={0.1}>
           <div className='mt-6 rounded-xl border border-seam bg-white p-6 shadow-card'>
             <h2 className='text-[15px] font-semibold'>Extracted Content · Page {page}</h2>
+            {pinfo?.summary && (
+              <div className='mt-3 rounded-lg border border-coalline bg-coalsoft px-4 py-3'>
+                <p className='font-mono text-[10px] uppercase tracking-wide text-coal'>Page summary (LLM)</p>
+                <p className='mt-1 text-[13.5px] leading-relaxed text-stone-700'>{pinfo.summary}</p>
+              </div>
+            )}
             <div className='mt-3 space-y-3'>
               {elements.length === 0 ? (
                 <p className='text-[13.5px] text-stone-500'>No elements extracted on this page.</p>

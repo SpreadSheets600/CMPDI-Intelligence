@@ -10,7 +10,6 @@ import { InView } from '../../../components/motion/in-view.jsx';
 import { TextEffect } from '../../../components/motion/text-effect.jsx';
 import { TextShimmer } from '../../../components/motion/text-shimmer.jsx';
 import { Magnetic } from '../../../components/motion/magnetic.jsx';
-import { BorderTrail } from '../../../components/motion/border-trail.jsx';
 import { AnimatedNumber } from '../../../components/motion/animated-number.jsx';
 
 const SAMPLE_QUERIES = [

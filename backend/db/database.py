@@ -315,6 +315,8 @@ def _migrate():
             pcols = {c["name"] for c in insp.get_columns("pages")}
             if "page_class" not in pcols:
                 conn.execute(text("ALTER TABLE pages ADD COLUMN page_class TEXT"))
+            if "summary" not in pcols:
+                conn.execute(text("ALTER TABLE pages ADD COLUMN summary TEXT"))
         if "elements" in insp.get_table_names():
             ecols = {c["name"] for c in insp.get_columns("elements")}
             if "method" not in ecols:

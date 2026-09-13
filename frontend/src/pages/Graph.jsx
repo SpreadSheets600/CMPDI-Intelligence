@@ -13,43 +13,60 @@ const COLORS = {
   entity: { fill: '#0369a1', text: '#fff', r: 7 },
 };
 
-function KnowledgeCanvas({ onPick }) {
+function KnowledgeCanvas({ subsidiary, onPick }) {
   const canvasRef = useRef(null);
   const sim = useRef({ nodes: [], edges: [] });
   const hovered = useRef(null);
   const dragged = useRef(null);
   const selected = useRef(null);
+  const [empty, setEmpty] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return undefined;
     const ctx = canvas.getContext('2d');
-    let raf;
+    let raf = 0;
+    let dead = false;
+    selected.current = null;
+    hovered.current = null;
+    dragged.current = null;
 
     const resize = () => {
-      canvas.width = canvas.clientWidth * devicePixelRatio;
-      canvas.height = canvas.clientHeight * devicePixelRatio;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.max(1, canvas.clientWidth * dpr);
+      canvas.height = Math.max(1, canvas.clientHeight * dpr);
     };
     resize();
     window.addEventListener('resize', resize);
 
     (async () => {
-      const q = new URLSearchParams(window.location.search).get('subsidiary') || '';
-      const data = await getJSON('/api/graph?subsidiary=' + encodeURIComponent(q));
-      const W = canvas.clientWidth || 800, H = canvas.clientHeight || 560;
-      sim.current.nodes = data.nodes.map((n, i) => ({
-        ...n,
-        x: W / 2 + Math.cos(i * 2.4) * (60 + (i % 7) * 22),
-        y: H / 2 + Math.sin(i * 2.4) * (60 + (i % 5) * 26),
-        vx: 0, vy: 0,
-        r: n.type === 'document' ? 10 : n.type === 'entity' ? 7 : 5 + Math.min(6, n.count || 1),
-      }));
-      sim.current.edges = data.edges
-        .map((e) => ({
-          source: sim.current.nodes.find((n) => n.id === e.source),
-          target: sim.current.nodes.find((n) => n.id === e.target),
-        }))
-        .filter((e) => e.source && e.target);
-      requestAnimationFrame(tick);
+      try {
+        const data = await getJSON('/api/graph?subsidiary=' + encodeURIComponent(subsidiary || ''));
+        if (dead) return;
+        const W = canvas.clientWidth || 800, H = canvas.clientHeight || 560;
+        setEmpty(!data.nodes || data.nodes.length === 0);
+        sim.current.nodes = (data.nodes || []).map((n, i) => ({
+          ...n,
+          x: W / 2 + Math.cos(i * 2.4) * (60 + (i % 7) * 22),
+          y: H / 2 + Math.sin(i * 2.4) * (60 + (i % 5) * 26),
+          vx: 0, vy: 0,
+          r: n.type === 'document' ? 10 : n.type === 'entity' ? 7 : 5 + Math.min(6, n.count || 1),
+        }));
+        const byId = new Map(sim.current.nodes.map((n) => [n.id, n]));
+        const seen = new Set();
+        sim.current.edges = (data.edges || [])
+          .map((e) => ({ source: byId.get(e.source), target: byId.get(e.target) }))
+          .filter((e) => {
+            if (!e.source || !e.target) return false;
+            const k = `${e.source.id}→${e.target.id}`;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+          });
+        raf = requestAnimationFrame(tick);
+      } catch {
+        if (!dead) setEmpty(true);
+      }
     })();
 
     function tick() {
@@ -89,10 +106,10 @@ function KnowledgeCanvas({ onPick }) {
     }
 
     function draw() {
-      const { width: W, height: H } = canvas;
-      ctx.clearRect(0, 0, W, H);
+      const dpr = window.devicePixelRatio || 1;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.save();
-      ctx.scale(devicePixelRatio, devicePixelRatio);
+      ctx.scale(dpr, dpr);
       const t = cmpdiColors();
       const { nodes, edges } = sim.current;
       for (const e of edges) {
@@ -148,17 +165,28 @@ function KnowledgeCanvas({ onPick }) {
     };
     canvas.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
-    canvas.addEventListener('mousemove', (e) => { onMove(e); onDrag(e); });
+    const onHover = (e) => { onMove(e); onDrag(e); };
+    canvas.addEventListener('mousemove', onHover);
     return () => {
+      dead = true;
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', resize);
       canvas.removeEventListener('mousedown', onDown);
       window.removeEventListener('mouseup', onUp);
+      canvas.removeEventListener('mousemove', onHover);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [subsidiary]);
 
-  return <canvas ref={canvasRef} className='block h-[560px] w-full' />;
+  return (
+    <div className='relative'>
+      <canvas ref={canvasRef} className='block h-[560px] w-full' />
+      {empty && (
+        <p className='pointer-events-none absolute inset-0 flex items-center justify-center text-[13px] text-stone-400'>
+          No documents in this view yet. Ingest files to grow the tree.
+        </p>
+      )}
+    </div>
+  );
 }
 
 function NodePanel({ picked, onClose }) {
@@ -209,6 +237,7 @@ export default function Graph() {
   const { data, error } = usePageData('/api/pages/graph');
   const [params, setParams] = useSearchParams();
   const [picked, setPicked] = useState(null);
+  const subsidiary = params.get('subsidiary') || '';
 
   if (error) return <ErrorBox message={error} />;
   if (!data) return <Loading />;
@@ -218,8 +247,8 @@ export default function Graph() {
       <PageHeader
         title='Knowledge Tree'
         subtitle='Documents, their extracted tags and the entities they mention, laid out by force simulation. Click a node to inspect it.'>
-        <select value={params.get('subsidiary') || ''}
-                onChange={(e) => setParams(e.target.value ? { subsidiary: e.target.value } : {})}
+        <select value={subsidiary}
+                onChange={(e) => { setPicked(null); setParams(e.target.value ? { subsidiary: e.target.value } : {}); }}
                 className='rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none'>
           <option value=''>All subsidiaries</option>
           {data.subs.map((s) => <option key={s.subsidiary} value={s.subsidiary}>{s.subsidiary}</option>)}
@@ -229,7 +258,7 @@ export default function Graph() {
       <Rise delay={0.05}>
         <div className='mt-6 grid gap-5 lg:grid-cols-[1fr_280px]'>
           <div className='relative overflow-hidden rounded-xl border border-seam bg-white shadow-card'>
-            <KnowledgeCanvas onPick={setPicked} />
+            <KnowledgeCanvas subsidiary={subsidiary} onPick={setPicked} />
             <div className='pointer-events-none absolute left-4 top-4 flex max-w-[70%] flex-wrap gap-3 font-mono text-[10px] uppercase tracking-wide text-stone-400'>
               <span className='flex items-center gap-1.5'><i className='h-2.5 w-2.5 rounded-full bg-coal' />document</span>
               <span className='flex items-center gap-1.5'><i className='h-2.5 w-2.5 rounded-full bg-emerald-600' />tag</span>

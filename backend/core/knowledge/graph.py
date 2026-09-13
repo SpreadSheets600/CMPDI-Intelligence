@@ -47,6 +47,7 @@ def build_graph(subsidiary: str | None = None, max_docs: int = 60,
         nodes.append({"id": f"kw:{kw}", "label": kw, "type": "tag",
                       "group": "tag", "count": tag_counts[kw]})
     seen_entities = set()
+    seen_edges = set()
     for r in ent_rows:
         doc_id = chunk_doc.get(r["chunk_id"])
         if not doc_id:
@@ -56,11 +57,17 @@ def build_graph(subsidiary: str | None = None, max_docs: int = 60,
             seen_entities.add(ent_key)
             nodes.append({"id": ent_key, "label": r["canonical_name"],
                           "type": "entity", "group": "entity"})
-        edges.append({"source": f"doc:{doc_id}", "target": ent_key})
+        edge = (f"doc:{doc_id}", ent_key)
+        if edge not in seen_edges:
+            seen_edges.add(edge)
+            edges.append({"source": edge[0], "target": edge[1]})
     for d in docs:
         for kw in doc_tags.get(d["id"], []):
             if kw in top_tags:
-                edges.append({"source": f"doc:{d['id']}", "target": f"kw:{kw}"})
+                edge = (f"doc:{d['id']}", f"kw:{kw}")
+                if edge not in seen_edges:
+                    seen_edges.add(edge)
+                    edges.append({"source": edge[0], "target": edge[1]})
 
     nodes = [n for n in nodes if n["type"] != "tag"
              or any(e["target"] == n["id"] for e in edges)]

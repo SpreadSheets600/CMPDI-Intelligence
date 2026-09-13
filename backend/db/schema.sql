@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS pages (
     doc_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
     page_no INTEGER NOT NULL,
     text TEXT DEFAULT '',
+    summary TEXT,
     ocr_used INTEGER NOT NULL DEFAULT 0,
     avg_confidence REAL,
     image_path TEXT,

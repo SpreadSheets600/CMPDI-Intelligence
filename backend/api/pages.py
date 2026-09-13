@@ -144,7 +144,7 @@ def viewer(doc_id):
         return jsonify({"error": "document not found"}), 404
     doc = dict(doc)
     pages = _rows(db.q(
-        "SELECT page_no, ocr_used, avg_confidence, image_path, page_class FROM pages WHERE doc_id=? ORDER BY page_no",
+        "SELECT page_no, ocr_used, avg_confidence, image_path, page_class, summary FROM pages WHERE doc_id=? ORDER BY page_no",
         (doc_id,)))
     sheets = _rows(db.q(
         "SELECT DISTINCT sheet_no FROM elements WHERE doc_id=? AND sheet_no IS NOT NULL ORDER BY sheet_no",

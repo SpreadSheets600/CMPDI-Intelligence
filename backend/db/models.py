@@ -69,6 +69,7 @@ class Page(Base):
                                         nullable=False)
     page_no: Mapped[int | None] = mapped_column()
     text: Mapped[str | None] = mapped_column(Text, server_default=sql_text("''"))
+    summary: Mapped[str | None] = mapped_column(Text)
     ocr_used: Mapped[int] = mapped_column(nullable=False, server_default=sql_text("0"))
     avg_confidence: Mapped[float | None] = mapped_column(REAL)
     image_path: Mapped[str | None] = mapped_column(Text)

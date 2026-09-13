@@ -143,6 +143,14 @@ def _process_document_inner(doc_id: str):
                  "elements": len(cdoc.elements), "tables": len(cdoc.tables),
                  "ocr_pages": sum(1 for p in cdoc.pages if p.ocr_used)}
         _stage(doc_id, "ocr", "running", stats=stats)
+        # publish the raw OCR/native text per page immediately so the job
+        # feed can show page content while the rest of ingestion runs
+        try:
+            _stage(doc_id, "ocr", "running", stats={
+                "page_texts": {str(p.page_no): (p.text or "")[:600] for p in cdoc.pages},
+            })
+        except Exception:
+            pass
         _stage(doc_id, "normalizing", "running")
 
         cdoc.meta.pop("_section_stack", None)
@@ -187,6 +195,30 @@ def _process_document_inner(doc_id: str):
 
         _stage(doc_id, "summarizing", "running")
         from backend.core.knowledge import summary as summary_mod
+        # per-page LLM summaries first (each page -> LLM -> embedded
+        # PAGE_SUMMARY chunk); progress streams to the job feed with both the
+        # OCR excerpt and the LLM summary for every page as it completes
+        _progress_summaries: dict = {}
+        _progress_texts: dict = {}
+        try:
+            _progress_texts = {str(p.page_no): (p.text or "")[:600] for p in cdoc.pages}
+        except Exception:
+            pass
+
+        def _page_progress(page_no, summary, excerpt, done, total):
+            _progress_summaries[str(page_no)] = summary
+            if excerpt:
+                _progress_texts[str(page_no)] = excerpt
+            try:
+                _stage(doc_id, "summarizing", "running", stats={
+                    "page_summaries": dict(_progress_summaries),
+                    "page_texts": dict(_progress_texts),
+                    "pages_done": done, "pages_total": total,
+                })
+            except Exception:
+                pass
+
+        summary_mod.generate_page_summaries(doc_id, on_progress=_page_progress)
         summary_mod.generate_summary(doc_id)
 
         from backend.core.pipeline.inspection import inspection_for

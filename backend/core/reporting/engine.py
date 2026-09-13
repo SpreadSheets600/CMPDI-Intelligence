@@ -16,7 +16,8 @@ from docx import Document
 from docx.shared import Inches
 
 from backend.core import config
-from backend.core.reporting import charts, content
+from backend.core.reporting import charts as report_charts
+from backend.core.reporting import content as report_content
 from backend.core.reporting.md_docx import markdown_to_document
 from backend.db import database as db
 

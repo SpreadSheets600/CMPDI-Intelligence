@@ -5,13 +5,13 @@ import { uploadFiles } from '../api.js';
 import { Rise, PageHeader, Loading, ErrorBox } from '../components/ui.jsx';
 import { AnimatedGroup } from '../components/motion/animated-group.jsx';
 import { AnimatedNumber } from '../components/motion/animated-number.jsx';
-import { BorderTrail } from '../components/motion/border-trail.jsx';
 
 const STAGES = ['uploaded', 'classifying', 'extracting', 'ocr', 'normalizing',
   'chunking', 'embedding', 'indexing', 'summarizing', 'completed'];
 
 function JobStrip() {
   const jobs = usePolling('/api/jobs', 2500);
+  const [open, setOpen] = useState({});
   if (!jobs) return <div className='mt-4 space-y-3' aria-live='polite' />;
   return (
     <AnimatedGroup preset='blur-slide' className='mt-4 space-y-3' aria-live='polite'>
@@ -19,16 +19,23 @@ function JobStrip() {
         const failed = j.status === 'failed';
         const running = j.status === 'running';
         const idx = STAGES.indexOf(j.stage);
+        let stats = {};
+        try { stats = JSON.parse(j.stats_json || '{}'); } catch { stats = {}; }
+        const pageTexts = stats.page_texts || {};
+        const pageSums = stats.page_summaries || {};
+        const pageNos = Array.from(new Set([...Object.keys(pageTexts), ...Object.keys(pageSums)]))
+          .sort((a, b) => Number(a) - Number(b));
+        const isOpen = !!open[j.id];
         return (
           <div key={j.id || i}
             className={`relative overflow-hidden rounded-xl border p-4 shadow-card ${failed ? 'border-red-200 bg-red-50/60' : 'border-seam bg-white'}`}>
-            {running}
             <div className='flex items-baseline justify-between gap-4 overflow-hidden'>
               <span className='min-w-0 truncate text-sm font-semibold'>{j.filename || 'unknown file'}</span>
               <span className={`flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide ${failed ? 'text-red-700' : j.status === 'completed' ? 'text-emerald-700' : 'text-coal'}`}>
                 {failed ? <Alert className='h-3.5 w-3.5' /> : running
                   ? <LoaderCircle2 /> : <CircleCheck />}
                 {failed ? 'failed' : j.stage}
+                {stats.pages_done && stats.pages_total ? ` · pages ${stats.pages_done}/${stats.pages_total}` : ''}
               </span>
             </div>
             <div className='mt-2 flex flex-wrap items-center gap-1 text-[10px] font-mono uppercase tracking-wide'>
@@ -48,6 +55,25 @@ function JobStrip() {
               })}
             </div>
             {j.error && <div className='mt-2 font-mono text-xs text-red-700'>{j.error.split('\n')[0]}</div>}
+            {pageNos.length > 0 && (
+              <div className='mt-3 rounded-lg border border-seam bg-paper px-3 py-2'>
+                <button onClick={() => setOpen((o) => ({ ...o, [j.id]: !o[j.id] }))}
+                        className='font-mono text-[11px] uppercase tracking-wide text-coal hover:underline'>
+                  {isOpen ? 'Hide' : 'Show'} per-page OCR + summaries ({pageNos.length})
+                </button>
+                {isOpen && (
+                  <div className='mt-2 max-h-64 space-y-2 overflow-auto'>
+                    {pageNos.map((pn) => (
+                      <div key={pn} className='rounded-md border border-seam bg-white px-3 py-2'>
+                        <p className='font-mono text-[10px] uppercase tracking-wide text-stone-400'>Page {pn}</p>
+                        {pageSums[pn] && <p className='mt-1 text-[12.5px] leading-relaxed text-stone-700'><span className='font-semibold text-coal'>Summary: </span>{pageSums[pn]}</p>}
+                        {pageTexts[pn] && <p className='mt-1 font-mono text-[11px] leading-relaxed text-stone-500'><span className='font-semibold'>OCR: </span>{pageTexts[pn].slice(0, 400)}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}

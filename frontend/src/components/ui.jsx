@@ -2,7 +2,6 @@ import { TextEffect } from './motion/text-effect.jsx';
 import { AnimatedGroup } from './motion/animated-group.jsx';
 import { InView } from './motion/in-view.jsx';
 import { TextShimmer } from './motion/text-shimmer.jsx';
-import { BorderTrail } from './motion/border-trail.jsx';
 import { GlowEffect } from './motion/glow-effect.jsx';
 
 // Page header used by every workspace screen.

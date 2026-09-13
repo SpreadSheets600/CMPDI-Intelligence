@@ -80,10 +80,18 @@ def main():
     print(f"Done. {count} chunks re-embedded with {model_name}; FAISS index at {config.DATA_DIR / 'faiss_index.bin'}")
 
     if "--summaries" in sys.argv:
-        from backend.core.knowledge.summary import generate_summary, has_summaries
+        from backend.core.knowledge.summary import (
+            generate_page_summaries,
+            generate_summary,
+            has_summaries,
+        )
         rows = db.q("""SELECT id FROM documents WHERE status='completed'
                        AND (summary IS NULL OR summary='')""")
         for r in rows:
+            try:
+                generate_page_summaries(r["id"])
+            except Exception as e:
+                print(f"  page summaries failed for {r['id'][:10]}: {e}")
             generate_summary(r["id"])
         done, total = has_summaries()
         print(f"Summaries: {done}/{total}")
