@@ -29,6 +29,17 @@ def main(argv):
 
     config.ensure_dirs()
     db.init_db()
+    import socket
+    try:
+        probe = socket.create_connection(("127.0.0.1", 5000), timeout=1)
+        probe.close()
+        busy = True
+    except OSError:
+        busy = False
+    if busy:
+        print("WARNING: An app server is answering on port 5000. Its worker "
+              "may process the same files concurrently. Stop the server first "
+              "for a clean CLI run.")
     queued = []
     for p in paths:
         r = pipeline.ingest_file(p)
@@ -43,9 +54,10 @@ def main(argv):
         doc = db.q1("SELECT filename, status, page_count FROM documents WHERE id=?", (doc_id,))
         job = db.q1("SELECT stats_json, error FROM jobs WHERE doc_id=? ORDER BY id DESC LIMIT 1", (doc_id,))
         import json
-        stats = json.loads(job["stats_json"] or "{}")
+        stats = json.loads((job["stats_json"] if job else None) or "{}")
+        err = job["error"] if job else None
         if doc["status"] == "failed":
-            print(f"FAILED: {doc['filename']}: {job['error'].splitlines()[0] if job['error'] else '?'}")
+            print(f"FAILED: {doc['filename']}: {err.splitlines()[0] if err else '?'}")
         else:
             print(f"completed: {doc['filename']} | pages={stats.get('pages')} "
                   f"tables={stats.get('tables')} ocr={stats.get('ocr_pages')} "

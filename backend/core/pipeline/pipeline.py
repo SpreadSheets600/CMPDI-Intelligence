@@ -90,6 +90,12 @@ def ingest_file(path) -> dict:
 
 def _stage(doc_id: str, stage: str, status: str, error: str | None = None, stats: dict | None = None):
     job = db.q1("SELECT id, stats_json FROM jobs WHERE doc_id=? ORDER BY id DESC LIMIT 1", (doc_id,))
+    if job is None:
+        # self-heal: processing reached here without a job row (duplicate
+        # re-run, crashed run, or a concurrent worker). Never crash on it.
+        log.warning("No Job Row For %s, Creating One", doc_id[:12])
+        db.execute("INSERT INTO jobs (doc_id, stage, status) VALUES (?, 'uploaded', 'pending')", (doc_id,))
+        job = db.q1("SELECT id, stats_json FROM jobs WHERE doc_id=? ORDER BY id DESC LIMIT 1", (doc_id,))
     stats_json = job["stats_json"] if job and job["stats_json"] else "{}"
     if stats:
         merged = json.loads(stats_json)
@@ -101,7 +107,26 @@ def _stage(doc_id: str, stage: str, status: str, error: str | None = None, stats
     db.execute("UPDATE documents SET status=? WHERE id=?", (stage if status != "failed" else "failed", doc_id))
 
 
+# in-process guard against double-processing one document (worker thread vs
+# inline/CLI runs in the same process); cross-process races are handled by
+# warning in scripts/ingest.py — stop the server before CLI ingestion.
+_IN_PROGRESS: set = set()
+
+
 def process_document(doc_id: str):
+    # in-process guard: the worker thread and inline/CLI processing must
+    # never handle the same document twice (duplicate derived rows).
+    if doc_id in _IN_PROGRESS:
+        log.warning("Document %s Already Processing, Skipping Duplicate Run", doc_id[:12])
+        return
+    _IN_PROGRESS.add(doc_id)
+    try:
+        _process_document_inner(doc_id)
+    finally:
+        _IN_PROGRESS.discard(doc_id)
+
+
+def _process_document_inner(doc_id: str):
     path = storage.original_path(doc_id)
     if path is None:
         _stage(doc_id, "classifying", "failed", "Original File Missing In Store")
@@ -151,13 +176,29 @@ def process_document(doc_id: str):
         facts.extract_for_doc(doc_id)
         _assign_version_group(doc_id)
 
+        from backend.core.pipeline import quality_gate
+        gate = quality_gate.evaluate(doc_id, cdoc, chunks)
+        if gate["verdict"] == quality_gate.FAILED:
+            _stage(doc_id, "failed", "failed",
+                   error=f"Quality Gate FAILED: {gate['reason'] or 'empty extraction'}",
+                   stats={"quality_verdict": gate["verdict"],
+                          "quality_checks": gate["checks"]})
+            return
+
         _stage(doc_id, "summarizing", "running")
         from backend.core.knowledge import summary as summary_mod
         summary_mod.generate_summary(doc_id)
 
+        from backend.core.pipeline.inspection import inspection_for
+        inspection = inspection_for(cdoc)
         _stage(doc_id, "completed", "completed",
                stats={"chunks": len(chunks), "embedding_model": model_name,
-                      "keywords": keywords, "keyword_source": keyword_source})
+                      "keywords": keywords, "keyword_source": keyword_source,
+                      "quality_verdict": gate["verdict"],
+                      "quality_checks": gate["checks"],
+                      "page_classes": inspection.get("class_counts", {}),
+                      "vision_used": cdoc.meta.get("vision_used", 0),
+                      "vision_skipped": cdoc.meta.get("vision_skipped", 0)})
         log.info("Document %s Processed: %s", doc_id[:12], stats)
     except Exception as e:
         log.exception("Pipeline Failed For %s", doc_id)
@@ -204,12 +245,16 @@ def summary_embedding_prefix(doc, keywords: list[str]) -> str:
 
 def _persist_document(doc_id: str, doc_type: str, cdoc):
     # the parser refines the coarse classify() result (pdf -> digital/scanned/mixed)
+    from backend.core.pipeline.inspection import inspection_for
+
     refined = cdoc.doc_type or doc_type
+    structure = json.dumps(inspection_for(cdoc), default=str)[:200000]
     db.execute(
         """UPDATE documents SET doc_type=?, content_norm=?, subsidiary=?, doc_date_raw=?,
-           doc_date_norm=?, page_count=? WHERE id=?""",
+           doc_date_norm=?, page_count=?, structure_json=? WHERE id=?""",
         (refined, NORMALIZED_TYPES.get(refined, refined), cdoc.meta.get("subsidiary"),
-         cdoc.meta.get("doc_date_raw"), cdoc.meta.get("doc_date_norm"), len(cdoc.pages), doc_id))
+         cdoc.meta.get("doc_date_raw"), cdoc.meta.get("doc_date_norm"), len(cdoc.pages),
+         structure, doc_id))
 
 
 def _persist_pages(doc_id: str, cdoc):
@@ -224,9 +269,10 @@ def _persist_pages(doc_id: str, cdoc):
                 src.rename(dest)
                 image_path = f"{doc_id}/{dest.name}"
         conn.execute(
-            "INSERT INTO pages (doc_id, page_no, text, ocr_used, avg_confidence, image_path)"
-            " VALUES (?,?,?,?,?,?)",
-            (doc_id, p.page_no, p.text, int(p.ocr_used), p.avg_confidence, image_path))
+            "INSERT INTO pages (doc_id, page_no, text, ocr_used, avg_confidence, image_path,"
+            " page_class) VALUES (?,?,?,?,?,?,?)",
+            (doc_id, p.page_no, p.text, int(p.ocr_used), p.avg_confidence, image_path,
+             getattr(p, "page_class", "TEXT_ONLY")))
     conn.commit()
 
 
@@ -236,9 +282,10 @@ def _persist_elements(doc_id: str, cdoc) -> list[int]:
     for el in cdoc.elements:
         cur = conn.execute(
             "INSERT INTO elements (doc_id, page_no, sheet_no, element_type, order_idx,"
-            " bbox, text, conf, section_path) VALUES (?,?,?,?,?,?,?,?,?)",
+            " bbox, text, conf, section_path, method) VALUES (?,?,?,?,?,?,?,?,?,?)",
             (doc_id, el.page_no, el.sheet_no, el.element_type, el.order_idx,
-             json.dumps(el.bbox) if el.bbox else None, el.text, el.conf, el.section_path))
+             json.dumps(el.bbox) if el.bbox else None, el.text, el.conf, el.section_path,
+             getattr(el, "method", "")))
         ids.append(cur.lastrowid)
     conn.commit()
     return ids
@@ -298,10 +345,46 @@ def _link_chunk_tables(chunks, chunk_db_ids, table_ids):
                        (json.dumps(chunk["element_ids"]), cid))
 
 
+def _elect_current(group: str):
+    """Latest doc_date_norm (fallback: latest upload) is the current version."""
+    members = db.q("SELECT id, doc_date_norm, upload_ts FROM documents WHERE version_group_id=?", (group,))
+    ordered = sorted(members, key=lambda r: (r["doc_date_norm"] or "", r["upload_ts"]))
+    for i, m in enumerate(ordered):
+        db.execute("UPDATE documents SET is_current_version=? WHERE id=?",
+                   (1 if i == len(ordered) - 1 else 0, m["id"]))
+
+
 def _assign_version_group(doc_id: str):
     """Near-duplicate detection via document-mean embedding cosine. Documents
     over 0.95 similarity form a version group; the one with the latest
     doc_date_norm (fallback: latest upload) is the current version."""
+    # cheap exact pre-filter: identical content fingerprints join immediately
+    # without waiting on embedding comparison
+    mine_fp = None
+    cur = db.q1("SELECT structure_json FROM documents WHERE id=?", (doc_id,))
+    if cur and cur["structure_json"]:
+        try:
+            mine_fp = json.loads(cur["structure_json"]).get("fingerprint")
+        except Exception:
+            mine_fp = None
+    if mine_fp:
+        for r in db.q("SELECT id, version_group_id, structure_json FROM documents"
+                      " WHERE id != ? AND status='completed'", (doc_id,)):
+            try:
+                fp = (json.loads(r["structure_json"] or "{}").get("fingerprint")
+                      if r["structure_json"] else None)
+            except Exception:
+                fp = None
+            if fp and fp == mine_fp:
+                group = r["version_group_id"] or str(uuid.uuid4())
+                if not r["version_group_id"]:
+                    db.execute("UPDATE documents SET version_group_id=? WHERE id=?",
+                               (group, r["id"]))
+                db.execute("UPDATE documents SET version_group_id=? WHERE id=?",
+                           (group, doc_id))
+                _elect_current(group)
+                log.info("Document %s Fingerprint-Matched Into Group", doc_id[:12])
+                return
     rows = db.q("""
         SELECT c.doc_id, e.blob FROM chunk_embeddings e JOIN chunks c ON c.id = e.chunk_id
     """)
@@ -333,13 +416,7 @@ def _assign_version_group(doc_id: str):
                 break
     if group:
         db.execute("UPDATE documents SET version_group_id=? WHERE id=?", (group, doc_id))
-        members = db.q("SELECT id, doc_date_norm, upload_ts FROM documents WHERE version_group_id=?", (group,))
-        def sort_key(r):
-            return (r["doc_date_norm"] or "", r["upload_ts"])
-        ordered = sorted(members, key=sort_key)
-        for i, m in enumerate(ordered):
-            db.execute("UPDATE documents SET is_current_version=? WHERE id=?",
-                       (1 if i == len(ordered) - 1 else 0, m["id"]))
+        _elect_current(group)
 
 
 # ---------------------------------------------------------------- worker

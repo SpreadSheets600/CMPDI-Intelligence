@@ -30,9 +30,18 @@ def _load_dotenv():
 
 _load_dotenv()
 
-DATA_DIR = Path(os.environ.get("CMPDI_DATA_DIR", ROOT / "data"))
+
+def _abs(p: Path) -> Path:
+    """Relative paths (e.g. CMPDI_DATA_DIR=./data from .env) resolve against
+    the project root, never the process working directory. Relative paths
+    otherwise break send_file (resolved against the app package) and any
+    worker started from another directory."""
+    return p if p.is_absolute() else ROOT / p
+
+
+DATA_DIR = _abs(Path(os.environ.get("CMPDI_DATA_DIR", ROOT / "data")))
 _db_default = DATA_DIR / "cmpdi.db"
-DB_PATH = Path(os.environ.get("CMPDI_DB_PATH") or _db_default)
+DB_PATH = _abs(Path(os.environ.get("CMPDI_DB_PATH") or _db_default))
 
 # Frontend assets served by the same process
 FRONTEND_DIR = ROOT / "frontend"
