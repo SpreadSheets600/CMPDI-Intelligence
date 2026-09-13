@@ -1,32 +1,35 @@
-import { motion } from "framer-motion";
-import { Nav, Hero, SocialProof } from "./sections/Hero.jsx";
-import { Showcase, Pipeline, Capabilities, FieldNotes } from "./sections/Showcase.jsx";
-import { Faq, FinalCta, Footer } from "./sections/Closing.jsx";
-import { usePageData } from "../../hooks/useData.js";
+import { ScrollProgress } from '../../components/motion/scroll-progress.jsx';
+import { Nav } from './sections/Nav.jsx';
+import { Hero } from './sections/Hero.jsx';
+import { Stats } from './sections/Stats.jsx';
+import { Product } from './sections/Product.jsx';
+import { Pipeline } from './sections/Pipeline.jsx';
+import { Capabilities } from './sections/Capabilities.jsx';
+import { Testimonials } from './sections/Testimonials.jsx';
+import { Faq } from './sections/Faq.jsx';
+import { Cta } from './sections/Cta.jsx';
+import { Footer } from './sections/Footer.jsx';
+import { usePageData } from '../../hooks/useData.js';
 
 export default function Landing() {
-  // live database counts for the social-proof band (like the Jinja page)
-  const { data } = usePageData("/api/pages/landing");
+  const { data } = usePageData('/api/pages/landing');
   const stats = data?.stats;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
-      className="min-h-dvh bg-paper text-ink">
+    <div className='min-h-dvh bg-paper text-ink'>
+      <ScrollProgress className='z-[60] h-[2px] bg-coal' />
       <Nav />
       <main>
         <Hero stats={stats} />
-        <SocialProof stats={stats} />
-        <Showcase />
+        <Stats stats={stats} />
+        <Product />
         <Pipeline />
         <Capabilities />
-        <FieldNotes />
+        <Testimonials />
         <Faq />
-        <FinalCta />
+        <Cta />
       </main>
       <Footer />
-    </motion.div>
+    </div>
   );
 }

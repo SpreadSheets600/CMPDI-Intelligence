@@ -1,16 +1,12 @@
-"""Action endpoints for the SPA: mutations that the Jinja app handled with
-form POSTs + redirects now return JSON. Also hosts the insights fact-series
-and per-document summary APIs that power the Insights explorer."""
-
 import json
 
 from flask import Blueprint, jsonify, request
 
-from backend.core import appsettings, compare as compare_mod, llm, reports
-from backend.core.knowledge import topics
+from backend.core import appsettings, llm, reports
 from backend.core.config import CLOUDS_DIR
-from backend.core.pipeline import pipeline
+from backend.core.knowledge import topics
 from backend.core.knowledge.summary import generate_summary
+from backend.core.pipeline import pipeline
 from backend.db import database as db
 
 bp = Blueprint("actions", __name__, url_prefix="/api")
@@ -34,7 +30,9 @@ def facts_series():
            JOIN documents d ON d.id = c.doc_id
            WHERE COALESCE(e.canonical_name, f.entity_text) = ? AND f.attribute = ?
              AND f.value_norm IS NOT NULL
-           ORDER BY f.period_norm""", (entity, attribute))
+           ORDER BY f.period_norm""",
+        (entity, attribute),
+    )
     series = [dict(r) for r in rows]
     return jsonify({"entity": entity, "attribute": attribute, "series": series})
 
@@ -48,11 +46,13 @@ def insights_summary():
                   (SELECT COUNT(*) FROM facts f JOIN chunks c2 ON c2.id = f.chunk_id
                    WHERE c2.doc_id = d.id) AS facts,
                   (SELECT COUNT(*) FROM doc_keywords k WHERE k.doc_id = d.id) AS tags
-           FROM documents d WHERE d.status='completed' ORDER BY d.upload_ts DESC""")
+           FROM documents d WHERE d.status='completed' ORDER BY d.upload_ts DESC"""
+    )
     return jsonify({"doc_quality": [dict(r) for r in rows]})
 
 
 # ---------- documents ----------
+
 
 @bp.post("/documents/<doc_id>/delete")
 def delete_document(doc_id):
@@ -81,9 +81,11 @@ def summarize_document(doc_id):
 
 # ---------- ingest ----------
 
+
 @bp.post("/ingest")
 def ingest_files():
     from backend.core.config import FILES_DIR
+
     uploaded = request.files.getlist("files")
     results = []
     for f in uploaded:
@@ -106,8 +108,10 @@ def load_demo():
 
     def _run():
         from backend.scripts import make_demo_corpus
+
         make_demo_corpus.main()
         from backend.core.config import DATA_DIR
+
         corpus = DATA_DIR / "demo_corpus"
         if corpus.exists():
             for f in sorted(corpus.iterdir()):
@@ -115,15 +119,23 @@ def load_demo():
                     pipeline.ingest_file(f)
                 except Exception as e:
                     import logging
-                    logging.getLogger("cmpdi.pipeline").warning("Demo ingest failed: %s", e)
+
+                    logging.getLogger("cmpdi.pipeline").warning(
+                        "Demo ingest failed: %s", e
+                    )
             pipeline.notify_worker()
 
     threading.Thread(target=_run, name="cmpdi-demo", daemon=True).start()
-    return jsonify({"ok": True,
-                    "message": "Demonstration dataset is being generated and ingested."})
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Demonstration dataset is being generated and ingested.",
+        }
+    )
 
 
 # ---------- topics ----------
+
 
 @bp.post("/topics/refresh")
 def topics_refresh():
@@ -136,14 +148,18 @@ def topics_refresh():
 
 # ---------- reports ----------
 
+
 @bp.post("/reports/generate")
 def reports_generate():
     data = request.get_json(silent=True) or {}
-    reports.generate(data.get("template") or "", {
-        "entity": (data.get("entity") or "").strip(),
-        "period": (data.get("period") or "").strip(),
-        "question": (data.get("question") or "").strip(),
-    })
+    reports.generate(
+        data.get("template") or "",
+        {
+            "entity": (data.get("entity") or "").strip(),
+            "period": (data.get("period") or "").strip(),
+            "question": (data.get("question") or "").strip(),
+        },
+    )
     return jsonify({"ok": True})
 
 
@@ -160,8 +176,11 @@ def reports_review(rid):
     note = (data.get("note") or "").strip() or None
     if status not in ("approved", "returned"):
         return jsonify({"error": "status must be approved or returned"}), 400
-    db.execute("UPDATE reports SET review_status=?, review_note=?, human_approved=?"
-               " WHERE id=?", (status, note, 1 if status == "approved" else 0, rid))
+    db.execute(
+        "UPDATE reports SET review_status=?, review_note=?, human_approved=?"
+        " WHERE id=?",
+        (status, note, 1 if status == "approved" else 0, rid),
+    )
     return jsonify({"ok": True})
 
 
@@ -177,11 +196,14 @@ def reports_parliamentary():
 def cloud_image():
     scope = request.args.get("scope") or "corpus"
     from flask import send_from_directory
+
     from backend.core.knowledge.topics import hashlib_slug
+
     return send_from_directory(CLOUDS_DIR, f"cloud_{hashlib_slug(scope)}.png")
 
 
 # ---------- settings ----------
+
 
 @bp.post("/settings")
 def settings_save():

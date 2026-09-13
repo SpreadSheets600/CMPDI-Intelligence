@@ -163,18 +163,34 @@ def classify(path: Path) -> str:
 
 
 def parse_pdf(path: Path) -> CanonicalDoc:
+    """Multi-path cascade: deterministic structural inspection first (no
+    rendering, no OCR), then per-page plans. Cheap pages cost one native
+    pass; visual pages escalate to OCR and, when a vision-capable backend
+    answers, to vision interpretation. Everything is fused into one
+    canonical pass so section state stays sequential."""
+    from backend.core.pipeline import inspection as insp
+    from backend.core.pipeline import vision as vis
+
     doc = pymupdf.open(path)
-    cdoc = CanonicalDoc(
-        doc_type="digital_pdf", meta={"title": doc.metadata.get("title") or ""}
-    )
+    profile = insp.inspect_open_pdf(doc)
     ocr = ocr_engine()
-    page_types = []
+    insp.attach_plans(profile, ocr.available)
+    cdoc = CanonicalDoc(
+        doc_type="digital_pdf",
+        meta={"title": doc.metadata.get("title") or "",
+              "inspection": profile, "vision_used": 0, "vision_skipped": 0},
+    )
     for pno in range(len(doc)):
         page = doc[pno]
+        prof = profile["pages"][pno]
         pix = page.get_pixmap(matrix=pymupdf.Matrix(_ZOOM, _ZOOM))
         img_path = save_page_image(pix, path.stem, pno)
         text = page.get_text("text").strip()
-        use_ocr = len(text) < config.PAGE_TEXT_FLOOR and ocr.available
+        short = len(text) < config.PAGE_TEXT_FLOOR
+        visual = prof["page_class"] in (insp.IMAGE_ONLY, insp.IMAGE_TABLE,
+                                        insp.COMPLEX_LAYOUT)
+        use_ocr = ("ocr" in prof["plan"] and (short or visual)
+                   and ocr.available)
         pd = PageData(
             page_no=pno + 1,
             text=text,
@@ -182,6 +198,8 @@ def parse_pdf(path: Path) -> CanonicalDoc:
             image_path=img_path,
             width=pix.width,
             height=pix.height,
+            page_class=prof["page_class"],
+            methods=["native"] + (["ocr"] if use_ocr else []),
         )
         if use_ocr:
             from PIL import Image
@@ -190,25 +208,29 @@ def parse_pdf(path: Path) -> CanonicalDoc:
             lines = ocr.lines(img)
             pd._ocr_lines = lines
             pd.text = assemble_ocr_text(lines, pd)
-        page_types.append(use_ocr)
         cdoc.pages.append(pd)
 
-    if all(page_types):
-        cdoc.doc_type = "scanned_pdf"
-    elif any(page_types):
-        cdoc.doc_type = "mixed_pdf"
-
-    for pno, pd in enumerate(cdoc.pages):
         # pass 1: locate ruled tables so their cells are not duplicated as
         # loose text; pass 2 extracts text (headings update sections); pass 3
-        # builds the TableData with the now-correct section context
-        regions = find_table_regions(doc[pno])
+        # builds the TableData with the now-correct section context; pass 4
+        # figures (+vision escalation) with caption linkage
+        regions = find_table_regions(page)
         if pd.ocr_used:
             extract_ocr_elements(cdoc, pd)
         else:
-            extract_digital_elements(cdoc, doc[pno], pd, skip_boxes=regions)
-        extract_tables(cdoc, doc[pno], pd, regions)
-        extract_figures(cdoc, doc[pno], pd)
+            extract_digital_elements(cdoc, page, pd, skip_boxes=regions)
+        extract_tables(cdoc, page, pd, regions)
+        extract_figures(cdoc, page, pd)
+        budget = vis.MAX_FIGURES_PER_DOC - cdoc.meta.get("vision_used", 0)
+        if "vision" in prof["plan"] and budget > 0 and vis.available():
+            pd.methods.append("vision")
+            interpret_figures(cdoc, page, pd, pix, budget)
+
+    flags = [p.ocr_used for p in cdoc.pages]
+    if all(flags):
+        cdoc.doc_type = "scanned_pdf"
+    elif any(flags):
+        cdoc.doc_type = "mixed_pdf"
 
     derive_meta(cdoc)
     return cdoc
@@ -250,6 +272,7 @@ def extract_ocr_elements(cdoc: CanonicalDoc, pd: PageData):
                 bbox=box,
                 conf=conf,
                 section_path=current_section(cdoc),
+                method="ocr",
             )
         )
         order += 1
@@ -323,6 +346,7 @@ def extract_digital_elements(cdoc: CanonicalDoc, page, pd: PageData, skip_boxes=
                 bbox=bbox,
                 conf=None,
                 section_path=current_section(cdoc),
+                method="native",
             )
         )
         order += 1
@@ -438,7 +462,14 @@ def _cells_from_row(row, row_idx: int) -> list[dict]:
     return cells
 
 
+_CAPTION_RE = re.compile(
+    r"^(Figure|Fig\.|Chart|Graph|Exhibit|Table)\s*\d*", re.IGNORECASE)
+
+
 def extract_figures(cdoc: CanonicalDoc, page, pd: PageData):
+    """Figures are first-class elements: bbox + page provenance, caption
+    linkage (nearest Figure/Chart caption on the page becomes the figure's
+    text so it stays searchable), method recorded for the cascade."""
     order = len(cdoc.elements)
     for info in page.get_image_info():
         bbox = scale_bbox(info["bbox"])
@@ -454,16 +485,17 @@ def extract_figures(cdoc: CanonicalDoc, page, pd: PageData):
                 bbox=bbox,
                 conf=None,
                 section_path=current_section(cdoc),
+                method="native",
             )
         )
         order += 1
     # captions: paragraphs starting with Figure/Fig./Chart near images
+    captions = []
     for el in list(cdoc.elements):
         if el.page_no != pd.page_no or el.element_type != "PARAGRAPH":
             continue
-        if re.match(
-            r"^(Figure|Fig\.|Chart|Graph|Exhibit)\s*\d*", el.text, re.IGNORECASE
-        ):
+        if _CAPTION_RE.match(el.text):
+            captions.append(el)
             cdoc.elements.append(
                 ElementData(
                     page_no=pd.page_no,
@@ -474,9 +506,61 @@ def extract_figures(cdoc: CanonicalDoc, page, pd: PageData):
                     bbox=el.bbox,
                     conf=None,
                     section_path=el.section_path,
+                    method=el.method or "native",
                 )
             )
             order += 1
+    # link each figure to its nearest caption so figures carry text
+    if captions:
+        figs = [el for el in cdoc.elements
+                if el.page_no == pd.page_no and el.element_type == "FIGURE"
+                and not el.text]
+        for fig in figs:
+            cap = min(captions, key=lambda c: abs(c.order_idx - fig.order_idx))
+            fig.text = cap.text
+
+
+def interpret_figures(cdoc: CanonicalDoc, page, pd: PageData, pix, budget: int):
+    """Vision escalation: crop each uninterpreted figure and ask the vision
+    model for a structured description. OCR text and the source image are
+    always kept; the interpretation is fused into the figure element with
+    method='vision' so downstream consumers know its provenance."""
+    from backend.core.pipeline import vision as vis
+
+    figs = [el for el in cdoc.elements
+            if el.page_no == pd.page_no and el.element_type == "FIGURE"
+            and el.method != "vision"]
+    try:
+        infos = [i for i in page.get_image_info()
+                 if (i["bbox"][2] - i["bbox"][0]) >= 40 / _ZOOM
+                 and (i["bbox"][3] - i["bbox"][1]) >= 40 / _ZOOM]
+    except Exception:
+        infos = []
+    for fig, info in zip(figs[:budget], infos[:budget]):
+        try:
+            png = vis.crop_png(pix, list(info["bbox"]), _ZOOM)
+        except Exception:
+            png = None
+        if not png:
+            cdoc.meta["vision_skipped"] = cdoc.meta.get("vision_skipped", 0) + 1
+            continue
+        caption = fig.text or ""
+        desc = vis.describe_figure(png, caption=caption)
+        if not desc:
+            cdoc.meta["vision_skipped"] = cdoc.meta.get("vision_skipped", 0) + 1
+            continue
+        parts = [f"[Figure: {desc['type']}]"]
+        if desc["title"]:
+            parts.append(desc["title"])
+        if desc["summary"]:
+            parts.append(desc["summary"])
+        if desc["numbers"]:
+            parts.append("Numbers: " + "; ".join(desc["numbers"]))
+        if desc["trend"] not in ("", "unclear"):
+            parts.append(f"Trend: {desc['trend']}")
+        fig.text = (caption + " — " if caption else "") + " ".join(parts)
+        fig.method = "vision"
+        cdoc.meta["vision_used"] = cdoc.meta.get("vision_used", 0) + 1
 
 
 # ---------------------------------------------------------------- DOCX
@@ -518,6 +602,7 @@ def parse_docx(path: Path) -> CanonicalDoc:
                         text=text,
                         conf=None,
                         section_path=current_section(cdoc),
+                        method="native",
                     )
                 )
             else:
@@ -531,6 +616,7 @@ def parse_docx(path: Path) -> CanonicalDoc:
                         text=text,
                         conf=None,
                         section_path=current_section(cdoc),
+                        method="native",
                     )
                 )
             order += 1
@@ -547,6 +633,7 @@ def parse_docx(path: Path) -> CanonicalDoc:
                     headers=headers,
                     rows=rows,
                     section_path=current_section(cdoc),
+                    method="table",
                 )
             )
             cdoc.elements.append(
@@ -558,11 +645,73 @@ def parse_docx(path: Path) -> CanonicalDoc:
                     text=f"[Table: {', '.join(h for h in headers if h)}]",
                     conf=None,
                     section_path=current_section(cdoc),
+                    method="table",
                 )
             )
             order += 1
+    extract_docx_images(d, cdoc)
     derive_meta(cdoc)
     return cdoc
+
+
+def extract_docx_images(d, cdoc: CanonicalDoc):
+    """Embedded visuals become first-class FIGURE elements (bytes go straight
+    to the vision hook — no disk staging), with caption linkage against
+    Figure/Chart paragraphs like the PDF path."""
+    from backend.core.pipeline import vision as vis
+
+    order = len(cdoc.elements)
+    try:
+        blobs = []
+        for rel in d.part.rels.values():
+            try:
+                if "image" in rel.reltype and hasattr(rel.target_part, "blob"):
+                    blobs.append(rel.target_part.blob)
+            except Exception:
+                continue
+    except Exception:
+        blobs = []
+    captions = [el for el in cdoc.elements
+                if el.element_type == "PARAGRAPH" and _CAPTION_RE.match(el.text)]
+    budget = vis.MAX_FIGURES_PER_DOC if vis.available() else 0
+    for blob in blobs:
+        try:
+            if len(blob) < 4096:
+                continue
+        except Exception:
+            continue
+        cap = min(captions, key=lambda c: abs(c.order_idx - order),
+                  default=None) if captions else None
+        text, method = (cap.text if cap else ""), "native"
+        if budget > 0:
+            desc = vis.describe_figure(blob, caption=text)
+            if desc:
+                parts = [f"[Figure: {desc['type']}]"]
+                if desc["title"]:
+                    parts.append(desc["title"])
+                if desc["summary"]:
+                    parts.append(desc["summary"])
+                if desc["numbers"]:
+                    parts.append("Numbers: " + "; ".join(desc["numbers"]))
+                text = (text + " — " if text else "") + " ".join(parts)
+                method = "vision"
+                budget -= 1
+                cdoc.meta["vision_used"] = cdoc.meta.get("vision_used", 0) + 1
+            else:
+                cdoc.meta["vision_skipped"] = cdoc.meta.get("vision_skipped", 0) + 1
+        cdoc.elements.append(
+            ElementData(
+                page_no=1,
+                sheet_no=None,
+                element_type="FIGURE",
+                order_idx=order,
+                text=text,
+                conf=None,
+                section_path=current_section(cdoc),
+                method=method,
+            )
+        )
+        order += 1
 
 
 # ---------------------------------------------------------------- XLSX / CSV
@@ -651,6 +800,7 @@ def extract_sheet_regions(cdoc: CanonicalDoc, sheet: SheetData):
                         text=text,
                         conf=None,
                         section_path=f"{sheet.name}",
+                        method="sheet",
                     )
                 )
                 order += 1
@@ -704,6 +854,7 @@ def extract_sheet_regions(cdoc: CanonicalDoc, sheet: SheetData):
                 headers=headers,
                 rows=rows,
                 section_path=sec,
+                method="sheet",
             )
         )
         cdoc.elements.append(
@@ -715,6 +866,7 @@ def extract_sheet_regions(cdoc: CanonicalDoc, sheet: SheetData):
                 text=f"[Table: {', '.join(h for h in headers if h)}]",
                 conf=None,
                 section_path=sec,
+                method="sheet",
             )
         )
         order += 1
@@ -754,14 +906,42 @@ def parse_csv(path: Path) -> CanonicalDoc:
 def parse_image(path: Path) -> CanonicalDoc:
     from PIL import Image
 
-    cdoc = CanonicalDoc(doc_type="image", meta={"title": path.stem})
+    from backend.core.pipeline import vision as vis
+
+    cdoc = CanonicalDoc(doc_type="image", meta={"title": path.stem,
+                                                "vision_used": 0,
+                                                "vision_skipped": 0})
     img = Image.open(path)
-    pd = PageData(page_no=1, width=img.width, height=img.height, ocr_used=True)
+    pd = PageData(page_no=1, width=img.width, height=img.height, ocr_used=True,
+                  page_class="IMAGE_ONLY", methods=["native"])
     if ocr_engine().available:
         lines = ocr_engine().lines(img)
         pd.text = assemble_ocr_text(lines, pd)
         pd._ocr_lines = lines
+        pd.methods.append("ocr")
         extract_ocr_elements(cdoc, pd)
+    if vis.available():
+        import io as _io
+
+        buf = _io.BytesIO()
+        img.save(buf, format="PNG")
+        desc = vis.describe_figure(buf.getvalue())
+        if desc:
+            parts = [f"[Figure: {desc['type']}]"]
+            if desc["title"]:
+                parts.append(desc["title"])
+            if desc["summary"]:
+                parts.append(desc["summary"])
+            if desc["numbers"]:
+                parts.append("Numbers: " + "; ".join(desc["numbers"]))
+            cdoc.elements.append(
+                ElementData(page_no=1, sheet_no=None, element_type="FIGURE",
+                            order_idx=len(cdoc.elements), text=" ".join(parts),
+                            conf=None, section_path="", method="vision"))
+            pd.methods.append("vision")
+            cdoc.meta["vision_used"] = 1
+        else:
+            cdoc.meta["vision_skipped"] = 1
     cdoc.pages.append(pd)
     derive_meta(cdoc)
     return cdoc

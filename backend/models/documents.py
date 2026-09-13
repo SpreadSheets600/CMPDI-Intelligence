@@ -22,6 +22,10 @@ class PageData:
     image_path: str | None = None
     width: int = 0
     height: int = 0
+    # Deterministic structural class from inspection: TEXT_ONLY | IMAGE_ONLY
+    # | TEXT_IMAGE | TEXT_TABLE | IMAGE_TABLE | COMPLEX_LAYOUT | LOW_CONFIDENCE
+    page_class: str = "TEXT_ONLY"
+    methods: list = field(default_factory=list)  # cascade steps executed, in order
 
 
 @dataclass
@@ -34,6 +38,7 @@ class ElementData:
     bbox: tuple | None = None        # [x0, y0, x1, y1] in rendered page pixels
     conf: float | None = None        # None = digital text (full confidence)
     section_path: str = ""
+    method: str = ""                 # native | ocr | table | sheet | vision (+vision = LLM-interpreted)
 
 
 @dataclass
@@ -45,6 +50,8 @@ class TableData:
     rows: list[list[dict]] = field(default_factory=list)
     # each cell: {"value_raw": str, "value_norm": str|None, "conf": float|None, "row": int, "col": int}
     section_path: str = ""
+    caption: str = ""                # nearest Figure/Table caption on the page, if any
+    method: str = "table"            # table | sheet
 
 
 @dataclass

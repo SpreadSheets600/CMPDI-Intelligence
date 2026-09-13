@@ -3,14 +3,14 @@ plus the JSON API from one process; the ingestion worker thread starts with
 the app and SQLite WAL lets reads run while it writes.
 
 The factory is deliberately thin: route blueprints come from the registry in
-``backend.api.routes`` and everything below the catch-all is a JSON API.
+``backend.api`` and everything below the catch-all is a JSON API.
 """
 
 import hashlib
 
 from flask import Flask, send_from_directory
 
-from backend.api.routes import ALL_BLUEPRINTS
+from backend.api import ALL_BLUEPRINTS
 from backend.core import appsettings, config
 from backend.core.knowledge import facts
 from backend.core.pipeline import pipeline

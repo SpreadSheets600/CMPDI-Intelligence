@@ -21,7 +21,7 @@ export async function postJSON(url, body = {}) {
 
 export async function uploadFiles(files) {
   const form = new FormData();
-  files.forEach((f) => form.append("files", f));
+  Array.from(files || []).forEach((f) => form.append("files", f));
   const resp = await fetch("/api/ingest", { method: "POST", body: form });
   const data = await resp.json().catch(() => ({}));
   if (!resp.ok) throw new Error(data.error || `Upload failed (${resp.status})`);

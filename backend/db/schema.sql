@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS documents (
     page_count INTEGER DEFAULT 0,
     ocr_pages INTEGER DEFAULT 0,
     upload_ts TEXT NOT NULL DEFAULT (datetime('now')),
-    status TEXT NOT NULL DEFAULT 'uploaded'
+    status TEXT NOT NULL DEFAULT 'uploaded',
+    structure_json TEXT               -- deterministic structural inspection profile
 );
 
 CREATE TABLE IF NOT EXISTS pages (
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS pages (
     text TEXT DEFAULT '',
     ocr_used INTEGER NOT NULL DEFAULT 0,
     avg_confidence REAL,
-    image_path TEXT
+    image_path TEXT,
+    page_class TEXT                   -- TEXT_ONLY | IMAGE_ONLY | TEXT_IMAGE | TEXT_TABLE | IMAGE_TABLE | COMPLEX_LAYOUT | LOW_CONFIDENCE
 );
 
 CREATE TABLE IF NOT EXISTS elements (
@@ -40,7 +42,8 @@ CREATE TABLE IF NOT EXISTS elements (
     bbox TEXT,                          -- JSON [x0,y0,x1,y1] in page pixels
     text TEXT DEFAULT '',
     conf REAL,
-    section_path TEXT DEFAULT ''
+    section_path TEXT DEFAULT '',
+    method TEXT                       -- native | ocr | table | sheet | vision
 );
 CREATE INDEX IF NOT EXISTS idx_elements_doc ON elements(doc_id);
 

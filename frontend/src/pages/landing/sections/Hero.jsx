@@ -1,232 +1,348 @@
-import { useEffect, useState } from "react";
-import { useScroll, useTransform, motion } from "framer-motion";
-import { ArrowRight, ScanText, ShieldCheck, TriangleAlert, CircleCheck } from "lucide-react";
-import { getJSON } from "../../../api.js";
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useScroll, useTransform, motion } from 'motion/react';
+import {
+  ArrowRight, ShieldCheck, FileCheck, Database,
+  Sparkles, CheckCircle2, ChevronRight,
+  Flame, Lock,
+} from 'lucide-react';
+import { InView } from '../../../components/motion/in-view.jsx';
+import { TextEffect } from '../../../components/motion/text-effect.jsx';
+import { TextShimmer } from '../../../components/motion/text-shimmer.jsx';
+import { Magnetic } from '../../../components/motion/magnetic.jsx';
+import { BorderTrail } from '../../../components/motion/border-trail.jsx';
+import { AnimatedNumber } from '../../../components/motion/animated-number.jsx';
 
-const EASE = [0.16, 1, 0.3, 1];
-const rise = (delay = 0) => ({
-  initial: { opacity: 0, y: 24 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, margin: "0px 0px -12% 0px" },
-  transition: { duration: 0.65, ease: EASE, delay },
-});
-
-const NAV_LINKS = [
-  ["#showcase", "Product"],
-  ["#pipeline", "Evidence"],
-  ["#capabilities", "Capabilities"],
-  ["#faq", "FAQ"],
+const SAMPLE_QUERIES = [
+  {
+    id: 'production',
+    label: 'CIL Production 2023-24',
+    prompt: 'What was the total raw coal production of Coal India Limited in FY 2023-24?',
+    answer: 'Coal India Limited achieved a record raw coal production of 997.83 MT in FY2023-24, reflecting a 10.1% year-on-year growth over 906.24 MT in the previous fiscal.',
+    citation: {
+      doc: 'Annual_Report_2024_25.pdf',
+      location: 'page 11 · Table 3 · Cell C14',
+      value: '997.83 MT',
+      confidence: '99.4%',
+      grade: 'Grade A',
+    },
+  },
+  {
+    id: 'offtake',
+    label: 'Subsidiary Offtake',
+    prompt: 'Compare coal offtake between Mahanadi Coalfields (MCL) and SECL.',
+    answer: 'MCL recorded the highest subsidiary offtake at 198.40 MT, followed by SECL at 182.10 MT. Together they accounted for ~39.8% of total CIL offtake.',
+    citation: {
+      doc: 'Coal_Directory_2023_24.xlsx',
+      location: 'sheet 4 · Row 28 · Col G',
+      value: '198.40 MT / 182.10 MT',
+      confidence: '98.8%',
+      grade: 'Grade A',
+    },
+  },
+  {
+    id: 'washeries',
+    label: 'Washery Yield & Ash',
+    prompt: 'What was the clean coal yield across operational coking coal washeries?',
+    answer: 'Operational coking washeries reported an average clean coal yield of 48.2% with clean coal ash controlled below 18.5%, matching metallurgical specifications.',
+    citation: {
+      doc: 'Washery_Performance_Review.pdf',
+      location: 'page 4 · Section 2.1 · Table 1',
+      value: '48.2% clean yield',
+      confidence: '97.6%',
+      grade: 'Grade A',
+    },
+  },
 ];
 
-export function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const toggleTheme = () => {
-    const root = document.documentElement;
-    const dark = !root.classList.contains("dark");
-    root.classList.add("theming");
-    root.classList.toggle("dark", dark);
-    localStorage.setItem("cmpdi-theme", dark ? "dark" : "light");
-    setTimeout(() => root.classList.remove("theming"), 400);
-  };
-
-  return (
-    <header className={`fixed inset-x-0 top-0 z-40 border-b transition-all duration-300 ${scrolled ? "border-seam bg-paper/85 backdrop-blur-md" : "border-transparent"}`}>
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-5 md:px-8">
-        <a href="/" className="group flex items-center gap-2.5" aria-label="CMPDI Intelligence home">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-coal font-mono text-[14px] font-bold text-white shadow-[0_2px_10px_rgb(217_119_6/0.35)] transition-transform duration-300 group-hover:rotate-[-6deg]">C</span>
-          <span className="text-[16px] font-semibold tracking-tight">CMPDI&nbsp;Intelligence</span>
-        </a>
-        <nav className="ml-auto hidden items-center gap-6 text-[13.5px] font-medium text-stone-500 md:flex" aria-label="Page sections">
-          {NAV_LINKS.map(([to, label]) => (
-            <a key={to} href={to}
-               className="relative transition-colors after:absolute after:-bottom-1 after:left-0 after:h-[1.5px] after:w-full after:origin-left after:scale-x-0 after:bg-coal after:transition-transform after:duration-300 hover:text-coal hover:after:scale-x-100">
-              {label}
-            </a>
-          ))}
-        </nav>
-        <button onClick={toggleTheme} type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-seam text-stone-500 transition-colors hover:border-coal hover:text-coal"
-                aria-label="Toggle dark and light theme">
-          <span className="hidden dark:inline">☀</span>
-          <span className="inline dark:hidden">☾</span>
-        </button>
-        <a href="/dashboard"
-           className="flex items-center gap-2 rounded-lg bg-coal px-4 py-2 text-[13.5px] font-semibold text-white shadow-[0_2px_10px_rgb(217_119_6/0.35)] transition-all hover:-translate-y-px hover:shadow-lift active:translate-y-0">
-          Open Workspace <ArrowRight className="h-4 w-4" />
-        </a>
-      </div>
-    </header>
-  );
-}
-
 export function Hero({ stats }) {
+  const [activeTab, setActiveTab] = useState(0);
+  const activeQuery = SAMPLE_QUERIES[activeTab];
+
   const { scrollY } = useScroll();
-  const glowY = useTransform(scrollY, [0, 800], [0, 160]);
-  const glowOpacity = useTransform(scrollY, [0, 800], [1, 0.35]);
-  const words = ["Every", "number,"];
+  const heroOpacity = useTransform(scrollY, [0, 500], [1, 0.35]);
+  const stageY = useTransform(scrollY, [0, 600], [0, 60]);
 
   return (
-    <section id="hero" className="relative overflow-hidden bg-[linear-gradient(rgba(var(--c-seam)/0.4)_1px,transparent_1px),linear-gradient(90deg,rgba(var(--c-seam)/0.4)_1px,transparent_1px))] bg-[length:44px_44px]">
-      <motion.div style={{ y: glowY, opacity: glowOpacity }}
-                  className="pointer-events-none absolute -top-72 left-1/2 h-[46rem] w-[72rem] -translate-x-[58%] bg-[radial-gradient(closest-side,rgba(var(--c-coal)/0.14),transparent_70%)]" aria-hidden="true" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_75%_at_50%_30%,transparent_30%,rgb(var(--c-paper))_100%)]" aria-hidden="true" />
+    <section
+      id='hero'
+      className='relative overflow-hidden bg-[#0c0a09] pt-20 pb-24 text-[#f5f5f4]'
+      style={{ minHeight: '100dvh' }}
+    >
+      {/* ── Background Architectural Dot Grid ── */}
+      <div
+        className='pointer-events-none absolute inset-0 opacity-[0.22]'
+        style={{
+          backgroundImage:
+            'radial-gradient(circle, rgba(234,138,12,0.4) 1px, transparent 1px)',
+          backgroundSize: '24px 24px',
+        }}
+        aria-hidden='true'
+      />
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-14 px-5 pb-24 pt-32 md:grid-cols-12 md:px-8 md:pb-28 md:pt-40">
-        <div className="md:col-span-7">
-          <motion.p {...rise(0.1)} className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-coal">
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-coal"></span>
-            For CMPDI, CIL and subsidiary teams
-          </motion.p>
-          <motion.h1
-            initial="hidden"
-            animate="show"
-            variants={{ show: { transition: { staggerChildren: 0.09, delayChildren: 0.15 } } }}
-            className="mt-5 max-w-[13ch] text-5xl font-bold leading-[1.02] tracking-[-0.03em] md:text-7xl">
-            {["Every", "number,"].map((w) => (
-              <span key={w}>
-                <motion.span className="inline-block"
-                  variants={{ hidden: { opacity: 0, y: 28 }, show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } } }}>
-                  {w}
-                </motion.span>{" "}
+      {/* ── Deep Amber Core Glow Orb ── */}
+      <div
+        className='pointer-events-none absolute -top-36 left-1/2 h-[34rem] w-[70rem] -translate-x-1/2 rounded-full blur-[130px]'
+        style={{
+          background:
+            'radial-gradient(ellipse at center, rgba(234,138,12,0.22) 0%, rgba(217,119,6,0.08) 45%, transparent 70%)',
+        }}
+        aria-hidden='true'
+      />
+
+      <motion.div style={{ opacity: heroOpacity }} className='relative mx-auto max-w-6xl px-5 md:px-8'>
+        {/* ── Center Header Hierarchy ── */}
+        <div className='mx-auto max-w-3xl text-center'>
+          {/* Eyebrow badge */}
+          <InView
+            variants={{ hidden: { opacity: 0, y: -8 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className='inline-flex items-center gap-2 rounded-full border border-stone-800 bg-stone-900/90 px-3.5 py-1.5 backdrop-blur-md shadow-sm'>
+              <span className='h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)] animate-pulse' />
+              <span className='font-mono text-[11px] font-medium tracking-wider text-stone-300 uppercase'>
+                Offline Document Intelligence · CMPDI &amp; CIL
               </span>
-            ))}
-            <br />
-            {["with", "its", "receipt."].map((w) => (
-              <motion.span key={w} className="inline-block text-coal"
-                variants={{ hidden: { opacity: 0, y: 28 }, show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } } }}>
-                {w}&nbsp;
-              </motion.span>
-            ))}
-          </motion.h1>
-          <motion.p {...rise(0.55)} className="mt-6 max-w-[54ch] text-[17px] leading-relaxed text-stone-500">
-            An offline document-intelligence workspace for coal, mining and geology
-            reporting. Upload reports, scans and spreadsheets; ask questions,
-            generate DOCX reports — and open the exact page, table row or
-            spreadsheet cell behind any figure.
-          </motion.p>
-          <motion.div {...rise(0.75)} className="mt-9 flex flex-wrap items-center gap-3">
-            <a href="/dashboard"
-               className="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-full bg-coal px-8 py-4 text-[0.9rem] font-semibold text-white shadow-[0_4px_18px_rgb(var(--c-coal)/0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgb(var(--c-coal)/0.45)] active:translate-y-0">
-              Open the Workspace
-              <span className="pointer-events-none absolute inset-y-[-25%] left-0 w-[45%] -translate-x-[180%] skew-x-[-18deg] bg-gradient-to-r from-transparent via-white/40 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-[340%]" aria-hidden="true"></span>
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
-            </a>
-            <a href="#pipeline"
-               className="flex items-center gap-2 rounded-full border border-seamdark px-6 py-3.5 text-sm font-semibold text-ink transition-colors hover:border-coal hover:bg-coal/5 hover:text-coal">
-              <ScanText className="h-4 w-4" /> How evidence works
-            </a>
-          </motion.div>
-          <motion.p {...rise(0.95)} className="mt-6 flex items-center gap-2 font-mono text-[11px] uppercase tracking-widest text-stone-400">
-            <ShieldCheck className="h-3.5 w-3.5 text-coal" />
-            Runs entirely on one machine · no cloud, no API calls
-          </motion.p>
+            </div>
+          </InView>
+
+          {/* Main Headline */}
+          <div className='mt-6'>
+            <TextEffect
+              as='h1'
+              per='word'
+              preset='fade-in-blur'
+              delay={0.08}
+              speedReveal={1.3}
+              className='text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[4rem] leading-[1.06]'
+            >
+              Every coal number.
+            </TextEffect>
+            <TextEffect
+              as='h1'
+              per='word'
+              preset='fade-in-blur'
+              delay={0.25}
+              speedReveal={1.3}
+              className='mt-1 text-4xl font-extrabold tracking-tight text-amber-500 sm:text-5xl md:text-6xl lg:text-[4rem] leading-[1.06]'
+            >
+              With its verified receipt.
+            </TextEffect>
+          </div>
+
+          {/* Subtitle */}
+          <InView
+            variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+          >
+            <p className='mx-auto mt-5 max-w-2xl text-[15px] sm:text-[16px] leading-relaxed text-stone-400'>
+              Turn thousands of geological exploration reports, washery workbooks, and parliamentary
+              data into an air-gapped factual intelligence layer. Ask questions, compute trends with
+              sandboxed Python, and cite exact page and cell coordinates.
+            </p>
+          </InView>
+
+          {/* CTA Actions Bar */}
+          <InView
+            variants={{ hidden: { opacity: 0, y: 10 }, visible: { opacity: 1, y: 0 } }}
+            transition={{ duration: 0.5, delay: 0.45 }}
+          >
+            <div className='mt-8 flex flex-wrap items-center justify-center gap-3.5'>
+              <Magnetic intensity={0.25} range={80}>
+                <Link
+                  to='/dashboard'
+                  className='group flex items-center gap-2 rounded-xl bg-amber-500 px-6 py-3 text-[14px] font-semibold text-stone-950 shadow-[0_4px_20px_rgba(245,158,11,0.4)] transition-all hover:bg-amber-400 hover:shadow-[0_6px_25px_rgba(245,158,11,0.5)] active:scale-98'
+                >
+                  <span>Open the Workspace</span>
+                  <ArrowRight className='h-4 w-4 transition-transform group-hover:translate-x-1' />
+                </Link>
+              </Magnetic>
+
+              <a
+                href='#product'
+                className='flex items-center gap-2 rounded-xl border border-stone-800 bg-stone-900/80 px-5 py-3 text-[14px] font-medium text-stone-300 transition-colors hover:border-stone-700 hover:bg-stone-800 hover:text-white'
+              >
+                <span>Interactive Preview</span>
+                <ChevronRight className='h-4 w-4 text-stone-500' />
+              </a>
+            </div>
+          </InView>
+
+          {/* Trust Guarantees */}
+          <InView
+            variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}
+            transition={{ duration: 0.6, delay: 0.55 }}
+          >
+            <div className='mt-8 flex flex-wrap items-center justify-center gap-y-2 gap-x-6 text-[12px] text-stone-400'>
+              <span className='flex items-center gap-1.5'>
+                <Lock className='h-3.5 w-3.5 text-amber-500' />
+                100% Air-Gapped / On-Device
+              </span>
+              <span className='flex items-center gap-1.5'>
+                <ShieldCheck className='h-3.5 w-3.5 text-emerald-500' />
+                Cell-Level Audit Provenance
+              </span>
+              <span className='flex items-center gap-1.5'>
+                <Flame className='h-3.5 w-3.5 text-amber-500' />
+                Zero Cloud Telemetry
+              </span>
+            </div>
+          </InView>
         </div>
 
-        <div className="md:col-span-5">
-          <motion.div
-            initial={{ opacity: 0, y: -42, rotate: -2.5 }}
-            animate={{ opacity: 1, y: 0, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 110, damping: 15, delay: 0.55 }}
-            className="relative">
-            <div className="absolute -inset-4 -rotate-2 rounded-3xl border border-coalline bg-coalsoft/40" aria-hidden="true"></div>
-            <div className="relative rounded-2xl border border-seam bg-white p-7 shadow-lift">
-              <div className="absolute inset-x-0 -top-px h-[7px] bg-[radial-gradient(circle_at_5.5px_-2px,transparent_5px,rgb(var(--c-surface))_5.5px)] bg-[length:11px_7px] bg-repeat-x" aria-hidden="true"></div>
-              <div className="flex items-center justify-between">
-                <span className="rounded-full border border-coalline bg-coalsoft px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-coal">fact</span>
-                <span className="font-mono text-[10.5px] text-stone-400">FY2023-24</span>
+        {/* ── Interactive Command Center Stage ── */}
+        <motion.div style={{ y: stageY }} className='relative mt-14'>
+          <div className='relative overflow-hidden rounded-2xl border border-stone-800 bg-stone-950/90 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.8)] backdrop-blur-xl'>
+
+            {/* Window Titlebar */}
+            <div className='flex items-center justify-between border-b border-stone-800/80 bg-stone-900/60 px-4 py-3'>
+              <div className='flex items-center gap-2'>
+                <span className='h-3 w-3 rounded-full bg-red-500/80' />
+                <span className='h-3 w-3 rounded-full bg-yellow-500/80' />
+                <span className='h-3 w-3 rounded-full bg-emerald-500/80' />
+                <span className='ml-2 font-mono text-[11.5px] text-stone-400'>
+                  CMPDI-Intelligence Fact-Engine v1.0
+                </span>
               </div>
-              <p className="mt-5 font-mono text-[42px] font-semibold leading-none tracking-tight tabular-nums">997.83 <span className="text-[16px] font-medium text-stone-500">MT</span></p>
-              <p className="mt-2.5 text-[14px] text-stone-600">Raw coal production, Coal India Limited</p>
-              <div className="mt-6 border-t border-dashed border-seamdark pt-5">
-                <p className="font-mono text-[10px] uppercase tracking-widest text-stone-400">receipt</p>
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">
-                  {["Annual Report 2024-25", "page 11", "table 3"].map((s) => (
-                    <span key={s} className="flex items-center gap-1.5">
-                      <span className="rounded-md border border-seam bg-paper px-2 py-1 font-mono">{s}</span>
-                      <span className="text-stone-300">›</span>
-                    </span>
-                  ))}
-                  <span className="rounded-md border border-coal bg-coal px-2 py-1 font-mono text-white">cell</span>
+              <div className='flex items-center gap-2'>
+                <span className='rounded-full border border-emerald-500/30 bg-emerald-950/50 px-2 py-0.5 font-mono text-[10px] uppercase font-semibold text-emerald-400'>
+                  ● Local &amp; Ready
+                </span>
+              </div>
+            </div>
+
+            {/* Query Selector Tabs */}
+            <div className='flex flex-wrap items-center gap-1.5 border-b border-stone-800/60 bg-stone-950/50 p-2.5 sm:px-4'>
+              <span className='mr-1 font-mono text-[11px] uppercase tracking-wider text-stone-500'>
+                Sample Prompt:
+              </span>
+              {SAMPLE_QUERIES.map((q, idx) => (
+                <button
+                  key={q.id}
+                  onClick={() => setActiveTab(idx)}
+                  className={`rounded-lg px-3 py-1.5 font-mono text-[11.5px] transition-all duration-150 ${activeTab === idx
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/40 font-semibold shadow-sm'
+                      : 'text-stone-400 hover:bg-stone-900 hover:text-stone-200 border border-transparent'
+                    }`}
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Workspace Interactive Stage Content */}
+            <div className='p-5 sm:p-7'>
+              {/* User Prompt Bubble */}
+              <div className='flex items-start gap-3'>
+                <span className='flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-stone-800 font-mono text-xs font-bold text-stone-300'>
+                  Q
+                </span>
+                <div className='flex-1 rounded-xl border border-stone-800 bg-stone-900/70 px-4 py-2.5 text-[14px] text-stone-200'>
+                  {activeQuery.prompt}
                 </div>
               </div>
-              <div className="mt-5 flex items-center justify-between border-t border-dashed border-seamdark pt-4">
-                <span className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-wide text-emerald-700">
-                  <CircleCheck className="h-3.5 w-3.5" /> evidence grade A
-                </span>
-                <span className="font-mono text-[10.5px] text-stone-400">2 independent sources</span>
+
+              {/* Verified Output & Side-by-Side Receipt */}
+              <div className='mt-5 grid grid-cols-1 gap-5 lg:grid-cols-12'>
+                {/* Left: Answer */}
+                <div className='lg:col-span-7 flex flex-col justify-between rounded-xl border border-stone-800/80 bg-stone-900/40 p-4 sm:p-5'>
+                  <div>
+                    <div className='flex items-center gap-2'>
+                      <span className='flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/20 text-amber-400'>
+                        <Sparkles className='h-3.5 w-3.5' />
+                      </span>
+                      <span className='font-mono text-[11px] font-semibold uppercase tracking-wider text-amber-400'>
+                        Cited Intelligence Response
+                      </span>
+                    </div>
+                    <p className='mt-3 text-[14px] leading-relaxed text-stone-200'>
+                      {activeQuery.answer}
+                    </p>
+                  </div>
+
+                  <div className='mt-4 flex items-center justify-between border-t border-stone-800/60 pt-3 text-[11.5px]'>
+                    <span className='flex items-center gap-1.5 text-emerald-400 font-mono'>
+                      <CheckCircle2 className='h-3.5 w-3.5' /> Grounded against Library
+                    </span>
+                    <TextShimmer as='span' duration={2.4} className='font-mono text-[10.5px] text-stone-400'>
+                      BM25 + Dense FAISS fusion
+                    </TextShimmer>
+                  </div>
+                </div>
+
+                {/* Right: Live Provenance Receipt Card */}
+                <div className='lg:col-span-5 rounded-xl border border-amber-500/30 bg-gradient-to-b from-amber-500/10 via-stone-900/60 to-stone-950 p-4 sm:p-5 shadow-sm'>
+                  <div className='flex items-center justify-between'>
+                    <span className='font-mono text-[10px] uppercase tracking-wider text-amber-400 font-semibold'>
+                      Verified Source Receipt
+                    </span>
+                    <span className='rounded-full border border-emerald-500/40 bg-emerald-950/60 px-2 py-0.5 font-mono text-[10px] text-emerald-400'>
+                      {activeQuery.citation.grade}
+                    </span>
+                  </div>
+
+                  <div className='mt-3 space-y-2 font-mono text-[11.5px]'>
+                    <div className='flex items-center gap-2 text-stone-300'>
+                      <FileCheck className='h-4 w-4 text-amber-400 shrink-0' />
+                      <span className='truncate font-medium'>{activeQuery.citation.doc}</span>
+                    </div>
+                    <div className='rounded-lg border border-stone-800 bg-stone-950/70 p-2 text-stone-400 text-[11px]'>
+                      <span className='text-stone-500'>Location:</span> {activeQuery.citation.location}
+                    </div>
+                  </div>
+
+                  <div className='mt-3 flex items-center justify-between border-t border-stone-800/70 pt-2.5'>
+                    <div>
+                      <p className='text-[10px] uppercase font-mono text-stone-500'>Extracted Figure</p>
+                      <p className='font-mono text-[15px] font-bold text-white'>{activeQuery.citation.value}</p>
+                    </div>
+                    <div className='text-right'>
+                      <p className='text-[10px] uppercase font-mono text-stone-500'>Confidence</p>
+                      <p className='font-mono text-[13px] font-bold text-emerald-400'>{activeQuery.citation.confidence}</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
-            <motion.div animate={{ y: [0, -9, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-                        className="absolute -bottom-6 -left-6 hidden rounded-xl border border-seam bg-white px-4 py-3 shadow-lift md:block">
-              <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wide text-stone-400">
-                <TriangleAlert className="h-3.5 w-3.5 text-coal" /> conflict radar
-              </p>
-              <p className="mt-1 text-[12.5px] font-semibold">2 values disagree · both cited</p>
-            </motion.div>
-          </motion.div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-export function SocialProof({ stats }) {
-  const items = [
-    ["Documents indexed", stats?.documents ?? "—"],
-    ["Facts with receipts", stats?.facts ?? "—"],
-    ["Searchable chunks", stats?.chunks ?? "—"],
-    ["Bytes sent to the cloud", 0],
-  ];
-  const formats = ["Digital PDF", "Scanned PDF + OCR", "Word documents", "Excel workbooks",
-    "Multi-sheet CSV", "Parliamentary replies", "Image-only pages", "SHA-256 dedupe",
-    "Version chains", "Indian number formats"];
-  return (
-    <section className="border-y border-seam bg-white">
-      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-y-8 px-5 py-10 md:grid-cols-4 md:px-8 md:py-12">
-        {items.map(([label, value]) => (
-          <div key={label} className="px-2 text-center md:px-6">
-            <div className="font-mono text-3xl font-semibold tracking-tight md:text-4xl">
-              {value === 0 ? <span className="text-coal">0</span> : <CountUp to={value} />}
-            </div>
-            <div className="mt-1.5 text-[12.5px] text-stone-500">{label}</div>
           </div>
-        ))}
-      </div>
-      <div className="overflow-hidden border-t border-seam py-3.5" aria-hidden="true">
-        <div className="flex w-max animate-[marquee_36s_linear_infinite] items-center gap-10 font-mono text-[11px] uppercase tracking-[0.2em] text-stone-400 hover:[animation-play-state:paused]">
-          {[...formats, ...formats].map((f, i) => (
-            <span key={i} className="flex items-center gap-10">
-              <span className="whitespace-nowrap">{f}</span>
-              <span className="text-coal">·</span>
-            </span>
-          ))}
-        </div>
-      </div>
+
+          {/* ── Live Library Stats Bar Below Preview ── */}
+          {(stats?.documents || stats?.facts) && (
+            <div className='mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4 rounded-xl border border-stone-800/80 bg-stone-950/60 p-4 backdrop-blur-md'>
+              <div className='text-center sm:text-left sm:pl-3'>
+                <p className='font-mono text-xl font-bold text-white'>
+                  <AnimatedNumber value={stats?.documents ?? 0} />
+                </p>
+                <p className='font-mono text-[11px] text-stone-400 uppercase tracking-wider mt-0.5'>
+                  Documents Indexed
+                </p>
+              </div>
+              <div className='text-center sm:text-left sm:pl-3 border-l border-stone-800/70'>
+                <p className='font-mono text-xl font-bold text-emerald-400'>
+                  <AnimatedNumber value={stats?.facts ?? 0} />
+                </p>
+                <p className='font-mono text-[11px] text-stone-400 uppercase tracking-wider mt-0.5'>
+                  Facts with Receipts
+                </p>
+              </div>
+              <div className='text-center sm:text-left sm:pl-3 border-l border-stone-800/70'>
+                <p className='font-mono text-xl font-bold text-amber-400'>
+                  <AnimatedNumber value={stats?.chunks ?? 0} />
+                </p>
+                <p className='font-mono text-[11px] text-stone-400 uppercase tracking-wider mt-0.5'>
+                  Vector Chunks
+                </p>
+              </div>
+              <div className='text-center sm:text-left sm:pl-3 border-l border-stone-800/70'>
+                <p className='font-mono text-xl font-bold text-stone-200'>0 KB</p>
+                <p className='font-mono text-[11px] text-stone-400 uppercase tracking-wider mt-0.5'>
+                  Data to External Cloud
+                </p>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </motion.div>
     </section>
   );
-}
-
-function CountUp({ to }) {
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (!Number.isFinite(to) || to === 0) return;
-    const start = performance.now();
-    let raf;
-    const tick = (now) => {
-      const t = Math.min((now - start) / 1400, 1);
-      setN(Math.round(to * (1 - Math.pow(1 - t, 3))));
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [to]);
-  const shown = Number.isFinite(to) && to !== 0 ? n.toLocaleString("en-IN") : "—";
-  return <span>{shown}</span>;
 }

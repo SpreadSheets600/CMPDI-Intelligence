@@ -30,6 +30,15 @@ def build_chunks(cdoc: CanonicalDoc) -> list[dict]:
 
     for idx, el in enumerate(cdoc.elements):
         if el.element_type in ("HEADING", "FIGURE"):
+            if el.element_type == "FIGURE" and (el.text or "").strip():
+                # interpreted figures (caption-linked or vision-described)
+                # are first-class retrievable content with page provenance
+                chunks.append({
+                    "content_type": "FIGURE", "section_path": el.section_path,
+                    "page_no": el.page_no, "sheet_no": el.sheet_no,
+                    "text": el.text.strip(),
+                    "token_count": _tok(el.text), "element_ids": [{"e": idx}],
+                })
             continue
         if el.element_type in ("PARAGRAPH", "LIST"):
             if (buf and (buf_page != el.page_no or buf_sheet != el.sheet_no
