@@ -184,9 +184,10 @@ sequenceDiagram
     end
 ```
 
-LLM backend resolution: `ollama` if configured and running, then a cached
-Transformers model, then extractive mode (verbatim evidence, no generation).
-Generation never blocks an answer.
+LLM provider resolution (`CMPDI_LLM_PROVIDER`, also settable in Settings):
+`ollama` when the local server answers, then a configured OpenAI-compatible
+endpoint, then a locally cached Hugging Face model, then extractive mode
+(verbatim evidence, no generation). Generation never blocks an answer.
 
 ## Data Model
 

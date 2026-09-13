@@ -46,7 +46,7 @@ def chat():
     # a document scope must be honored exactly, so scoped questions answer
     # through retrieval only rather than the agent's free search
     if (not doc_ids and not data.get("subsidiary")) and \
-            _AGENT_INTENT.search(q_text) and get_backend().name != "extractive":
+            _AGENT_INTENT.search(q_text) and get_backend().provider.generative:
         try:
             run = agent.run_task(q_text)
         except Exception:

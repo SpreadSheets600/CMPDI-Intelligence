@@ -27,9 +27,23 @@ EMBEDDING_FALLBACKS = [
 # LLM backend: "auto" probes ollama, then transformers, then falls back to
 # extractive mode (no generation, evidence snippets only).
 LLM_BACKEND = os.environ.get("CMPDI_LLM_BACKEND", "auto")
+# Canonical selector: ollama | huggingface | openai_compatible | auto | none.
+# CMPDI_LLM_PROVIDER wins; CMPDI_LLM_BACKEND is kept for compatibility.
+LLM_PROVIDER = os.environ.get("CMPDI_LLM_PROVIDER",
+                              os.environ.get("CMPDI_LLM_BACKEND", "auto"))
 OLLAMA_URL = os.environ.get("CMPDI_OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.environ.get("CMPDI_OLLAMA_MODEL", "gemma4:31b-cloud")
+OLLAMA_TIMEOUT = float(os.environ.get("CMPDI_OLLAMA_TIMEOUT", "180"))
 LLM_MODEL = os.environ.get("CMPDI_LLM_MODEL", "gemma4:31b-cloud")
+# Hugging Face local generative model: identifier or local directory.
+# Never downloaded automatically; must already be present locally.
+HF_MODEL = os.environ.get("CMPDI_HF_MODEL", os.environ.get("CMPDI_LLM_MODEL", ""))
+# OpenAI-compatible endpoint: any server speaking /chat/completions.
+OPENAI_BASE_URL = os.environ.get("CMPDI_OPENAI_BASE_URL", "")
+OPENAI_MODEL = os.environ.get("CMPDI_OPENAI_MODEL", "")
+# API key comes from the environment only and is never persisted or logged.
+OPENAI_API_KEY = os.environ.get("CMPDI_OPENAI_API_KEY", "")
+OPENAI_TIMEOUT = float(os.environ.get("CMPDI_OPENAI_TIMEOUT", "60"))
 
 # OCR
 OCR_MIN_CONF = float(os.environ.get("CMPDI_OCR_MIN_CONF", "85"))

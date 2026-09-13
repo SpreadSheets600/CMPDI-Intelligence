@@ -12,9 +12,18 @@ from backend.core import config
 log = logging.getLogger("cmpdi.settings")
 
 KNOWN_KEYS = {
-    "llm_backend": ("auto", "ollama", "transformers", "none"),
+    # Canonical selector; legacy llm_backend values still accepted.
+    "llm_provider": ("auto", "ollama", "huggingface", "openai_compatible",
+                     "transformers", "none"),
+    "llm_backend": ("auto", "ollama", "huggingface", "openai_compatible",
+                    "transformers", "none"),
     "ollama_model": str,
     "ollama_url": str,
+    "hf_model": str,
+    "openai_model": str,
+    "openai_base_url": str,
+    # NOTE: the OpenAI-compatible API key is env-only (CMPDI_OPENAI_API_KEY)
+    # and is deliberately not a setting so it can never be persisted to disk.
     "retrieval_k": range(1, 51),
     "theme": ("dark", "light"),  # persisted server-side only as a convenience
 }
@@ -36,9 +45,13 @@ def _read_overrides() -> dict:
 def all_settings() -> dict:
     """Merged view: env/config defaults with stored overrides on top."""
     defaults = {
+        "llm_provider": config.LLM_PROVIDER,
         "llm_backend": config.LLM_BACKEND,
         "ollama_model": config.OLLAMA_MODEL,
         "ollama_url": config.OLLAMA_URL,
+        "hf_model": config.HF_MODEL,
+        "openai_model": config.OPENAI_MODEL,
+        "openai_base_url": config.OPENAI_BASE_URL,
         "retrieval_k": config.RETRIEVAL_K,
     }
     return {**defaults, **_read_overrides()}

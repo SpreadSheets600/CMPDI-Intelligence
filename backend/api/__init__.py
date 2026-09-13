@@ -1,0 +1,19 @@
+"""Blueprint registry: every API module registers its blueprint here and
+the application factory mounts the list in order. ``pages`` carries the
+screen-data endpoints for the React SPA, ``actions`` the JSON mutations."""
+
+from backend.api import (actions, agent, chat, compare, conflicts,
+                         documents, ingest, llm, pages, reports)
+
+ALL_BLUEPRINTS = [
+    pages.bp,
+    actions.bp,
+    ingest.bp,
+    documents.bp,
+    chat.bp,
+    reports.bp,
+    agent.bp,
+    conflicts.bp,
+    compare.bp,
+    llm.bp,
+]

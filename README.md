@@ -155,9 +155,13 @@ All configuration is environment-driven with working defaults.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CMPDI_LLM_BACKEND` | `auto` | `auto`, `ollama`, `transformers` or `extractive` (also settable in Settings) |
+| `CMPDI_LLM_PROVIDER` | `auto` | `auto`, `ollama`, `huggingface`, `openai_compatible`, `none` (also settable in Settings; legacy `CMPDI_LLM_BACKEND` still honored) |
 | `CMPDI_OLLAMA_MODEL` | `gemma4:31b-cloud` | Model when Ollama is running locally |
-| `CMPDI_LLM_MODEL` | `gemma4:31b-cloud` | HF model for the Transformers backend |
+| `CMPDI_OLLAMA_URL` | `http://127.0.0.1:11434` | Local Ollama endpoint |
+| `CMPDI_HF_MODEL` | _(empty)_ | Local Hugging Face model id or directory (never auto-downloaded) |
+| `CMPDI_OPENAI_BASE_URL` | _(empty)_ | OpenAI-compatible endpoint, e.g. `https://inference.example/v1` |
+| `CMPDI_OPENAI_MODEL` | _(empty)_ | Model name for the OpenAI-compatible endpoint |
+| `CMPDI_OPENAI_API_KEY` | _(empty)_ | API key, environment only — never persisted or logged |
 | `CMPDI_EMBEDDING_MODEL` | `google/embeddinggemma-300m` | Embedding model, with automatic fallbacks |
 | `CMPDI_OCR_MIN_CONF` | `85` | OCR confidence below which digits are quarantined |
 | `CMPDI_DATA_DIR` | `./data` | SQLite database and file store location |
