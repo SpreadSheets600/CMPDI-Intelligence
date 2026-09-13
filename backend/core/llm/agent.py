@@ -12,9 +12,25 @@ from pathlib import Path
 
 from backend.core import config, retrieval
 from backend.core.llm import get_backend
+from backend.core.llm import tools as tool_registry
 from backend.db import database as db
 
 log = logging.getLogger("cmpdi.agent")
+
+# The ReAct loop below consumes the same shared tool catalog as the report
+# director, so chat and reports stay one agent system, not two.
+tool_registry.register(tool_registry.Tool(
+    "search_documents",
+    "Hybrid semantic+keyword search; returns chunks with document, page "
+    "and score.",
+    {"query": "string", "k": "int", "tag": "optional", "subsidiary": "optional"},
+    lambda args: {"observation": _tool_search(args)[0]}))
+tool_registry.register(tool_registry.Tool(
+    "get_facts",
+    "Numeric fact index (production, offtake, reserves, gcv, ash_pct...) "
+    "with receipts.",
+    {"entity": "optional", "attribute": "optional", "period": "optional"},
+    lambda args: {"observation": _tool_facts(args)}))
 
 MAX_STEPS = 8
 

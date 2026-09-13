@@ -20,6 +20,10 @@ TEMPLATES = {
         "title": "Comprehensive Analysis",
         "body": [],  # composed dynamically by the report engine
     },
+    "analytical": {
+        "title": "Analytical Report",
+        "body": [],  # composed by the report director (plan -> tools -> audit)
+    },
     "production_summary": {
         "title": "Production Summary",
         "body": [
@@ -83,6 +87,9 @@ def generate(template: str, params: dict) -> int:
     if template == "comprehensive":
         from backend.core.reporting import engine as report_engine
         return report_engine.generate_comprehensive(params)
+    if template == "analytical":
+        from backend.core.reporting import director as report_director
+        return report_director.generate_analytical(params)
     entity = params.get("entity") or ""
     period = params.get("period") or ""
     question = params.get("question", "")
