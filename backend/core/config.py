@@ -1,12 +1,38 @@
 """Central configuration. Everything is controlled by environment variables
-with working defaults, so the system runs with zero setup."""
+with working defaults, so the system runs with zero setup. A `.env` file in
+the project root is loaded first (real environment always wins)."""
 
 import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _load_dotenv():
+    """Minimal .env loader (stdlib only): KEY=VALUE lines, # comments and
+    quoted values handled, existing environment never overridden."""
+    path = ROOT / ".env"
+    try:
+        text = path.read_text()
+    except OSError:
+        return
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key, value = key.strip(), value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_dotenv()
+
 DATA_DIR = Path(os.environ.get("CMPDI_DATA_DIR", ROOT / "data"))
-DB_PATH = Path(os.environ.get("CMPDI_DB_PATH", DATA_DIR / "cmpdi.db"))
+_db_default = DATA_DIR / "cmpdi.db"
+DB_PATH = Path(os.environ.get("CMPDI_DB_PATH") or _db_default)
 
 # Frontend assets served by the same process
 FRONTEND_DIR = ROOT / "frontend"

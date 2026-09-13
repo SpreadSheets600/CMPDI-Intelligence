@@ -9,6 +9,9 @@ cmpdi_intel.egg-info/
 samples/
 *.deb
 
+# local configuration with secrets - never commit
+.env
+
 # local browser-tooling downloads
 *.deb
 
