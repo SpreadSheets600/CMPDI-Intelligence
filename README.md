@@ -22,13 +22,16 @@ premises.
   dashboard showing corpus stats, live model status, storage and pipeline
   activity.
 - **Ingestion pipeline** with live status: a large drag-and-drop upload zone
-  (plus click-to-browse), no-flicker job polling, and per-page OCR decisions
-  for digital, scanned and mixed PDFs.
+  (plus click-to-browse), no-flicker job polling, per-page OCR decisions
+  for digital, scanned and mixed PDFs, and a live per-page panel showing
+  each page's OCR excerpt alongside its LLM summary as ingestion runs.
 - **Document management**: filter by name, type and subsidiary, rename
   documents, inspect full metadata and the normalized representation each
   file became, and preview them properly.
   PDFs render in a real PDF viewer; spreadsheets open as sheet-switchable
   tables; Word documents get a reading view; images show with their OCR text.
+  The viewer shows the document summary, a per-page summary section, and
+  each page's summary above its extracted content.
 - **Search with library filters**: hybrid lexical + semantic results narrowed
   by document type, subsidiary, tag and reporting-period range (accepts
   `2022-23`, `2022` or ISO dates).
@@ -46,9 +49,12 @@ premises.
   phrasings when an LLM is available.
 - **LLM document summaries**: every document gets a summary that is indexed
   as its own chunk, so descriptive queries ("documents about coal
-  despatch") find a spreadsheet whose cells never say the words.
+  despatch") find a spreadsheet whose cells never say the words. Every PDF
+  page gets its own LLM summary too, each indexed as a searchable
+  `PAGE_SUMMARY` chunk and attached to the document summary.
 - **Knowledge Tree**: force-directed graph of documents, their extracted tags
-  and the entities they mention; tag sidebar with per-tag search.
+  and the entities they mention; subsidiary filter refetches the graph,
+  tag sidebar with per-tag search, click any node to inspect it.
 - **Grounded chat** with per-claim citations and conversation memory:
   follow-up questions are rewritten into standalone search queries before
   retrieval. Numeric questions resolve against a fact index for exact
@@ -181,12 +187,14 @@ flowchart LR
     N --> K[Chunk]
     K --> E[Embed]
     E --> I[(SQLite: FTS5 + vectors)]
-    K --> X[Facts + summaries]
+    K --> X[Facts]
+    P --> S[Page summaries → doc summary]
+    S --> I
     I --> Q[Ask / Search / Reports]
     X --> Q
 ```
 
-Full diagrams: [ARCHITECTURE.md](ARCHITECTURE.md).
+Full diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Project Layout
 

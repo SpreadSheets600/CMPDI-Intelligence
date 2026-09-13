@@ -1,32 +1,34 @@
 # Architecture
 
 CMPDI Intelligence is a two-part application: a Python backend that owns all
-processing and data, and a Jinja/HTML frontend served by that backend. One
-SQLite file plus one file directory hold the entire system state. The
+processing and data, and a React single-page frontend served by that backend.
+One SQLite file plus one file directory hold the entire system state. The
 application runs fully offline.
 
 ## System Overview
 
 ```mermaid
 flowchart TB
-    subgraph frontend["Frontend (frontend/)"]
-        T["Jinja2 templates<br/>pages/ · components/"]
-        S["Static assets<br/>Tailwind (vendored) · fonts · app.js"]
+    subgraph frontend["Frontend (frontend/, React SPA)"]
+        SPA["Vite + React Router screens<br/>landing · dashboard · pipeline · viewer<br/>search · ask · graph · insights · reports ..."]
+        APIJS["api.js + hooks<br/>page-data fetch · polling"]
     end
 
     subgraph backend["Backend (backend/)"]
-        APP["app/<br/>Flask factory"]
-        API["api/routes/<br/>dashboard · ingest · documents · search<br/>ask · chat · agent · insights · topics<br/>reports · settings"]
+        APP["app/<br/>Flask factory (serves dist/ + JSON API)"]
+        API["api/<br/>pages · actions · ingest · documents<br/>chat · agent · conflicts · compare<br/>reports · llm"]
 
         subgraph core["core/"]
             PIPE["pipeline/<br/>classify · parse · chunk · embed · index"]
             RET["retrieval<br/>BM25 + vectors, weighted fusion"]
-            FACTS["facts<br/>extraction · plausibility bands"]
-            QUERY["query<br/>router · RAG · abstention"]
-            LLM["llm<br/>ollama | transformers | extractive"]
-            TOPICS["topics<br/>keyphrases · clusters · clouds"]
-            REPORTS["reports<br/>docxtpl + markdown-to-DOCX"]
+            FACTS["knowledge/facts<br/>extraction · plausibility bands"]
+            GRAPH["knowledge/graph<br/>document/tag/entity graph"]
+            QUERY["retrieval/query<br/>router · RAG · abstention"]
+            LLM["llm<br/>ollama | huggingface | openai_compat | extractive"]
+            TOPICS["knowledge/topics<br/>keyphrases · clusters · clouds"]
+            REPORTS["reporting<br/>engine · content · charts · md_docx"]
             NORM["normalize<br/>numbers · units · fiscal years"]
+            SUMM["knowledge/summary<br/>page + document summaries"]
         end
 
         DB[("db/<br/>SQLite (WAL) + FTS5")]
@@ -38,34 +40,41 @@ flowchart TB
     subgraph local["Local model runtimes"]
         EMB["sentence-transformers<br/>embeddinggemma → bge-small → MiniLM"]
         OCR["RapidOCR / Tesseract"]
-        GEN["Ollama or Transformers<br/>(optional)"]
+        GEN["Ollama / HF / OpenAI-compat<br/>(optional)"]
     end
 
-    T --> APP
-    S -.-> T
+    SPA --> APP
+    APIJS -.-> SPA
     APP --> API
     API --> PIPE
     API --> RET
     API --> QUERY
     API --> FACTS
+    API --> GRAPH
     API --> TOPICS
     API --> REPORTS
+    API --> SUMM
     PIPE --> NORM
     PIPE --> MODELS
     PIPE --> DB
     PIPE --> STORE
     PIPE --> EMB
     PIPE --> OCR
+    PIPE --> SUMM
     RET --> DB
     RET --> EMB
     RET --> FAISSI
     FACTS --> DB
+    GRAPH --> DB
     QUERY --> RET
     QUERY --> FACTS
     QUERY --> DB
     QUERY --> GEN
     REPORTS --> DB
     REPORTS --> RET
+    SUMM --> DB
+    SUMM --> EMB
+    SUMM --> GEN
     TOPICS --> EMB
     TOPICS --> DB
 ```
@@ -102,7 +111,7 @@ Stage behavior:
 | Chunk | Structure-aware: section-bound text, whole tables or self-describing row chunks |
 | Embed | Local sentence-transformers model; vectors stored as float32 BLOBs |
 | Index | Rows in SQLite + FTS5; fact extraction with noise guards and plausibility bands runs here |
-| Summarize | LLM summary (deterministic fallback) stored on the document and indexed as a SUMMARY chunk |
+| Summarize | Per-page LLM summaries first (each page → LLM → `pages.summary` + embedded `PAGE_SUMMARY` chunk, progress streamed to the job feed), then the document summary with the page digests attached, indexed as a `SUMMARY` chunk |
 
 ## Retrieval Fusion
 
@@ -131,11 +140,15 @@ normalized to ISO dates, so `2022-23` and `2022` both work).
 
 ## Knowledge Tree
 
-`/graph` renders a force-directed canvas of three node types: documents
+`/knowledge` renders a force-directed canvas of three node types: documents
 (amber), extracted tags (green) and entities resolved from the fact index
-(blue). Edges connect each document to its tags and entities, so one topic
-reported across many files forms a dense cluster. The tag sidebar links
-every tag to a filtered search.
+(blue). Edges connect each document to its tags and entities (deduplicated
+per document, so one entity mentioned in many chunks links once), and dense
+clusters usually mean one topic reported across many files. The subsidiary
+filter refetches the graph for that slice and clears the selection; the
+simulation loop and listeners are torn down on every reload so no stale
+frames survive. The tag sidebar links every tag to a filtered search, and
+clicking a node opens a panel with document/tag/entity actions.
 
 ## Chat
 
@@ -213,6 +226,7 @@ erDiagram
         int ocr_used
         real avg_confidence
         text image_path
+        text summary "per-page LLM summary"
     }
     elements {
         text element_type "HEADING | PARAGRAPH | TABLE | FIGURE | CAPTION | LIST"
@@ -220,7 +234,7 @@ erDiagram
         text section_path
     }
     chunks {
-        text content_type "TEXT | TABLE | TABLE_ROW | FIGURE_CAPTION | LIST"
+        text content_type "TEXT | TABLE | TABLE_ROW | FIGURE_CAPTION | LIST | SUMMARY | PAGE_SUMMARY"
         text element_ids_json "provenance refs"
     }
     facts {
@@ -252,13 +266,54 @@ with its receipt rather than choosing one: chat answers attach an
 "also reported elsewhere" note, reports flag the slot for verification,
 and the Insights fact explorer plots each reported value per period.
 
-## Document Summaries
+## Document and Page Summaries
 
-The last pipeline stage asks the LLM for a 4-6 sentence summary of each
-document (deterministic fallback without a backend). The summary is stored
-on the document and indexed as its own `SUMMARY` chunk, embedded with the
-same metadata envelope as content chunks. Descriptive queries therefore
-reach spreadsheets and scans whose raw cells never contain the query words.
+The `summarizing` stage works bottom-up. First every page goes to the
+configured LLM for a 2-3 sentence summary (`summarize_page_text`, capped at
+`MAX_LLM_PAGES` pages so very long PDFs stay tractable; the rest keep an
+extractive first-sentences fallback, as does everything when the backend is
+extractive). Each summary is stored on `pages.summary` and indexed as its
+own `PAGE_SUMMARY` chunk — embedded with the same metadata envelope as
+content chunks — so page-level semantics are searchable alongside everything
+else. Then the document summary (4-6 sentences) is generated with the page
+digests in its prompt, and the digests are appended to it, so the main
+summary carries the per-page detail.
+
+Progress streams live: after parsing, the raw OCR/native text per page lands
+in the job's `stats_json` (`page_texts`); each finished page summary is
+appended to `page_summaries` with a `pages_done/pages_total` counter. The
+Pipeline screen polls `/api/jobs` and shows a collapsible per-page panel
+(OCR excerpt + LLM summary), and the Viewer shows each page's summary above
+its extracted content plus a document-wide Page Summaries section.
+
+```mermaid
+flowchart LR
+    subgraph parse["parse + persist"]
+        P["pages.text<br/>(OCR / native)"]
+    end
+    subgraph pps["per-page loop"]
+        L["LLM: 2-3 sentences<br/>per page"]
+        PS[("pages.summary")]
+        PC["PAGE_SUMMARY chunk<br/>+ embedding + FTS"]
+    end
+    subgraph doc["document level"]
+        DS["document summary<br/>+ page digests attached"]
+        SC["SUMMARY chunk<br/>+ embedding + FTS"]
+    end
+    subgraph live["live progress"]
+        J[("jobs.stats_json<br/>page_texts + page_summaries")]
+        UI["Pipeline panel + Viewer"]
+    end
+
+    P --> L
+    L --> PS
+    L --> PC
+    P --> J
+    L --> J
+    PS --> DS
+    DS --> SC
+    J --> UI
+```
 
 ## Agent
 
@@ -290,7 +345,8 @@ narrative comes from the cleaned element structure rather than raw retrieval
 snippets. Agent runs compose the answer and evidence as markdown.
 
 The comprehensive engine (`backend/core/reporting/engine.py`) builds a full
-report from three extraction layers in `report_content.py`:
+report from three extraction layers in `content.py` (imported as
+`report_content`):
 
 - **Narrative**: deduplicated prose blocks from the element structure,
   number-grid junk filtered, scored on topic coverage and capped per section.
@@ -305,7 +361,7 @@ report from three extraction layers in `report_content.py`:
   that collapses against the previous one, typical of advance releases
   "up to December", is excluded from tables, charts and highlights).
 
-Charts (`report_charts.py`) are drawn from the cleaned series in one visual
+Charts (`charts.py`, imported as `report_charts`) are drawn from the cleaned series in one visual
 style: latest-year shares with percentage labels, per-year grouped bars for
 short series, lines only from three points up. All report text is composed
 as markdown and converted by `md_docx.py` (`markdown` + `htmldocx`), so
@@ -316,41 +372,40 @@ Notes instead of being silently averaged.
 
 ## Frontend
 
-Server-rendered Jinja templates styled with Tailwind (vendored locally, no
-build step). The design system lives in the Tailwind config inside
-`frontend/templates/base.html`: Archivo for text, IBM Plex Mono for numbers
-and labels, a paper/ink/amber palette. Every palette step in the content
-area is a CSS variable that flips under `.dark`; the sidebar keeps a fixed
-charcoal palette (`--s-*`) in both themes so the frame never swaps colors.
-The choice persists in `localStorage`, and a temporary `theming` class
-cross-fades panels when switching. Icons are vendored Lucide SVGs
-(`frontend/static/icons/`) exposed through the `icon()` template global.
-Navigation is a collapsible sidebar (one width variable plus label opacity,
-with tooltips when collapsed); `/` is a product landing page and
-`/dashboard` the operational overview. `app.js` polls `/api/jobs` and
-re-renders the pipeline strip only when the payload changes. No custom CSS
-file ships with the project.
+React SPA (Vite + React Router + Tailwind), built to `frontend/dist/` and
+served by Flask; `npm run dev` proxies the API to port 5000 during
+development. The design system is a paper/ink/amber palette with Archivo
+text and IBM Plex Mono numbers, dark and light themes persisted per
+machine, Lucide icons, and a collapsible sidebar (`AppShell`). Screens
+fetch initial state from `/api/pages/*` and poll live endpoints
+(`/api/jobs` for the pipeline strip with its per-page OCR/summary panel,
+`usePolling` elsewhere). The Knowledge Tree (`pages/Graph.jsx`) is a
+force-directed canvas with hover/drag/select and a node inspector panel;
+the Viewer (`pages/Viewer.jsx`) shows document + per-page summaries beside
+the PDF preview and extraction.
 
 ## Directory Layout
 
 ```
 backend/
-  app/          Flask factory, blueprint registration
-  api/routes/   one module per surface (dashboard, ingest, documents, agent, ...)
+  app/          Flask factory, blueprint registration (serves dist/ + JSON API)
+  api/          pages (screen data), actions (mutations), ingest (jobs feed),
+                documents, chat, agent, conflicts, compare, reports, llm
   core/         config, normalization, appsettings; subpackages:
-                pipeline (ingestion), retrieval (search + query),
-                knowledge (facts, graph, topics, summaries), llm (agent),
-                reporting (engine, charts, DOCX), quality (trust grading),
-                llm backends, agent + sandbox runner, summaries, settings,
-                topics, report generation, md_docx
-  db/           SQLite connection, schema.sql
+                pipeline (ingestion incl. per-page summaries), retrieval
+                (search + query), knowledge (facts, graph, topics, summaries),
+                llm (backends, agent + sandbox runner),
+                reporting (engine, content, charts, director, md_docx),
+                quality (trust grading)
+  db/           SQLAlchemy models, connection, schema.sql + migrations
   models/       canonical document dataclasses
   storage/      content-addressed file store
   scripts/      init, CLI ingestion, demo corpus generator, reindex
-frontend/
-  templates/    base.html, components/, pages/
-  static/       vendor/tailwind.js, fonts/, icons/ (Lucide SVGs),
-                js/app.js, js/graph.js
+frontend/       React SPA (Vite + React Router + Tailwind + motion)
+  src/
+    api.js, hooks/, layout/, components/, pages/ (one per screen)
+    pages/landing/sections/  landing content sections
+  dist/         production build served by Flask (gitignored build output)
 docs/
   agent/        statistics.md and charts.md capability guides for the agent
 ```
