@@ -8,6 +8,7 @@ import Viewer from './pages/Viewer.jsx';
 import Search from './pages/Search.jsx';
 import Ask from './pages/Ask.jsx';
 import Graph from './pages/Graph.jsx';
+import Assets from './pages/Assets.jsx';
 import Insights from './pages/Insights.jsx';
 import Conflicts from './pages/Conflicts.jsx';
 import Compare from './pages/Compare.jsx';
@@ -25,6 +26,7 @@ const PANELS = [
   { match: (p) => p === '/search', render: () => <Search /> },
   { match: (p) => p === '/ask', render: () => <Ask /> },
   { match: (p) => p === '/knowledge', render: () => <Graph /> },
+  { match: (p) => p === '/assets' || p.startsWith('/assets/'), render: () => <Assets /> },
   { match: (p) => p === '/insights', render: () => <Insights /> },
   { match: (p) => p === '/conflicts', render: () => <Conflicts /> },
   { match: (p) => p === '/compare', render: () => <Compare /> },

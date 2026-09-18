@@ -3,7 +3,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Workflow, Files, Search, MessageCircle, Network,
   ChartColumn, TriangleAlert, GitCompareArrows, FileChartColumn,
-  Settings, Sun, Moon, Activity, PanelLeftClose, Menu,
+  Pickaxe, Settings, Sun, Moon, Activity, PanelLeftClose, Menu,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTheme, useSidebar } from '../hooks/useTheme.jsx';
@@ -30,6 +30,7 @@ const GROUPS = [
   {
     name: 'Discover',
     items: [
+      ['/assets', 'Assets', Pickaxe],
       ['/insights', 'Insights', ChartColumn],
       ['/conflicts', 'Conflicts', TriangleAlert],
       ['/compare', 'Compare', GitCompareArrows],

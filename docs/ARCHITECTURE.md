@@ -165,6 +165,18 @@ they never enter the fact index, conflicts, answers or reports, so the
 offline-first pledge holds: no network calls, staleness visible via
 per-row source and as-of dates.
 
+## Asset Intelligence
+
+`/assets` gives every mine, coalfield, block and location a unified profile
+(`core/knowledge/assets.py`, read-only over the fact index, Conflict Radar
+and reference layer — no new extraction). Each profile shows latest key
+figures with receipts, median-per-period MT trends, mentioning documents
+(superseded struck through), related operators/places/geology by
+shared-document co-occurrence, open conflicts, and the recent evidence table;
+every value deep-links into the Source Viewer. The list endpoint
+(`/api/assets`, with `kind=mine|region` and `q` filters) orders assets by
+fact count so the most-reported mines surface first.
+
 ## Chat
 
 Ask (`/ask`) is the single conversation surface. The client sends the full
