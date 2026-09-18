@@ -2,8 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getJSON } from '../api.js';
 import { usePageData, cmpdiColors } from '../hooks/useData.js';
-import { Rise, PageHeader, Loading, ErrorBox, Reveal } from '../components/ui.jsx';
-import { Magnetic } from '../components/motion/magnetic.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Reveal, Card, Badge, Button, Table, TableHead, TableHeader, TableBody, TableRow, TableCell } from '../components/ui.jsx';
 
 function docHref(docId, pageNo, sheetNo) {
   if (pageNo) return `/doc/${docId}?page=${pageNo}`;
@@ -215,41 +214,50 @@ export default function Temporal() {
       />
 
       <Rise delay={0.05}>
-        <div className='mt-6 rounded-xl border border-seam bg-white p-5 shadow-card'>
+        <Card className='mt-6 p-5'>
           <div className='flex flex-wrap items-end gap-3'>
             <label className='w-full min-w-0 flex-1 sm:min-w-[200px] sm:max-w-[280px]'>
-              <span className='text-[12px] font-medium text-stone-500'>Entity</span>
-              <select value={entity} onChange={(e) => setEntity(e.target.value)}
-                      className='mt-1 w-full rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none'>
+              <span className='text-xs font-medium text-muted1'>Entity</span>
+              <select
+                value={entity}
+                onChange={(e) => setEntity(e.target.value)}
+                className='mt-1 w-full rounded-lg border border-seam bg-surface px-3 py-2 text-xs text-ink focus:border-coal focus:outline-none'
+              >
                 <option value=''>Choose entity...</option>
                 {options.entities.map((e) => <option key={e.name} value={e.name}>{e.name} ({e.n_periods}p)</option>)}
               </select>
             </label>
             <label className='w-full min-w-0 flex-1 sm:min-w-[200px] sm:max-w-[280px]'>
-              <span className='text-[12px] font-medium text-stone-500'>Metric</span>
-              <select value={attribute} onChange={(e) => setAttribute(e.target.value)}
-                      className='mt-1 w-full rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none'>
+              <span className='text-xs font-medium text-muted1'>Metric</span>
+              <select
+                value={attribute}
+                onChange={(e) => setAttribute(e.target.value)}
+                className='mt-1 w-full rounded-lg border border-seam bg-surface px-3 py-2 text-xs text-ink focus:border-coal focus:outline-none'
+              >
                 <option value=''>Choose metric...</option>
                 {options.attributes.map((a) => <option key={a} value={a}>{a.replace(/_/g, ' ')}</option>)}
               </select>
             </label>
-            <label className='flex items-center gap-2 pb-2.5 text-[13px] text-stone-500'>
-              <input type='checkbox' checked={superseded} onChange={(e) => setSuperseded(e.target.checked)} />
+            <label className='flex items-center gap-2 pb-2.5 text-xs text-muted1 cursor-pointer'>
+              <input type='checkbox' checked={superseded} onChange={(e) => setSuperseded(e.target.checked)} className='accent-coal rounded' />
               Include superseded
             </label>
-            <Magnetic intensity={0.25} range={90}>
-              <button onClick={() => load()} disabled={loading || !entity || !attribute}
-                      className='rounded-lg bg-coal px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-amber-500 disabled:opacity-50'>
-                {loading ? 'Loading…' : 'Load Timeline'}
-              </button>
-            </Magnetic>
+            <Button
+              variant='primary'
+              size='md'
+              onClick={() => load()}
+              disabled={loading || !entity || !attribute}
+              className='px-5'
+            >
+              {loading ? 'Loading…' : 'Load Timeline'}
+            </Button>
           </div>
           {error && <ErrorBox message={error} />}
           {!timeline && !error && (
-            <p className='mt-4 text-sm text-stone-500'>Select an entity and a metric to build its historical timeline.</p>
+            <p className='mt-4 text-xs text-muted1'>Select an entity and a metric to build its historical timeline.</p>
           )}
           {timeline && !timeline.points.length && (
-            <p className='mt-4 rounded-lg border border-dashed border-seamdark p-4 text-center text-sm text-stone-500'>
+            <p className='mt-4 rounded-xl border border-dashed border-seamdark p-4 text-center text-xs text-muted1'>
               No timeline values for {timeline.entity} · {timeline.attribute.replace(/_/g, ' ')} in the reporting window.
             </p>
           )}
@@ -257,75 +265,82 @@ export default function Temporal() {
             <>
               <div className='mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4'>
                 {stats.map((s) => (
-                  <div key={s.label} className='rounded-lg border border-seam bg-paper px-3 py-2.5'>
-                    <p className='text-[11px] font-medium uppercase tracking-wide text-stone-500'>{s.label}</p>
-                    <p className='mt-0.5 font-mono text-[17px] font-semibold'>{s.value}</p>
+                  <div key={s.label} className='rounded-xl border border-seam bg-paper/50 px-3.5 py-2.5'>
+                    <p className='text-[10.5px] font-medium uppercase tracking-wider text-muted1'>{s.label}</p>
+                    <p className='mt-0.5 font-mono text-base font-semibold tabular-nums text-ink'>{s.value}</p>
                   </div>
                 ))}
               </div>
               <div className='mt-4'>
                 <TimelineChart points={timeline.points} forecast={forecast} />
-                <div id='temporal-receipt' className='mt-3 hidden rounded-lg border border-coalline bg-coalsoft px-3 py-2 text-[12.5px]'></div>
-                <p className='mt-2 font-mono text-[11px] text-stone-400'>
+                <div id='temporal-receipt' className='mt-3 hidden rounded-xl border border-coalline bg-coalsoft px-3.5 py-2 text-xs text-ink'></div>
+                <p className='mt-2 font-mono text-[11px] text-muted1'>
                   Values in MT (scale-normalized) · {timeline.include_superseded ? 'including superseded revisions' : 'current versions only'}
                   {timeline.low_conf_share > 0 ? ` · ${(timeline.low_conf_share * 100).toFixed(0)}% low-confidence digits` : ''}
                 </p>
               </div>
-              <div className='mt-5 rounded-lg border border-dashed border-seamdark p-4'>
+              <div className='mt-5 rounded-xl border border-dashed border-seam bg-paper/30 p-4'>
                 <div className='flex flex-wrap items-center gap-3'>
                   <div>
-                    <p className='text-[13px] font-semibold'>Trend forecast</p>
-                    <p className='text-[12px] text-stone-500'>Linear projection of the reported medians — estimates, not reported figures.</p>
+                    <p className='text-xs font-semibold text-ink'>Trend forecast</p>
+                    <p className='text-xs text-muted1'>Linear projection of the reported medians — estimates, not reported figures.</p>
                   </div>
                   <div className='ml-auto flex items-center gap-2'>
-                    <label className='text-[12px] text-stone-500'>
+                    <label className='text-xs text-muted1'>
                       Horizon{' '}
-                      <select value={horizon} onChange={(e) => setHorizon(Number(e.target.value))}
-                              className='rounded-lg border border-seamdark bg-white px-2 py-1.5 text-[13px] focus:border-coal focus:outline-none'>
+                      <select
+                        value={horizon}
+                        onChange={(e) => setHorizon(Number(e.target.value))}
+                        className='rounded-lg border border-seam bg-surface px-2.5 py-1 text-xs text-ink focus:border-coal focus:outline-none'
+                      >
                         {[1, 2, 3, 4, 5].map((h) => <option key={h} value={h}>{h} yr</option>)}
                       </select>
                     </label>
-                    <button onClick={loadForecast} disabled={forecastLoading}
-                            className='rounded-lg border border-coal px-4 py-2 text-[13px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white disabled:opacity-50'>
+                    <Button
+                      variant='secondary'
+                      size='sm'
+                      onClick={loadForecast}
+                      disabled={forecastLoading}
+                    >
                       {forecastLoading ? 'Estimating…' : forecast ? 'Re-estimate' : 'Estimate future trend'}
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 {forecastError && <ErrorBox message={forecastError} />}
                 {forecast && forecast.status === 'insufficient' && (
-                  <p className='mt-3 rounded-lg bg-paper px-3 py-2.5 text-[13px] text-stone-500'>{forecast.reason}</p>
+                  <p className='mt-3 rounded-xl bg-paper/50 px-3 py-2 text-xs text-muted1'>{forecast.reason}</p>
                 )}
                 {forecast && forecast.status === 'ok' && (
                   <>
-                    <p className='mt-3 text-[12.5px] text-stone-600'>
-                      <span className={`mr-2 inline-block rounded-full px-2 py-px font-mono text-[11px] font-semibold uppercase tracking-wide ${
-                        forecast.confidence === 'high' ? 'bg-emerald-100 text-emerald-800'
-                        : forecast.confidence === 'medium' ? 'bg-amber-100 text-amber-800'
-                        : 'bg-red-100 text-red-800'}`}>
+                    <p className='mt-3 text-xs leading-relaxed text-ink'>
+                      <Badge
+                        variant={forecast.confidence === 'high' ? 'ok' : forecast.confidence === 'medium' ? 'warn' : 'bad'}
+                        className='mr-2 text-[10px] uppercase font-semibold'
+                      >
                         {forecast.confidence} confidence
-                      </span>
+                      </Badge>
                       OLS linear trend: {forecast.slope_mt_per_year > 0 ? '+' : ''}{forecast.slope_mt_per_year} MT/yr,
                       R² {forecast.r_squared}, fit over {forecast.n_periods} periods
                       ({forecast.confidence_reasons.join('; ')}).
                     </p>
-                    <div className='mt-2 overflow-x-auto'>
-                      <table className='w-full min-w-[420px] text-sm'>
+                    <div className='mt-3 overflow-x-auto'>
+                      <table className='w-full min-w-[420px] text-xs'>
                         <thead>
-                          <tr className='border-b border-seam text-left font-mono text-[11px] uppercase tracking-wide text-stone-500'>
+                          <tr className='border-b border-seam text-left font-mono text-[11px] uppercase tracking-wider text-muted1'>
                             <th className='py-2 pr-4 font-medium'>Period</th>
                             <th className='py-2 pr-4 text-right font-medium'>Estimate (MT)</th>
                             <th className='py-2 text-right font-medium'>Range (MT)</th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className='divide-y divide-seam'>
                           {forecast.forecast.map((f) => (
-                            <tr key={f.period} className='border-b border-seam last:border-0'>
-                              <td className='py-1.5 pr-4 font-mono text-[12.5px]'>{f.label}</td>
-                              <td className='py-1.5 pr-4 text-right font-mono text-[13px] font-semibold'>
+                            <tr key={f.period}>
+                              <td className='py-2 pr-4 font-mono tabular-nums text-ink'>{f.label}</td>
+                              <td className='py-2 pr-4 text-right font-mono text-xs font-semibold tabular-nums text-ink'>
                                 {f.value_mt}
-                                <span className='ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-normal text-amber-800'>estimated</span>
+                                <Badge variant='warn' className='ml-2 text-[9px]'>estimated</Badge>
                               </td>
-                              <td className='py-1.5 text-right font-mono text-[12px] text-stone-500'>{f.low_mt} – {f.high_mt}</td>
+                              <td className='py-2 text-right font-mono tabular-nums text-muted1'>{f.low_mt} – {f.high_mt}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -333,7 +348,7 @@ export default function Temporal() {
                     </div>
                     <ul className='mt-2 space-y-1'>
                       {forecast.warnings.map((w, i) => (
-                        <li key={i} className='text-[12px] text-stone-500'>· {w}</li>
+                        <li key={i} className='text-xs text-muted1'>· {w}</li>
                       ))}
                     </ul>
                   </>
@@ -341,75 +356,81 @@ export default function Temporal() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       </Rise>
 
       {timeline && !!timeline.points.length && (
-        <Reveal className='mt-6 overflow-x-auto rounded-xl border border-seam bg-white shadow-card'>
-          <table className='w-full min-w-[640px] text-sm'>
-            <thead>
-              <tr className='border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500'>
-                <th className='px-4 py-2.5 font-medium'>Period</th>
-                <th className='px-4 py-2.5 text-right font-medium'>Median (MT)</th>
-                <th className='px-4 py-2.5 text-right font-medium'>YoY</th>
-                <th className='px-4 py-2.5 text-center font-medium'>Sources</th>
-                <th className='px-4 py-2.5 font-medium'>Receipt</th>
+        <Reveal className='mt-6'>
+          <Table>
+            <TableHead>
+              <tr>
+                <TableHeader>Period</TableHeader>
+                <TableHeader numeric>Median (MT)</TableHeader>
+                <TableHeader numeric>YoY</TableHeader>
+                <TableHeader className='text-center'>Sources</TableHeader>
+                <TableHeader>Receipt</TableHeader>
               </tr>
-            </thead>
-            <tbody>
+            </TableHead>
+            <TableBody>
               {timeline.points.map((p) => (
-                <tr key={p.period} className='border-b border-seam last:border-0'>
-                  <td className='px-4 py-2 font-mono text-[12.5px]'>{p.label}</td>
-                  <td className='px-4 py-2 text-right font-mono text-[13px] font-semibold'>
+                <TableRow key={p.period}>
+                  <TableCell mono className='tabular-nums text-ink'>{p.label}</TableCell>
+                  <TableCell numeric className='text-ink font-semibold'>
                     {p.value_mt}
-                    {p.low_conf && <span className='ml-1.5 rounded-full bg-red-50 px-1.5 py-px text-[10px] font-normal text-red-700'>low-conf</span>}
-                  </td>
-                  <td className='px-4 py-2 text-right font-mono text-[12.5px] text-stone-500'>
+                    {p.low_conf && <Badge variant='bad' className='ml-2 text-[9px]'>low-conf</Badge>}
+                  </TableCell>
+                  <TableCell numeric className='text-muted1'>
                     {p.yoy_pct != null ? `${p.yoy_pct > 0 ? '+' : ''}${p.yoy_pct}%` : '—'}
-                  </td>
-                  <td className='px-4 py-2 text-center font-mono text-[12px] text-stone-500'>{p.n_sources}</td>
-                  <td className='px-4 py-2 text-[12.5px]'>
-                    <Link className='font-medium text-coal hover:underline'
-                          to={docHref(p.values[0].doc_id, p.values[0].page_no, p.values[0].sheet_no)}>
+                  </TableCell>
+                  <TableCell mono className='text-center text-xs text-muted1 tabular-nums'>{p.n_sources}</TableCell>
+                  <TableCell className='text-xs'>
+                    <Link
+                      className='font-medium text-coal hover:underline'
+                      to={docHref(p.values[0].doc_id, p.values[0].page_no, p.values[0].sheet_no)}
+                    >
                       {p.values[0].filename}
                     </Link>
-                    <span className='ml-1.5 font-mono text-[11px] text-stone-400'>
+                    <span className='ml-2 font-mono text-[11px] text-muted1 tabular-nums'>
                       {p.values[0].value_raw} {p.values[0].unit || ''}
                     </span>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </Reveal>
       )}
 
       {timeline && !!timeline.coverage_gaps?.length && (
-        <p className='mt-4 rounded-xl border border-seam bg-white px-4 py-3 text-[13px] text-stone-500 shadow-card'>
+        <Card className='mt-4 p-4 text-xs text-muted1'>
           Coverage gap: no reported values for {timeline.coverage_gaps.join(', ')}. Gaps mean silence in the library, not zero output.
-        </p>
+        </Card>
       )}
 
       {timeline && !!timeline.conflicts?.length && (
         <Reveal>
           <div className='mt-6 flex items-baseline justify-between'>
-            <h2 className='text-lg font-semibold tracking-tight'>Conflicts on this timeline ({timeline.conflicts.length})</h2>
-            <Link to={`/conflicts?entity=${encodeURIComponent(timeline.entity)}&attribute=${encodeURIComponent(timeline.attribute)}`}
-                  className='text-[12.5px] font-medium text-coal hover:underline'>Open in Conflict Radar</Link>
+            <h2 className='text-base font-semibold tracking-tight text-ink'>Conflicts on this timeline ({timeline.conflicts.length})</h2>
+            <Link
+              to={`/conflicts?entity=${encodeURIComponent(timeline.entity)}&attribute=${encodeURIComponent(timeline.attribute)}`}
+              className='text-xs font-semibold text-coal hover:underline'
+            >
+              Open in Conflict Radar
+            </Link>
           </div>
           <div className='mt-3 space-y-2'>
             {timeline.conflicts.map((c) => (
-              <div key={c.key} className='rounded-xl border border-red-200 bg-red-50/60 px-4 py-3'>
-                <p className='text-[13px] font-semibold'>{c.period} <span className='font-mono font-normal text-red-700'>differs by {c.spread_pct}%</span></p>
-                <div className='mt-1.5 space-y-1'>
+              <Card key={c.key} className='border-bad/30 bg-bad/5 p-4'>
+                <p className='text-xs font-semibold text-ink'>{c.period} <span className='font-mono font-semibold tabular-nums text-bad'>differs by {c.spread_pct}%</span></p>
+                <div className='mt-2 space-y-1'>
                   {c.values.map((v, i) => (
-                    <p key={i} className='text-[12.5px] text-stone-600'>
-                      <span className='font-mono font-semibold text-stone-800'>{v.value_raw} {v.unit || ''}</span>
+                    <p key={i} className='text-xs text-muted0'>
+                      <span className='font-mono font-semibold tabular-nums text-ink'>{v.value_raw} {v.unit || ''}</span>
                       {' '}— <Link className='font-medium text-coal hover:underline' to={docHref(v.doc_id, v.page_no, v.sheet_no)}>{v.filename}</Link>
                     </p>
                   ))}
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         </Reveal>
