@@ -114,6 +114,22 @@ else
   ok "Library already has $DOC_COUNT documents"
 fi
 
+# ---------------------------------------------------------------- frontend
+
+if ! command -v npm >/dev/null 2>&1; then
+  warn "npm not found; skipping frontend build (install Node.js, then run: cd frontend && npm install && npm run build)"
+elif [ ! -f frontend/dist/index.html ]; then
+  info "Building frontend (first run)"
+  (cd frontend && (npm ci --no-audit --no-fund || npm install --no-audit --no-fund) && npm run build)
+  ok "Frontend built"
+elif [ -z "$(find frontend/src frontend/package.json -newer frontend/dist/index.html -print -quit 2>/dev/null)" ]; then
+  ok "Frontend already built and up to date"
+else
+  info "Rebuilding frontend (sources changed)"
+  (cd frontend && (npm ci --no-audit --no-fund || npm install --no-audit --no-fund) && npm run build)
+  ok "Frontend rebuilt"
+fi
+
 # ---------------------------------------------------------------- run
 
 if command -v lsof >/dev/null 2>&1 && lsof -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
