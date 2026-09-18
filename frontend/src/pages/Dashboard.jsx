@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { getJSON } from '../api.js';
 import { usePageData } from '../hooks/useData.js';
-import { Rise, PageHeader, Loading, ErrorBox } from '../components/ui.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Card, SectionTitle, Badge } from '../components/ui.jsx';
 import { AnimatedGroup } from '../components/motion/animated-group.jsx';
 import { AnimatedNumber } from '../components/motion/animated-number.jsx';
 import { Spotlight } from '../components/motion/spotlight.jsx';
@@ -46,9 +46,9 @@ const QUICK_ACTIONS = [
 
 function HeadlineNumber({ value }) {
   return Number.isFinite(value) ? (
-    <AnimatedNumber value={value} className='font-mono text-2xl font-bold tracking-tight text-ink' />
+    <AnimatedNumber value={value} className='font-mono tabular-nums text-2xl font-bold tracking-tight text-ink' />
   ) : (
-    <span className='font-mono text-2xl font-bold tracking-tight text-ink'>{value}</span>
+    <span className='font-mono tabular-nums text-2xl font-bold tracking-tight text-ink'>{value}</span>
   );
 }
 
@@ -59,28 +59,29 @@ const fy = (iso) => {
 };
 
 const deltaChip = (delta) => {
-  if (delta == null) return <span className='font-mono text-[11px] text-stone-400'>—</span>;
-  const cls = delta > 0 ? 'bg-emerald-50 text-emerald-700' : delta < 0 ? 'bg-red-50 text-red-700' : 'bg-paper text-stone-500';
+  if (delta == null) return <span className='font-mono tabular-nums text-[11px] text-stone-400'>—</span>;
   return (
-    <span className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold ${cls}`}>
+    <Badge variant={delta > 0 ? 'ok' : delta < 0 ? 'bad' : 'neutral'} className='tabular-nums'>
       {delta > 0 ? `+${delta}%` : `${delta}%`}
-    </span>
+    </Badge>
   );
 };
 
 function SignalPanel({ title, linkTo, linkLabel, children }) {
   return (
-    <div className='flex flex-col rounded-xl border border-seam bg-white p-4 shadow-card'>
-      <div className='mb-2 flex items-center justify-between gap-2'>
-        <h3 className='text-[13.5px] font-semibold text-ink'>{title}</h3>
-        {linkTo && (
-          <Link to={linkTo} className='flex shrink-0 items-center gap-1 text-[12px] font-medium text-coal hover:underline'>
-            {linkLabel} <ArrowRight className='h-3 w-3' />
-          </Link>
-        )}
+    <Card className='p-4 flex flex-col justify-between'>
+      <div>
+        <div className='mb-2 flex items-center justify-between gap-2'>
+          <h3 className='text-[13.5px] font-semibold text-ink'>{title}</h3>
+          {linkTo && (
+            <Link to={linkTo} className='flex shrink-0 items-center gap-1 text-[12px] font-medium text-coal hover:underline'>
+              {linkLabel} <ArrowRight className='h-3 w-3' />
+            </Link>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
+    </Card>
   );
 }
 
@@ -114,19 +115,15 @@ function Signals() {
   }, [subsidiary]);
   const { data, error } = state;
   if (error) {
-    return (
-      <div className='rounded-xl border border-seam bg-white p-4 shadow-card'>
-        <p className='text-[12.5px] text-red-700'>Signals unavailable: {error}</p>
-      </div>
-    );
+    return <ErrorBox message={`Signals unavailable: ${error}`} />;
   }
   if (!data) {
     return (
-      <div className='rounded-xl border border-seam bg-white p-4 shadow-card'>
+      <Card className='p-4'>
         <p className='flex items-center gap-2 text-[12.5px] text-stone-400'>
-          <LoaderCircle className='h-3.5 w-3.5 animate-spin' /> Gathering organizational signals…
+          <LoaderCircle className='h-3.5 w-3.5 animate-spin text-coal' /> Gathering organizational signals…
         </p>
-      </div>
+      </Card>
     );
   }
 
@@ -135,25 +132,25 @@ function Signals() {
 
   return (
     <div>
-      <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
-        <h2 className='text-[13px] font-semibold uppercase tracking-wider text-stone-400'>
-          Organizational Signals
-        </h2>
-        <div className='flex flex-wrap items-center gap-2'>
-          <span className='font-mono text-[10.5px] text-stone-400'>
-            {data.corpus.metrics} metrics · {data.corpus.fact_points} fact points · {scopeLabel}
-          </span>
-          <select
-            value={subsidiary}
-            onChange={(e) => setSubsidiary(e.target.value)}
-            aria-label='Filter signals by subsidiary'
-            className='rounded-lg border border-seam bg-white px-2 py-1 font-mono text-[11px] text-stone-600 focus:border-coal focus:outline-none'
-          >
-            <option value=''>All subsidiaries</option>
-            {subs.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      </div>
+      <SectionTitle
+        title='Organizational Signals'
+        action={
+          <div className='flex flex-wrap items-center gap-2'>
+            <span className='font-mono tabular-nums text-[10.5px] text-stone-400'>
+              {data.corpus.metrics} metrics · {data.corpus.fact_points} fact points · {scopeLabel}
+            </span>
+            <select
+              value={subsidiary}
+              onChange={(e) => setSubsidiary(e.target.value)}
+              aria-label='Filter signals by subsidiary'
+              className='rounded-lg border border-seam bg-white px-2.5 py-1 font-mono text-[11px] text-stone-600 focus:border-coal focus:outline-none'
+            >
+              <option value=''>All subsidiaries</option>
+              {subs.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        }
+      />
 
       <div className='grid grid-cols-1 gap-3 lg:grid-cols-2'>
         <SignalPanel title='Metric Trends' linkTo='/insights' linkLabel='Fact explorer'>
@@ -382,10 +379,12 @@ export default function Dashboard() {
       <Rise delay={0.04}>
         <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4'>
           {headlineMetrics.map(({ href, value, label, sublabel, Icon, color, isPercent, isConflict }) => (
-            <Link
+            <Card
               key={label}
+              as={Link}
               to={href}
-              className='group relative overflow-hidden rounded-xl border border-seam bg-white p-4 shadow-card transition-all duration-200 hover:border-coal/50 hover:shadow-lift'
+              interactive
+              className='group relative p-4'
             >
               <div className='flex items-center justify-between'>
                 <span className='flex h-8 w-8 items-center justify-center rounded-lg bg-paper text-stone-500 transition-colors group-hover:bg-coalsoft group-hover:text-coal'>
@@ -399,7 +398,7 @@ export default function Dashboard() {
               <div className='mt-2.5'>
                 <div className={color}>
                   {isPercent && value !== 'run eval' ? (
-                    <span className='font-mono text-2xl font-bold tracking-tight'>{value}%</span>
+                    <span className='font-mono tabular-nums text-2xl font-bold tracking-tight'>{value}%</span>
                   ) : (
                     <HeadlineNumber value={value} />
                   )}
@@ -411,7 +410,7 @@ export default function Dashboard() {
               {isConflict && value > 0 && (
                 <span className='absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-red-600 animate-pulse' />
               )}
-            </Link>
+            </Card>
           ))}
         </div>
       </Rise>
@@ -423,17 +422,15 @@ export default function Dashboard() {
 
       {/* ── Quick Action Cards ── */}
       <div>
-        <div className='mb-2 flex items-center justify-between'>
-          <h2 className='text-[13px] font-semibold uppercase tracking-wider text-stone-400'>
-            Quick Actions
-          </h2>
-        </div>
+        <SectionTitle title='Quick Actions' />
         <AnimatedGroup preset='blur-slide' className='grid gap-3 sm:grid-cols-2 lg:grid-cols-4'>
           {QUICK_ACTIONS.map(({ href, Icon, title, desc, badge }) => (
-            <Link
+            <Card
               key={title}
+              as={Link}
               to={href}
-              className='group relative flex flex-col justify-between rounded-xl border border-seam bg-white p-3.5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-coal/60 hover:shadow-lift'
+              interactive
+              className='group flex flex-col justify-between p-3.5'
             >
               <div>
                 <div className='flex items-center justify-between'>
@@ -449,26 +446,24 @@ export default function Dashboard() {
               </div>
 
               <div className='mt-3 flex items-center justify-between'>
-                <span className='rounded-full border border-seam bg-paper px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-wider text-stone-500'>
-                  {badge}
-                </span>
+                <Badge variant='neutral'>{badge}</Badge>
               </div>
-            </Link>
+            </Card>
           ))}
         </AnimatedGroup>
       </div>
 
       {/* ── System Status Cards (Embeddings & Language Model) ── */}
       <div>
-        <div className='mb-2 flex items-center justify-between'>
-          <h2 className='text-[13px] font-semibold uppercase tracking-wider text-stone-400'>
-            Intelligence Engines
-          </h2>
-          <span className='flex items-center gap-1.5 font-mono text-[10.5px] text-emerald-700'>
-            <span className='h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse' />
-            100% Offline &amp; Local
-          </span>
-        </div>
+        <SectionTitle
+          title='Intelligence Engines'
+          badge={
+            <span className='flex items-center gap-1.5 font-mono text-[10.5px] text-emerald-700'>
+              <span className='h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse' />
+              100% Offline &amp; Local
+            </span>
+          }
+        />
 
         <div className='grid grid-cols-1 gap-4 lg:grid-cols-2'>
           {/* Embeddings Spotlight Card */}
