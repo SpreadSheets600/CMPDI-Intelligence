@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { RefreshCw, X, FileText, MessageCircle, Send, ChevronDown, Sparkles } from 'lucide-react';
 import { usePageData } from '../hooks/useData.js';
 import { postJSON } from '../api.js';
@@ -50,7 +50,7 @@ function EvidenceCard({ c, i }) {
         </span>
         <Link
           className='flex items-center gap-1 rounded-md border border-coal px-2 py-0.5 text-[11px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white'
-          to={`/doc/${c.doc_id}${c.page_no ? `/?page=${c.page_no}` : c.sheet_no ? `?sheet=${c.sheet_no}` : ''}`}
+          to={`/doc/${c.doc_id}${c.page_no ? `?page=${c.page_no}` : c.sheet_no != null ? `?sheet=${c.sheet_no}` : ''}`}
         >
           View Source →
         </Link>
@@ -141,6 +141,7 @@ function TracePanel({ trace }) {
 }
 
 export default function Ask() {
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const qs = new URLSearchParams();
   for (const k of ['doc', 'docs', 'q']) if (params.get(k)) qs.set(k, params.get(k));
@@ -223,7 +224,7 @@ export default function Ask() {
         </div>
         <button
           title='New conversation'
-          onClick={() => { historyRef.current = []; setMessages([]); window.location.href = '/ask'; }}
+          onClick={() => { historyRef.current = []; setMessages([]); setInput(''); navigate('/ask', { replace: true }); }}
           className='flex shrink-0 items-center gap-1.5 rounded-lg border border-seam px-3 py-1.5 text-[12px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal'
         >
           <RefreshCw className='h-3.5 w-3.5' /> New chat

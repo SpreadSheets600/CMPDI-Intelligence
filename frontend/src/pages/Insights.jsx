@@ -86,7 +86,7 @@ function FactChart({ entity, attribute, series }) {
       <strong>${meta.current.entity} · ${meta.current.attribute.replace('_', ' ')} · ${hit.period_norm || 'period n/a'}</strong><br>
       Reported value: <span class="font-mono">${hit.value_raw}</span> ${hit.unit || ''}<br>
       Source: <a class="text-coal font-medium underline underline-offset-2"
-                 href="/doc/${hit.doc_id}${hit.page_no ? `/?page=${hit.page_no}` : `?sheet=${hit.sheet_no || 1}`}">${hit.filename}, ${loc}</a>
+                  href="/doc/${hit.doc_id}${hit.page_no ? `?page=${hit.page_no}` : `?sheet=${hit.sheet_no || 1}`}">${hit.filename}, ${loc}</a>
       ${hit.flags ? `<span class="ml-2 font-mono text-[11px] text-red-700">${String(hit.flags).replace('_', ' ')}</span>` : ''}`;
   };
 

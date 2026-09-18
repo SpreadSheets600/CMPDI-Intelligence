@@ -2,7 +2,7 @@ import { NavLink, useLocation, Link } from 'react-router-dom';
 import { useState } from 'react';
 import {
   LayoutDashboard, Workflow, Files, Search, MessageCircle, Network,
-  ChartColumn, History, TriangleAlert, GitCompareArrows, FileChartColumn,
+  ChartColumn, History, Shapes, TriangleAlert, GitCompareArrows, FileChartColumn,
   Pickaxe, Settings, Sun, Moon, Activity, PanelLeftClose, Menu,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
@@ -33,6 +33,7 @@ const GROUPS = [
       ['/assets', 'Assets', Pickaxe],
       ['/insights', 'Insights', ChartColumn],
       ['/temporal', 'Temporal', History],
+      ['/topics', 'Topics', Shapes],
       ['/conflicts', 'Conflicts', TriangleAlert],
       ['/compare', 'Compare', GitCompareArrows],
     ],
