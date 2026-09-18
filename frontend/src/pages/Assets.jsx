@@ -57,6 +57,8 @@ function Profile({ name }) {
   if (!profile) return <Loading />;
 
   const lib = profile.library || {};
+  const refGroups = profile.reference || {};
+  const refCats = Object.entries(refGroups).filter(([, rows]) => (rows || []).length > 0);
   return (
     <div className='space-y-6'>
       <div className='rounded-xl border border-seam bg-white p-5 shadow-card'>
@@ -77,15 +79,39 @@ function Profile({ name }) {
         )}
       </div>
 
+      {refCats.length > 0 && (
+        <section>
+          <h3 className='text-[15px] font-semibold tracking-tight'>Reference <span className='font-normal text-stone-400'>(public context, not evidence)</span></h3>
+          <div className='mt-3 grid grid-cols-1 gap-3 md:grid-cols-2'>
+            {refCats.map(([cat, rows]) => (
+              <div key={cat} className='rounded-xl border border-seam bg-white p-4 shadow-card'>
+                <p className='text-[12px] font-medium uppercase tracking-wide text-stone-500'>{cat}</p>
+                <ul className='mt-2 space-y-2'>
+                  {rows.map((r, i) => (
+                    <li key={i} className='text-[13px]'>
+                      <span className='font-medium'>{r.label}: </span>
+                      <span>{r.value}{r.unit ? ` ${r.unit}` : ''}</span>
+                      <span className='mt-0.5 block font-mono text-[11px] text-stone-400'>
+                        {r.as_of ? `${r.as_of} · ` : ''}{r.source}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section>
-        <h3 className='text-[15px] font-semibold tracking-tight'>Key Figures <span className='font-normal text-stone-400'>(latest reported period)</span></h3>
+        <h3 className='text-[15px] font-semibold tracking-tight'>Key Figures <span className='font-normal text-stone-400'>(latest reported period, median when several sources report)</span></h3>
         {!profile.key_figures.length && <p className='mt-2 text-sm text-stone-500'>No windowed metrics for this asset yet.</p>}
         <div className='mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'>
           {profile.key_figures.map((f) => (
             <div key={f.attribute} className='rounded-xl border border-seam bg-white p-4 shadow-card'>
               <p className='text-[12px] font-medium uppercase tracking-wide text-stone-500'>{f.attribute.replace(/_/g, ' ')}</p>
               <p className='mt-1 font-mono text-[20px] font-semibold'>{f.value_mt} <span className='text-[12px] font-normal text-stone-500'>MT</span></p>
-              <p className='mt-0.5 font-mono text-[11.5px] text-stone-500'>reported {f.value_raw} {f.unit || ''} · {f.period.slice(0, 7)}</p>
+              <p className='mt-0.5 font-mono text-[11.5px] text-stone-500'>reported {f.value_raw} {f.unit || ''} · {f.period.slice(0, 7)}{f.n_sources > 1 ? ` · median of ${f.n_sources} sources` : ''}</p>
               <p className='mt-1.5 text-[12px]'><ReceiptLink docId={f.doc_id} filename={f.filename} pageNo={f.page_no} sheetNo={f.sheet_no} /></p>
             </div>
           ))}

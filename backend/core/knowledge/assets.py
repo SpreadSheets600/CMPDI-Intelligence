@@ -54,7 +54,7 @@ def list_assets(kind: str | None = None, q: str | None = None) -> list[dict]:
             LEFT JOIN facts f ON f.entity_id = e.id
             LEFT JOIN chunks c ON c.id = f.chunk_id
             WHERE {" AND ".join(where)}
-            GROUP BY e.id ORDER BY n_facts DESC LIMIT ?""",
+            GROUP BY e.id HAVING n_facts > 0 ORDER BY n_facts DESC LIMIT ?""",
         (*params, _MAX_ASSETS),
     )
     return [dict(r) for r in rows]
