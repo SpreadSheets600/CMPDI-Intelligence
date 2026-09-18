@@ -423,7 +423,7 @@ def _topics(subsidiary: str | None = None) -> dict:
             clusters.append(
                 {"label": t["label"], "keywords": keywords[:6], "n_docs": len(doc_ids)}
             )
-    return {"tags": retrieval.top_tags(12), "clusters": clusters}
+    return {"tags": retrieval.top_tags(12, subsidiary), "clusters": clusters}
 
 
 def dashboard(subsidiary: str | None = None) -> dict:

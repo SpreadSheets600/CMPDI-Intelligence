@@ -85,6 +85,8 @@ def dashboard():
         "open_conflicts": _open_conflicts(),
         "extraction_accuracy": eval_metrics.get("accuracy"),
         "kpi": quality.kpi_stats(),
+        "subs": _rows(db.q(
+            "SELECT DISTINCT subsidiary FROM documents WHERE subsidiary IS NOT NULL")),
     })
 
 

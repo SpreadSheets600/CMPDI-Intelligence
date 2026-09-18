@@ -160,11 +160,18 @@ def doc_keywords_map(doc_ids: list[str]) -> dict[str, list[str]]:
     return mapping
 
 
-def top_tags(limit: int = 30) -> list[dict]:
-    rows = db.q(
-        """SELECT dk.keyword, COUNT(*) n FROM doc_keywords dk
-           JOIN documents d ON d.id = dk.doc_id AND d.is_current_version = 1
-           GROUP BY dk.keyword ORDER BY n DESC, dk.keyword LIMIT ?""", (limit,))
+def top_tags(limit: int = 30, subsidiary: str | None = None) -> list[dict]:
+    if subsidiary:
+        rows = db.q(
+            """SELECT dk.keyword, COUNT(*) n FROM doc_keywords dk
+               JOIN documents d ON d.id = dk.doc_id AND d.is_current_version = 1
+               WHERE d.subsidiary = ?
+               GROUP BY dk.keyword ORDER BY n DESC, dk.keyword LIMIT ?""", (subsidiary, limit))
+    else:
+        rows = db.q(
+            """SELECT dk.keyword, COUNT(*) n FROM doc_keywords dk
+               JOIN documents d ON d.id = dk.doc_id AND d.is_current_version = 1
+               GROUP BY dk.keyword ORDER BY n DESC, dk.keyword LIMIT ?""", (limit,))
     return [dict(r) for r in rows]
 
 
