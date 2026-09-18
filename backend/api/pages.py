@@ -15,6 +15,7 @@ from flask import Blueprint, jsonify, request
 from backend.core import config, conflicts, llm, quality, retrieval
 from backend.core.normalize import normalize_period
 from backend.core.pipeline import embedder, pipeline, vector_store
+from backend.core.retrieval import org_search
 from backend.db import database as db
 
 bp = Blueprint("pages", __name__, url_prefix="/api/pages")
@@ -198,8 +199,19 @@ def search():
     if q_text:
         for ev in results:
             ev["tags"] = retrieval.doc_keywords_map([ev["doc_id"]]).get(ev["doc_id"], [])
+    if q_text:
+        org = {
+            "facts": org_search.search_facts(q_text, filters=filters),
+            "entities": org_search.search_entities(q_text),
+            "locations": org_search.search_entities(q_text, entity_types=org_search.LOCATION_TYPES),
+            "metrics": org_search.search_metrics(q_text),
+            "reference": org_search.search_reference(q_text),
+        }
+    else:
+        org = {"facts": [], "entities": [], "locations": [], "metrics": [], "reference": []}
+    org["counts"] = {k: len(v) for k, v in org.items() if k != "counts"}
     return jsonify({
-        "q": q_text, "results": results,
+        "q": q_text, "results": results, **org,
         "filters": {"tag": tag or "", "subsidiary": subsidiary or "",
                     "type": doc_type or "", "from": date_from or "", "to": date_to or ""},
         "subs": _rows(db.q("SELECT DISTINCT subsidiary FROM documents WHERE subsidiary IS NOT NULL")),

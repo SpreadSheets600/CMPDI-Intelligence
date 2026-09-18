@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Search as SearchIcon, Filter, X, Calendar, FileQuestion, ArrowRight } from 'lucide-react';
+import { Search as SearchIcon, Filter, X, Calendar, FileQuestion, ArrowRight, Hash, Building2, MapPin, Gauge, BookOpen } from 'lucide-react';
 import { usePageData } from '../hooks/useData.js';
 import { PageHeader, Loading, ErrorBox } from '../components/ui.jsx';
 import { AnimatedGroup } from '../components/motion/animated-group.jsx';
@@ -37,7 +37,15 @@ export default function Search() {
   const { data, error } = usePageData(`/api/pages/search${query ? `?${query}` : ''}`);
   const activeFilters = params.type || params.subsidiary || params.tag || params.from || params.to;
   const results = data?.results || [];
+  const facts = data?.facts || [];
+  const entities = data?.entities || [];
+  const locations = data?.locations || [];
+  const metrics = data?.metrics || [];
+  const reference = data?.reference || [];
   const filters = data?.filters || params;
+
+  const orgTotal = facts.length + entities.length + locations.length + metrics.length + reference.length;
+  const factHref = (f) => `/doc/${f.doc_id}${f.page_no ? `?page=${f.page_no}` : f.sheet_no != null ? `?sheet=${f.sheet_no}` : ''}`;
 
   const submit = (e) => {
     e.preventDefault();
@@ -61,7 +69,7 @@ export default function Search() {
     <div>
       <PageHeader
         title='Search'
-        subtitle='BM25 + semantic vectors, fused. Every result links to the exact page or cell it came from.'
+        subtitle='Organization-wide: documents, numeric facts, entities, locations, metrics and reference context. Every value links to its receipt.'
       />
 
       {/* Search bar */}
@@ -164,9 +172,146 @@ export default function Search() {
           transition={{ duration: 0.4 }}
           className='mt-5 font-mono text-[11px] uppercase tracking-widest text-stone-400'
         >
-          {results.length} result{results.length !== 1 ? 's' : ''} for{' '}
+          {results.length} document result{results.length !== 1 ? 's' : ''}
+          {orgTotal > 0 && ` · ${orgTotal} organization hit${orgTotal !== 1 ? 's' : ''}`} for{' '}
           <span className='text-coal'>&ldquo;{params.q}&rdquo;</span>
         </motion.p>
+      )}
+
+      {/* Organization-wide sections */}
+      {params.q && orgTotal > 0 && (
+        <div className='mt-4 space-y-4'>
+          {!!facts.length && (
+            <section>
+              <h3 className='flex items-center gap-1.5 text-[13px] font-semibold tracking-tight'>
+                <Hash className='h-3.5 w-3.5 text-coal' /> Facts
+                <span className='font-mono text-[11px] font-normal text-stone-400'>({facts.length} numeric values with receipts)</span>
+              </h3>
+              <div className='mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2'>
+                {facts.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => navigate(factHref(f))}
+                    className='rounded-xl border border-seam bg-white px-4 py-3 text-left shadow-card transition-all hover:border-coal/60'
+                  >
+                    <p className='font-mono text-[15px] font-semibold'>
+                      {f.value_raw} {f.unit || ''}
+                    </p>
+                    <p className='mt-0.5 text-[12.5px] text-stone-600'>
+                      {(f.entity || f.entity_text || '—')} · {String(f.attribute || '').replace(/_/g, ' ')} · {f.period_label || '—'}
+                    </p>
+                    <p className='mt-1 font-mono text-[11px] text-stone-400'>
+                      {f.filename}{f.page_no ? `, page ${f.page_no}` : f.sheet_no != null ? `, sheet ${f.sheet_no}` : ''}
+                      {f.flags?.includes('low_confidence') ? ' · low OCR confidence' : ''}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {!!entities.length && (
+            <section>
+              <h3 className='flex items-center gap-1.5 text-[13px] font-semibold tracking-tight'>
+                <Building2 className='h-3.5 w-3.5 text-coal' /> Entities
+                <span className='font-mono text-[11px] font-normal text-stone-400'>({entities.length})</span>
+              </h3>
+              <div className='mt-2 flex flex-wrap gap-2'>
+                {entities.map((e) => (
+                  <Link
+                    key={e.id}
+                    to={`/assets?name=${encodeURIComponent(e.canonical_name)}`}
+                    className='rounded-xl border border-seam bg-white px-3.5 py-2 shadow-card transition-all hover:border-coal/60'
+                  >
+                    <span className='text-[13px] font-semibold'>{e.canonical_name}</span>
+                    <span className='ml-2 rounded-full border border-coalline bg-coalsoft px-2 py-px font-mono text-[10px] uppercase text-coal'>
+                      {e.kind}
+                    </span>
+                    <span className='ml-2 font-mono text-[11px] text-stone-400'>{e.n_docs} docs · {e.n_facts} facts</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {!!locations.length && (
+            <section>
+              <h3 className='flex items-center gap-1.5 text-[13px] font-semibold tracking-tight'>
+                <MapPin className='h-3.5 w-3.5 text-coal' /> Locations
+                <span className='font-mono text-[11px] font-normal text-stone-400'>({locations.length})</span>
+              </h3>
+              <div className='mt-2 flex flex-wrap gap-2'>
+                {locations.map((e) => (
+                  <Link
+                    key={e.id}
+                    to={`/assets?name=${encodeURIComponent(e.canonical_name)}`}
+                    className='rounded-xl border border-seam bg-white px-3.5 py-2 shadow-card transition-all hover:border-coal/60'
+                  >
+                    <span className='text-[13px] font-semibold'>{e.canonical_name}</span>
+                    <span className='ml-2 font-mono text-[11px] text-stone-400'>{e.type} · {e.n_docs} docs</span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {!!metrics.length && (
+            <section>
+              <h3 className='flex items-center gap-1.5 text-[13px] font-semibold tracking-tight'>
+                <Gauge className='h-3.5 w-3.5 text-coal' /> Metrics
+                <span className='font-mono text-[11px] font-normal text-stone-400'>({metrics.length})</span>
+              </h3>
+              <div className='mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2'>
+                {metrics.map((m) => (
+                  <div key={m.attribute} className='rounded-xl border border-seam bg-white px-4 py-3 shadow-card'>
+                    <p className='text-[13px] font-semibold'>{m.label}</p>
+                    <p className='font-mono text-[11px] text-stone-400'>{m.n_facts} facts · {m.n_entities} entities</p>
+                    {m.sample && (
+                      <Link
+                        to={factHref(m.sample)}
+                        className='mt-1 block font-mono text-[11.5px] text-coal hover:underline'
+                      >
+                        e.g. {m.sample.entity}: {m.sample.value_raw} {m.sample.unit || ''} — {m.sample.filename}
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {!!reference.length && (
+            <section>
+              <h3 className='flex items-center gap-1.5 text-[13px] font-semibold tracking-tight'>
+                <BookOpen className='h-3.5 w-3.5 text-coal' /> External context
+                <span className='font-mono text-[11px] font-normal text-stone-400'>({reference.length} · reference, not evidence)</span>
+              </h3>
+              <div className='mt-2 space-y-2'>
+                {reference.map((r, i) => (
+                  <div key={i} className='rounded-xl border border-seam bg-paper px-4 py-3'>
+                    <p className='text-[13px]'>
+                      <Link to={`/assets?name=${encodeURIComponent(r.entity)}`} className='font-semibold hover:text-coal hover:underline'>
+                        {r.entity}
+                      </Link>
+                      <span className='text-stone-500'> · {r.label}: </span>
+                      <span className='font-medium'>{r.value}{r.unit ? ` ${r.unit}` : ''}</span>
+                    </p>
+                    <p className='mt-0.5 font-mono text-[11px] text-stone-400'>
+                      {r.as_of ? `${r.as_of} · ` : ''}{r.source} · origin: reference
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* Documents header */}
+      {params.q && (
+        <h3 className='mt-6 text-[13px] font-semibold tracking-tight'>
+          Documents <span className='font-mono text-[11px] font-normal text-stone-400'>({results.length} · BM25 + vectors)</span>
+        </h3>
       )}
 
       {/* Results */}
@@ -253,7 +398,7 @@ export default function Search() {
         })}
 
         {/* Empty state */}
-        {params.q && !results.length && (
+        {params.q && !results.length && !orgTotal && (
           <InView>
             <div className='mt-6 flex flex-col items-center rounded-2xl border border-dashed border-seamdark bg-white px-6 py-16 text-center'>
               <span className='flex h-14 w-14 items-center justify-center rounded-2xl bg-coalsoft text-coal'>
