@@ -29,6 +29,11 @@ from backend.db import database as db
 _MAX_FACT_ROWS = 5000
 _MAX_VALUES_PER_PERIOD = 8
 
+# OLS on fewer than 3 periods is a line through noise, not a trend.
+_MIN_FORECAST_PERIODS = 3
+_DEFAULT_HORIZON = 3
+_MAX_HORIZON = 5
+
 
 def _scale(unit: str | None) -> float | None:
     u = (unit or "").strip().lower()
@@ -136,6 +141,195 @@ def _missing_years(periods: list[str]) -> list[int]:
     return sorted(full - set(years))
 
 
+def _period_year(period: str | None) -> int | None:
+    if not period or len(period) < 4 or not period[:4].isdigit():
+        return None
+    return int(period[:4])
+
+
+def _ols(xs: list[float], ys: list[float]) -> tuple[float, float, float, float]:
+    """Ordinary least squares on (x, y): slope, intercept, R-squared,
+    residual std. Pure stdlib so forecasting works with no extra deps."""
+    n = len(xs)
+    x_mean = sum(xs) / n
+    y_mean = sum(ys) / n
+    sxx = sum((x - x_mean) ** 2 for x in xs)
+    sxy = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, ys))
+    slope = sxy / sxx if sxx else 0.0
+    intercept = y_mean - slope * x_mean
+    fitted = [slope * x + intercept for x in xs]
+    ss_res = sum((y - f) ** 2 for y, f in zip(ys, fitted))
+    ss_tot = sum((y - y_mean) ** 2 for y in ys)
+    r_squared = 1 - ss_res / ss_tot if ss_tot else 0.0
+    resid_std = (ss_res / (n - 2)) ** 0.5 if n > 2 and ss_res else 0.0
+    return slope, intercept, r_squared, resid_std
+
+
+def forecast(
+    entity: str,
+    attribute: str,
+    horizon: int = _DEFAULT_HORIZON,
+    include_superseded: bool = False,
+) -> dict | None:
+    """Estimate future periods from the median-per-period history.
+
+    Input dataset: scale-normalized facts for one entity x metric inside the
+    reporting window (same grain and filters as :func:`timeline`).
+    Calculation: OLS linear trend on (fiscal start year, median MT), projected
+    ``horizon`` years ahead with an approximate 95% band from the residual
+    spread. Interpretation: estimates of where the past trend points, never
+    reported figures — every forecast links back to the history receipts.
+    Returns ``status: "insufficient"`` with an empty forecast when fewer than
+    three periods exist.
+    """
+    entity = (entity or "").strip()
+    attribute = (attribute or "").strip()
+    if not entity or not attribute:
+        return None
+    horizon = max(1, min(int(horizon or _DEFAULT_HORIZON), _MAX_HORIZON))
+
+    hist = timeline(entity, attribute, include_superseded)
+    if hist is None:
+        return None
+    points = hist["points"]
+    base = {
+        "entity": entity,
+        "attribute": attribute,
+        "horizon": horizon,
+        "history": [
+            {"period": p["period"], "label": p["label"], "value_mt": p["value_mt"]}
+            for p in points
+        ],
+        "n_periods": hist["n_periods"],
+        "n_docs": hist["n_docs"],
+        "low_conf_share": hist["low_conf_share"],
+        "conflicts": hist["conflicts"],
+        "coverage_gaps": hist["coverage_gaps"],
+        "include_superseded": include_superseded,
+    }
+    if len(points) < _MIN_FORECAST_PERIODS:
+        return {
+            **base,
+            "status": "insufficient",
+            "reason": (
+                f"Need at least {_MIN_FORECAST_PERIODS} reported periods "
+                f"to estimate a trend; found {len(points)}."
+            ),
+            "forecast": [],
+        }
+
+    years = [_period_year(p["period"]) for p in points]
+    medians = [p["value_mt"] for p in points]
+    pairs = [(x, y) for x, y in zip(years, medians) if x is not None]
+    if len(pairs) < _MIN_FORECAST_PERIODS:
+        return {
+            **base,
+            "status": "insufficient",
+            "reason": "Reported periods lack parseable years; cannot fit a trend.",
+            "forecast": [],
+        }
+    xs = [float(x) for x, _ in pairs]
+    ys = [y for _, y in pairs]
+    slope, intercept, r_squared, resid_std = _ols(xs, ys)
+
+    n = len(xs)
+    x_mean = sum(xs) / n
+    sxx = sum((x - x_mean) ** 2 for x in xs)
+    non_negative = all(y >= 0 for y in ys)
+    last_year = int(max(xs))
+
+    estimates = []
+    floored = False
+    for k in range(1, horizon + 1):
+        year = last_year + k
+        raw = slope * year + intercept
+        if non_negative and raw < 0:
+            raw = 0.0
+            floored = True
+        if sxx and resid_std:
+            se = resid_std * (1 + 1 / n + (year - x_mean) ** 2 / sxx) ** 0.5
+            half = 1.96 * se
+        else:
+            half = 0.0
+        lo = max(0.0, raw - half) if non_negative else raw - half
+        period = f"{year}-04-01"
+        estimates.append(
+            {
+                "period": period,
+                "label": fy_label(period),
+                "value_mt": round(raw, 3),
+                "low_mt": round(lo, 3),
+                "high_mt": round(raw + half, 3),
+                "estimated": True,
+            }
+        )
+
+    open_conflicts = sum(1 for c in hist["conflicts"] if c.get("status") == "open")
+    reasons: list[str] = []
+    if n >= 5 and r_squared >= 0.7:
+        confidence = "high"
+        reasons.append(f"{n} periods with R² {r_squared:.2f}")
+    elif n >= 4 and r_squared >= 0.4:
+        confidence = "medium"
+        reasons.append(f"{n} periods with R² {r_squared:.2f}")
+    else:
+        confidence = "low"
+        reasons.append(
+            f"only {n} periods" if n < 4 else f"weak fit (R² {r_squared:.2f})"
+        )
+    if hist["low_conf_share"] >= 0.25:
+        confidence = "low"
+        reasons.append(
+            f"{hist['low_conf_share']:.0%} of history leans on quarantined digits"
+        )
+    elif hist["low_conf_share"] > 0:
+        reasons.append(f"{hist['low_conf_share']:.0%} low-confidence digits in history")
+    if open_conflicts:
+        if confidence == "high":
+            confidence = "medium"
+        reasons.append(f"{open_conflicts} open conflict(s) on this series")
+    if hist["n_docs"] == 1:
+        if confidence == "high":
+            confidence = "medium"
+        reasons.append("trend rests on a single document")
+    if hist["coverage_gaps"]:
+        reasons.append(f"history skips {', '.join(map(str, hist['coverage_gaps']))}")
+
+    warnings = [
+        "Estimates project the past linear trend; they are not reported figures."
+    ]
+    if hist["coverage_gaps"]:
+        warnings.append(
+            "History has coverage gaps; the trend bridges silence, not zeroes."
+        )
+    if open_conflicts:
+        warnings.append(
+            "Sources disagree on this series; the trend uses the median, "
+            "either side may be right."
+        )
+    if hist["low_conf_share"] > 0:
+        warnings.append("History includes low-confidence OCR digits.")
+    if hist["n_docs"] == 1:
+        warnings.append("Trend rests on a single document; corroborate before citing.")
+    if floored:
+        warnings.append("Negative trend values floored at zero (physical quantity).")
+    if slope == 0.0 and r_squared == 0.0:
+        warnings.append("History is flat; the estimate repeats the last level.")
+
+    return {
+        **base,
+        "status": "ok",
+        "method": "ols_linear",
+        "slope_mt_per_year": round(slope, 4),
+        "intercept_mt": round(intercept, 3),
+        "r_squared": round(r_squared, 3),
+        "forecast": estimates,
+        "confidence": confidence,
+        "confidence_reasons": reasons,
+        "warnings": warnings,
+    }
+
+
 def timeline(
     entity: str, attribute: str, include_superseded: bool = False
 ) -> dict | None:
@@ -154,6 +348,7 @@ def timeline(
             "points": [],
             "n_periods": 0,
             "n_docs": 0,
+            "low_conf_share": 0.0,
             "conflicts": conflicts.detect(entity=entity, attribute=attribute, limit=10),
             "coverage_gaps": [],
         }

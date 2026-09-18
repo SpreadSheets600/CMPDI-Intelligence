@@ -13,7 +13,9 @@ function docHref(docId, pageNo, sheetNo) {
 
 // Line chart over the median-per-period series; hover shows the
 // period's receipt (first reported value with its source link).
-function TimelineChart({ points }) {
+// Forecast estimates render as a dashed extension with a shaded band,
+// visually distinct from reported values.
+function TimelineChart({ points, forecast }) {
   const canvasRef = useRef(null);
   const hover = useRef(null);
 
@@ -36,13 +38,16 @@ function TimelineChart({ points }) {
       return;
     }
     const pad = { l: 56, r: 16, t: 18, b: 34 };
-    const vals = points.map((p) => p.value_mt);
+    const fc = forecast && forecast.status === 'ok' ? (forecast.forecast || []) : [];
+    const vals = [...points.map((p) => p.value_mt)];
+    fc.forEach((f) => { vals.push(f.value_mt, f.low_mt, f.high_mt); });
     const lo = Math.min(...vals), hi = Math.max(...vals);
     const span = hi - lo || Math.abs(hi) || 1;
     const yOf = (v) => pad.t + (H - pad.t - pad.b) * (1 - (v - lo) / span);
-    const xOf = (i) => points.length === 1
+    const total = points.length + fc.length;
+    const xOf = (i) => total === 1
       ? (pad.l + W - pad.r) / 2
-      : pad.l + ((W - pad.l - pad.r) * i) / (points.length - 1);
+      : pad.l + ((W - pad.l - pad.r) * i) / (total - 1);
 
     ctx.font = '10px "IBM Plex Mono", monospace';
     ctx.textAlign = 'right';
@@ -73,8 +78,43 @@ function TimelineChart({ points }) {
       ctx.fillText((p.label || '').replace('FY', ''), x, H - pad.b + 14);
       p._x = x; p._y = y;
     });
+    if (fc.length) {
+      // Shaded uncertainty band over the forecast span.
+      ctx.beginPath();
+      fc.forEach((f, k) => {
+        const x = xOf(points.length + k), y = yOf(f.high_mt);
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      for (let k = fc.length - 1; k >= 0; k--) {
+        ctx.lineTo(xOf(points.length + k), yOf(fc[k].low_mt));
+      }
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(217, 119, 6, 0.14)';
+      ctx.fill();
+      // Dashed estimate line continuing from the last reported point.
+      ctx.strokeStyle = '#b45309';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(xOf(points.length - 1), yOf(points[points.length - 1].value_mt));
+      fc.forEach((f, k) => ctx.lineTo(xOf(points.length + k), yOf(f.value_mt)));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      fc.forEach((f, k) => {
+        const x = xOf(points.length + k), y = yOf(f.value_mt);
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = T.surface || '#ffffff';
+        ctx.fill();
+        ctx.fillStyle = T.muted2;
+        ctx.textAlign = 'center';
+        ctx.fillText((f.label || '').replace('FY', ''), x, H - pad.b + 14);
+      });
+    }
     hover.current = { xOf, yOf };
-  }, [points]);
+  }, [points, forecast]);
 
   useEffect(() => {
     draw();
@@ -113,12 +153,18 @@ export default function Temporal() {
   const [timeline, setTimeline] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [forecast, setForecast] = useState(null);
+  const [horizon, setHorizon] = useState(3);
+  const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastError, setForecastError] = useState(null);
 
   const load = async (e = null, a = null, s = null) => {
     const ent = e ?? entity, attr = a ?? attribute, sup = s ?? superseded;
     if (!ent || !attr) return;
     setLoading(true);
     setError(null);
+    setForecast(null);
+    setForecastError(null);
     try {
       const qs = new URLSearchParams({ entity: ent, attribute: attr });
       if (sup) qs.set('superseded', '1');
@@ -128,6 +174,26 @@ export default function Temporal() {
       setTimeline(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadForecast = async () => {
+    if (!timeline || !timeline.points.length) return;
+    setForecastLoading(true);
+    setForecastError(null);
+    try {
+      const qs = new URLSearchParams({
+        entity: timeline.entity,
+        attribute: timeline.attribute,
+        horizon: String(horizon),
+      });
+      if (superseded) qs.set('superseded', '1');
+      setForecast(await getJSON(`/api/temporal/forecast?${qs.toString()}`));
+    } catch (err) {
+      setForecastError(err.message);
+      setForecast(null);
+    } finally {
+      setForecastLoading(false);
     }
   };
 
@@ -198,12 +264,80 @@ export default function Temporal() {
                 ))}
               </div>
               <div className='mt-4'>
-                <TimelineChart points={timeline.points} />
+                <TimelineChart points={timeline.points} forecast={forecast} />
                 <div id='temporal-receipt' className='mt-3 hidden rounded-lg border border-coalline bg-coalsoft px-3 py-2 text-[12.5px]'></div>
                 <p className='mt-2 font-mono text-[11px] text-stone-400'>
                   Values in MT (scale-normalized) · {timeline.include_superseded ? 'including superseded revisions' : 'current versions only'}
                   {timeline.low_conf_share > 0 ? ` · ${(timeline.low_conf_share * 100).toFixed(0)}% low-confidence digits` : ''}
                 </p>
+              </div>
+              <div className='mt-5 rounded-lg border border-dashed border-seamdark p-4'>
+                <div className='flex flex-wrap items-center gap-3'>
+                  <div>
+                    <p className='text-[13px] font-semibold'>Trend forecast</p>
+                    <p className='text-[12px] text-stone-500'>Linear projection of the reported medians — estimates, not reported figures.</p>
+                  </div>
+                  <div className='ml-auto flex items-center gap-2'>
+                    <label className='text-[12px] text-stone-500'>
+                      Horizon{' '}
+                      <select value={horizon} onChange={(e) => setHorizon(Number(e.target.value))}
+                              className='rounded-lg border border-seamdark bg-white px-2 py-1.5 text-[13px] focus:border-coal focus:outline-none'>
+                        {[1, 2, 3, 4, 5].map((h) => <option key={h} value={h}>{h} yr</option>)}
+                      </select>
+                    </label>
+                    <button onClick={loadForecast} disabled={forecastLoading}
+                            className='rounded-lg border border-coal px-4 py-2 text-[13px] font-semibold text-coal transition-colors hover:bg-coal hover:text-white disabled:opacity-50'>
+                      {forecastLoading ? 'Estimating…' : forecast ? 'Re-estimate' : 'Estimate future trend'}
+                    </button>
+                  </div>
+                </div>
+                {forecastError && <ErrorBox message={forecastError} />}
+                {forecast && forecast.status === 'insufficient' && (
+                  <p className='mt-3 rounded-lg bg-paper px-3 py-2.5 text-[13px] text-stone-500'>{forecast.reason}</p>
+                )}
+                {forecast && forecast.status === 'ok' && (
+                  <>
+                    <p className='mt-3 text-[12.5px] text-stone-600'>
+                      <span className={`mr-2 inline-block rounded-full px-2 py-px font-mono text-[11px] font-semibold uppercase tracking-wide ${
+                        forecast.confidence === 'high' ? 'bg-emerald-100 text-emerald-800'
+                        : forecast.confidence === 'medium' ? 'bg-amber-100 text-amber-800'
+                        : 'bg-red-100 text-red-800'}`}>
+                        {forecast.confidence} confidence
+                      </span>
+                      OLS linear trend: {forecast.slope_mt_per_year > 0 ? '+' : ''}{forecast.slope_mt_per_year} MT/yr,
+                      R² {forecast.r_squared}, fit over {forecast.n_periods} periods
+                      ({forecast.confidence_reasons.join('; ')}).
+                    </p>
+                    <div className='mt-2 overflow-x-auto'>
+                      <table className='w-full min-w-[420px] text-sm'>
+                        <thead>
+                          <tr className='border-b border-seam text-left font-mono text-[11px] uppercase tracking-wide text-stone-500'>
+                            <th className='py-2 pr-4 font-medium'>Period</th>
+                            <th className='py-2 pr-4 text-right font-medium'>Estimate (MT)</th>
+                            <th className='py-2 text-right font-medium'>Range (MT)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {forecast.forecast.map((f) => (
+                            <tr key={f.period} className='border-b border-seam last:border-0'>
+                              <td className='py-1.5 pr-4 font-mono text-[12.5px]'>{f.label}</td>
+                              <td className='py-1.5 pr-4 text-right font-mono text-[13px] font-semibold'>
+                                {f.value_mt}
+                                <span className='ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-normal text-amber-800'>estimated</span>
+                              </td>
+                              <td className='py-1.5 text-right font-mono text-[12px] text-stone-500'>{f.low_mt} – {f.high_mt}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <ul className='mt-2 space-y-1'>
+                      {forecast.warnings.map((w, i) => (
+                        <li key={i} className='text-[12px] text-stone-500'>· {w}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
               </div>
             </>
           )}
