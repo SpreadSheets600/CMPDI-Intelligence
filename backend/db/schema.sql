@@ -175,6 +175,32 @@ CREATE TABLE IF NOT EXISTS conflict_status (
     updated_ts TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- P1 knowledge graph: typed relationships with evidence provenance.
+-- Nodes are organizations, mines, locations, geology, documents, metrics
+-- and events; every edge keeps its chunk -> page -> document chain so any
+-- relationship opens its source receipt. Reference context never lands here.
+CREATE TABLE IF NOT EXISTS kg_edges (
+    id INTEGER PRIMARY KEY,
+    src_kind TEXT NOT NULL,               -- organization | mine | location | geology | document | metric | event
+    src_label TEXT NOT NULL,
+    src_entity_id INTEGER REFERENCES entities(id) ON DELETE CASCADE,
+    dst_kind TEXT NOT NULL,
+    dst_label TEXT NOT NULL,
+    dst_entity_id INTEGER REFERENCES entities(id) ON DELETE CASCADE,
+    relation TEXT NOT NULL,               -- OPERATES | LOCATED_IN | BASED_IN | HAS_GEOLOGY | MENTIONS | HAS_METRIC | REPORTS_METRIC | OCCURRED_AT | INVOLVES | REPORTED_IN | SUPERSEDES
+    chunk_id INTEGER REFERENCES chunks(id) ON DELETE CASCADE,
+    doc_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
+    page_no INTEGER,
+    sheet_no INTEGER,
+    period_norm TEXT,
+    conf REAL DEFAULT 1.0,
+    UNIQUE (src_kind, src_label, dst_kind, dst_label, relation, chunk_id)
+);
+CREATE INDEX IF NOT EXISTS idx_kg_edges_src ON kg_edges(src_kind, src_label);
+CREATE INDEX IF NOT EXISTS idx_kg_edges_dst ON kg_edges(dst_kind, dst_label);
+CREATE INDEX IF NOT EXISTS idx_kg_edges_doc ON kg_edges(doc_id);
+CREATE INDEX IF NOT EXISTS idx_kg_edges_relation ON kg_edges(relation);
+
 CREATE TABLE IF NOT EXISTS agent_runs (
     id INTEGER PRIMARY KEY,
     task TEXT NOT NULL,

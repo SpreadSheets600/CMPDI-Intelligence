@@ -91,4 +91,18 @@ def chat():
 @bp.route("/api/graph")
 def graph_data():
     subsidiary = request.args.get("subsidiary") or None
-    return jsonify(graph.build_graph(subsidiary=subsidiary))
+    kinds = [k.strip() for k in (request.args.get("kinds") or "").split(",") if k.strip()]
+    query = (request.args.get("q") or "").strip() or None
+    return jsonify(graph.build_graph(subsidiary=subsidiary,
+                                     kinds=kinds or None, query=query))
+
+
+@bp.route("/api/graph/node")
+def graph_node():
+    node_id = (request.args.get("id") or "").strip()
+    if not node_id:
+        return jsonify({"error": "id is required"}), 400
+    result = graph.neighbourhood(node_id)
+    if not result:
+        return jsonify({"error": "unknown node"}), 404
+    return jsonify(result)

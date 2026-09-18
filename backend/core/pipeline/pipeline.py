@@ -131,6 +131,7 @@ def _process_document_inner(doc_id: str):
     if path is None:
         _stage(doc_id, "classifying", "failed", "Original File Missing In Store")
         return
+    kg_stats: dict = {}
     try:
         _stage(doc_id, "classifying", "running")
         doc_type = parsers.classify(path)
@@ -182,6 +183,8 @@ def _process_document_inner(doc_id: str):
         _link_chunk_tables(chunks, chunk_db_ids, table_ids)
         from backend.core.knowledge import facts
         facts.extract_for_doc(doc_id)
+        from backend.core.knowledge import relations as kg_relations
+        kg_stats = kg_relations.extract_for_doc(doc_id)
         _assign_version_group(doc_id)
 
         from backend.core.pipeline import quality_gate
@@ -228,6 +231,7 @@ def _process_document_inner(doc_id: str):
                       "keywords": keywords, "keyword_source": keyword_source,
                       "quality_verdict": gate["verdict"],
                       "quality_checks": gate["checks"],
+                      "kg_edges": (kg_stats or {}).get("edges", 0),
                       "page_classes": inspection.get("class_counts", {}),
                       "vision_used": cdoc.meta.get("vision_used", 0),
                       "vision_skipped": cdoc.meta.get("vision_skipped", 0)})
