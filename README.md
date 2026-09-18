@@ -34,7 +34,10 @@ premises.
   each page's summary above its extracted content.
 - **Search with library filters**: hybrid lexical + semantic results narrowed
   by document type, subsidiary, tag and reporting-period range (accepts
-  `2022-23`, `2022` or ISO dates).
+  `2022-23`, `2022` or ISO dates). Organization-wide sections alongside the
+  documents: matching numeric facts (each with its receipt), entities,
+  locations, metrics and external reference context (labeled as context,
+  never evidence).
 - **Receipts everywhere**: every fact links through chunk, element, page and
   document back to `data/files/<sha256>/original.*`. Every answer carries
   evidence cards (source, page, location, confidence, View Source), an

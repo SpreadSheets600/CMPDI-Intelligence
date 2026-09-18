@@ -138,6 +138,20 @@ Library filters apply inside both retrieval layers before scoring: document
 type, subsidiary, tag, and a reporting-period range (`doc_from`/`doc_to`,
 normalized to ISO dates, so `2022-23` and `2022` both work).
 
+## Organization Search
+
+`/search` (and `/api/search/organization`) returns the hybrid document
+results plus five read-only sections assembled from the existing knowledge
+layer (`core/retrieval/org_search.py`, no new extraction or schema):
+numeric facts matching the query's entity/attribute/period (each with its
+chunk → page → document receipt), matching entities (organization kind via
+`relations.kind_of`, with fact/document/reference counts), locations
+(`location | coalfield | block` entities), metrics (attribute matches with
+corpus counts and a sample receipt), and external reference rows labeled
+`origin: "reference"` — context, never evidence. Subsidiary/type filters
+scope the document and fact sections; the entity, location, metric and
+reference sections are corpus-wide roll-ups.
+
 ## Knowledge Graph
 
 `/knowledge` renders a force-directed canvas of seven node kinds: documents
