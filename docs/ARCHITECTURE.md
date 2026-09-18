@@ -150,6 +150,21 @@ simulation loop and listeners are torn down on every reload so no stale
 frames survive. The tag sidebar links every tag to a filtered search, and
 clicking a node opens a panel with document/tag/entity actions.
 
+## External Knowledge Layer
+
+Entity nodes carry more than a label. `backend/core/knowledge/` holds a
+curated, locally bundled reference dataset (`reference_data.py`: subsidiary
+profiles, operating geography, dated public production and sector
+statistics) seeded idempotently into `entity_reference` at init and app
+startup. The service (`reference.py`) joins it to organizational entities
+and serves it as `origin: "reference"` alongside the entity's library
+footprint (`origin: "evidence"`). Clicking an entity node shows both: HQ,
+states, coalfields and sourced public figures first, then what the
+ingested documents say. Reference values are context, never evidence —
+they never enter the fact index, conflicts, answers or reports, so the
+offline-first pledge holds: no network calls, staleness visible via
+per-row source and as-of dates.
+
 ## Chat
 
 Ask (`/ask`) is the single conversation surface. The client sends the full

@@ -56,7 +56,8 @@ def build_graph(subsidiary: str | None = None, max_docs: int = 60,
         if ent_key not in seen_entities:
             seen_entities.add(ent_key)
             nodes.append({"id": ent_key, "label": r["canonical_name"],
-                          "type": "entity", "group": "entity"})
+                          "type": "entity", "group": "entity",
+                          "ref": r["canonical_name"]})
         edge = (f"doc:{doc_id}", ent_key)
         if edge not in seen_edges:
             seen_edges.add(edge)

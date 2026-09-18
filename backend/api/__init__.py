@@ -2,8 +2,20 @@
 the application factory mounts the list in order. ``pages`` carries the
 screen-data endpoints for the React SPA, ``actions`` the JSON mutations."""
 
-from backend.api import (actions, agent, chat, compare, conflicts,
-                         documents, ingest, llm, pages, reports)
+from backend.api import (
+    actions,
+    agent,
+    chat,
+    compare,
+    conflicts,
+    documents,
+    ingest,
+    insights,
+    llm,
+    pages,
+    reference,
+    reports,
+)
 
 ALL_BLUEPRINTS = [
     pages.bp,
@@ -15,5 +27,7 @@ ALL_BLUEPRINTS = [
     agent.bp,
     conflicts.bp,
     compare.bp,
+    insights.bp,
     llm.bp,
+    reference.bp,
 ]

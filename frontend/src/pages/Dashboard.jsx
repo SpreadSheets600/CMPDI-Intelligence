@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import {
   MessageCircle, FileChartColumn, TriangleAlert, Files, FileCheck,
   Check, TriangleAlert as Alert, LoaderCircle, ArrowRight,
   Database, Cpu, ShieldCheck, CheckCircle2,
+  TrendingUp, TrendingDown, Minus, GitCompareArrows, Tags, Info,
 } from 'lucide-react';
+import { getJSON } from '../api.js';
 import { usePageData } from '../hooks/useData.js';
 import { Rise, PageHeader, Loading, ErrorBox } from '../components/ui.jsx';
 import { AnimatedGroup } from '../components/motion/animated-group.jsx';
@@ -46,6 +49,246 @@ function HeadlineNumber({ value }) {
     <AnimatedNumber value={value} className='font-mono text-2xl font-bold tracking-tight text-ink' />
   ) : (
     <span className='font-mono text-2xl font-bold tracking-tight text-ink'>{value}</span>
+  );
+}
+
+const fy = (iso) => {
+  if (!iso || iso.length < 4) return 'n/a';
+  const y = Number(iso.slice(0, 4));
+  return Number.isFinite(y) ? `${y}–${String(y + 1).slice(2)}` : iso.slice(0, 4);
+};
+
+const deltaChip = (delta) => {
+  if (delta == null) return <span className='font-mono text-[11px] text-stone-400'>—</span>;
+  const cls = delta > 0 ? 'bg-emerald-50 text-emerald-700' : delta < 0 ? 'bg-red-50 text-red-700' : 'bg-paper text-stone-500';
+  return (
+    <span className={`rounded px-1.5 py-0.5 font-mono text-[11px] font-semibold ${cls}`}>
+      {delta > 0 ? `+${delta}%` : `${delta}%`}
+    </span>
+  );
+};
+
+function SignalPanel({ title, linkTo, linkLabel, children }) {
+  return (
+    <div className='flex flex-col rounded-xl border border-seam bg-white p-4 shadow-card'>
+      <div className='mb-2 flex items-center justify-between gap-2'>
+        <h3 className='text-[13.5px] font-semibold text-ink'>{title}</h3>
+        {linkTo && (
+          <Link to={linkTo} className='flex shrink-0 items-center gap-1 text-[12px] font-medium text-coal hover:underline'>
+            {linkLabel} <ArrowRight className='h-3 w-3' />
+          </Link>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+const emptyNote = (text) => (
+  <p className='flex items-start gap-1.5 py-2 text-[12.5px] text-stone-500'>
+    <Info className='mt-0.5 h-3.5 w-3.5 shrink-0 text-stone-400' />{text}
+  </p>
+);
+
+// Organizational signals aggregated deterministically from the knowledge
+// layer (facts, conflicts, version chains, jobs, tags). Every signal links
+// to the screen holding its receipts; a signals failure never breaks the
+// dashboard itself.
+function Signals() {
+  const [state, setState] = useState({ data: null, error: null });
+  useEffect(() => {
+    let alive = true;
+    getJSON('/api/insights/dashboard')
+      .then((data) => alive && setState({ data, error: null }))
+      .catch((e) => alive && setState({ data: null, error: e.message }));
+    return () => { alive = false; };
+  }, []);
+  const { data, error } = state;
+  if (error) return null;
+  if (!data) {
+    return (
+      <div className='rounded-xl border border-seam bg-white p-4 shadow-card'>
+        <p className='flex items-center gap-2 text-[12.5px] text-stone-400'>
+          <LoaderCircle className='h-3.5 w-3.5 animate-spin' /> Gathering organizational signals…
+        </p>
+      </div>
+    );
+  }
+
+  const newestOf = (docs) => docs.filter((d) => d.is_current_version).slice(-1)[0] || docs.slice(-1)[0];
+
+  return (
+    <div>
+      <div className='mb-2 flex flex-wrap items-center justify-between gap-2'>
+        <h2 className='text-[13px] font-semibold uppercase tracking-wider text-stone-400'>
+          Organizational Signals
+        </h2>
+        <span className='font-mono text-[10.5px] text-stone-400'>
+          {data.corpus.metrics} metrics · {data.corpus.fact_points} fact points · corpus-wide
+        </span>
+      </div>
+
+      <div className='grid grid-cols-1 gap-3 lg:grid-cols-2'>
+        <SignalPanel title='Metric Trends' linkTo='/insights' linkLabel='Fact explorer'>
+          {data.trends.length === 0
+            ? emptyNote('No multi-period metrics yet — ingest dated documents with numeric facts.')
+            : (
+              <div className='space-y-1.5'>
+                {data.trends.slice(0, 5).map((t) => (
+                  <div key={`${t.entity}|${t.attribute}`} className='flex items-center justify-between gap-2 rounded-lg border border-seam bg-paper px-3 py-2'>
+                    <div className='flex min-w-0 items-center gap-2'>
+                      {t.direction === 'up'
+                        ? <TrendingUp className='h-4 w-4 shrink-0 text-emerald-700' />
+                        : t.direction === 'down'
+                          ? <TrendingDown className='h-4 w-4 shrink-0 text-red-700' />
+                          : <Minus className='h-4 w-4 shrink-0 text-stone-400' />}
+                      <div className='min-w-0'>
+                        <p className='truncate text-[12.5px] font-semibold text-ink'>
+                          {t.entity} · {String(t.attribute).replace('_', ' ')}
+                        </p>
+                        <p className='font-mono text-[10.5px] text-stone-400'>
+                          {fy(t.periods[0])} → {fy(t.periods[t.periods.length - 1])} · {t.last} MT · {t.n_periods} periods · {t.n_docs} docs
+                        </p>
+                      </div>
+                    </div>
+                    {deltaChip(t.delta_pct)}
+                  </div>
+                ))}
+              </div>
+            )}
+        </SignalPanel>
+
+        <SignalPanel title='Anomalies to Review' linkTo='/insights' linkLabel='Fact explorer'>
+          {data.anomalies.length === 0
+            ? emptyNote('No sharp moves, outliers or thin-evidence metrics detected.')
+            : (
+              <div className='space-y-1.5'>
+                {data.anomalies.slice(0, 5).map((a, i) => (
+                  <div key={i} className='rounded-lg border border-seam bg-paper px-3 py-2'>
+                    <p className='flex flex-wrap items-center gap-2 text-[12.5px] font-semibold text-ink'>
+                      <span className={`rounded-full border px-2 py-0.5 font-mono text-[9.5px] uppercase ${a.severity === 'high' ? 'border-red-200 bg-red-50 text-red-700' : 'border-coalline bg-coalsoft text-coal'}`}>
+                        {a.severity === 'high' ? 'high' : 'watch'}
+                      </span>
+                      {a.title}
+                    </p>
+                    <p className='mt-0.5 text-[12px] text-stone-500'>{a.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+        </SignalPanel>
+
+        <SignalPanel
+          title={`Conflicts Needing Review${data.corpus.open_conflicts ? ` (${data.corpus.open_conflicts} open)` : ''}`}
+          linkTo='/conflicts'
+          linkLabel='Conflict Radar'
+        >
+          {data.conflicts_top.length === 0
+            ? emptyNote('All reported values agree, or nothing has been extracted yet.')
+            : (
+              <div className='space-y-1.5'>
+                {data.conflicts_top.slice(0, 4).map((c) => (
+                  <Link
+                    key={c.key}
+                    to={`/conflicts?entity=${encodeURIComponent(c.entity)}&attribute=${encodeURIComponent(c.attribute)}`}
+                    className='flex items-center justify-between gap-2 rounded-lg border border-seam bg-paper px-3 py-2 transition-colors hover:border-coal/50'
+                  >
+                    <div className='min-w-0'>
+                      <p className='truncate text-[12.5px] font-semibold text-ink'>
+                        {c.entity} · {String(c.attribute).replace('_', ' ')} · {fy(c.period)}
+                      </p>
+                      <p className='font-mono text-[10.5px] text-stone-400'>
+                        {c.n_values} values · {c.status}
+                      </p>
+                    </div>
+                    <span className='shrink-0 font-mono text-[11px] font-semibold text-red-700'>{c.spread_pct}%</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+        </SignalPanel>
+
+        <SignalPanel title='Changes & Versions' linkTo='/compare' linkLabel='Compare'>
+          {data.changes.version_groups.length === 0 && data.changes.recent_docs.length === 0
+            ? emptyNote('No version chains or recent uploads to report.')
+            : (
+              <div className='space-y-1.5'>
+                {data.changes.version_diffs.slice(0, 2).map((d) => (
+                  <div key={d.group_id} className='rounded-lg border border-seam bg-paper px-3 py-2'>
+                    <p className='flex items-center gap-1.5 text-[12.5px] font-semibold text-ink'>
+                      <GitCompareArrows className='h-3.5 w-3.5 shrink-0 text-coal' />
+                      <span className='truncate'>{d.a_name} → {d.b_name}</span>
+                    </p>
+                    <p className='mt-0.5 font-mono text-[10.5px] text-stone-500'>
+                      {d.summary.changed} changed · {d.summary.added} added · {d.summary.removed} removed
+                    </p>
+                  </div>
+                ))}
+                {data.changes.version_groups.slice(0, 2).map((g) => {
+                  const newest = newestOf(g.docs);
+                  return newest ? (
+                    <Link
+                      key={g.group_id}
+                      to={`/compare?doc=${newest.id}`}
+                      className='block truncate rounded-lg border border-seam bg-paper px-3 py-2 text-[12.5px] text-stone-600 transition-colors hover:border-coal/50 hover:text-coal'
+                    >
+                      Version chain ({g.docs.length} revisions) — compare from {newest.display_name || newest.filename} →
+                    </Link>
+                  ) : null;
+                })}
+                {data.changes.failed_jobs.length > 0 && (
+                  <p className='rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700'>
+                    {data.changes.failed_jobs.length} recent ingestion failure(s) — see Pipeline for reasons.
+                  </p>
+                )}
+              </div>
+            )}
+        </SignalPanel>
+
+        <SignalPanel title='Coverage Gaps' linkTo='/documents' linkLabel='Library'>
+          {data.gaps.length === 0
+            ? emptyNote('No gaps detected: summaries present, jobs clean, metrics corroborated.')
+            : (
+              <div className='space-y-1.5'>
+                {data.gaps.slice(0, 5).map((g, i) => (
+                  <div key={i} className='rounded-lg border border-seam bg-paper px-3 py-2'>
+                    <p className='text-[12.5px] font-semibold text-ink'>{g.title}</p>
+                    <p className='mt-0.5 text-[12px] text-stone-500'>{g.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+        </SignalPanel>
+
+        <SignalPanel title='What the Library Talks About' linkTo='/search' linkLabel='Search'>
+          {data.topics.tags.length === 0 && data.topics.clusters.length === 0
+            ? emptyNote('No keywords or topic clusters yet.')
+            : (
+              <div className='space-y-2'>
+                {data.topics.tags.length > 0 && (
+                  <div className='flex flex-wrap gap-1.5'>
+                    {data.topics.tags.slice(0, 10).map((t) => (
+                      <Link
+                        key={t.keyword}
+                        to={`/search?tag=${encodeURIComponent(t.keyword)}`}
+                        className='flex items-center gap-1 rounded-full border border-seam bg-paper px-2.5 py-1 font-mono text-[10.5px] text-stone-600 transition-colors hover:border-coal/50 hover:text-coal'
+                      >
+                        <Tags className='h-3 w-3' />{t.keyword} · {t.n}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+                {data.topics.clusters.slice(0, 2).map((c, i) => (
+                  <p key={i} className='text-[12px] text-stone-500'>
+                    <span className='font-semibold text-ink'>{c.label}</span>
+                    {' '}({c.n_docs} docs) — {c.keywords.slice(0, 4).join(', ')}
+                  </p>
+                ))}
+              </div>
+            )}
+        </SignalPanel>
+      </div>
+    </div>
   );
 }
 
@@ -136,6 +379,11 @@ export default function Dashboard() {
             </Link>
           ))}
         </div>
+      </Rise>
+
+      {/* ── Organizational Signals (P1 Insight Dashboard) ── */}
+      <Rise delay={0.08}>
+        <Signals />
       </Rise>
 
       {/* ── Quick Action Cards ── */}
