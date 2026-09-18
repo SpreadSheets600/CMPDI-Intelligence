@@ -191,6 +191,7 @@ ATTRIBUTE_KEYWORDS = {
     "ash_pct": ["ash", "ash content", "% ash"],
     "moisture_pct": ["moisture"],
     "depth": ["depth", "seam thickness", "thickness"],
+    "drilling": ["drilling", "drilled", "borehole", "exploration drilling"],
     "stripping_ratio": ["stripping ratio", "ob ratio", "o.b. ratio"],
     "area": ["area", "lease hold", "leasehold", "extent"],
     "manpower": ["manpower", "employees", "workforce", "men on roll"],

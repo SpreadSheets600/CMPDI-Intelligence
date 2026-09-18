@@ -10,6 +10,7 @@ import Ask from './pages/Ask.jsx';
 import Graph from './pages/Graph.jsx';
 import Assets from './pages/Assets.jsx';
 import Insights from './pages/Insights.jsx';
+import Temporal from './pages/Temporal.jsx';
 import Conflicts from './pages/Conflicts.jsx';
 import Compare from './pages/Compare.jsx';
 
@@ -28,6 +29,7 @@ const PANELS = [
   { match: (p) => p === '/knowledge', render: () => <Graph /> },
   { match: (p) => p === '/assets' || p.startsWith('/assets/'), render: () => <Assets /> },
   { match: (p) => p === '/insights', render: () => <Insights /> },
+  { match: (p) => p === '/temporal', render: () => <Temporal /> },
   { match: (p) => p === '/conflicts', render: () => <Conflicts /> },
   { match: (p) => p === '/compare', render: () => <Compare /> },
   { match: (p) => p === '/reports', render: () => <Reports /> },

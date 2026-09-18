@@ -16,6 +16,7 @@ from backend.api import (
     pages,
     reference,
     reports,
+    temporal,
 )
 
 ALL_BLUEPRINTS = [
@@ -32,4 +33,5 @@ ALL_BLUEPRINTS = [
     llm.bp,
     reference.bp,
     assets.bp,
+    temporal.bp,
 ]
