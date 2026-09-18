@@ -5,6 +5,7 @@ screen-data endpoints for the React SPA, ``actions`` the JSON mutations."""
 from backend.api import (
     actions,
     agent,
+    assets,
     chat,
     compare,
     conflicts,
@@ -30,4 +31,5 @@ ALL_BLUEPRINTS = [
     insights.bp,
     llm.bp,
     reference.bp,
+    assets.bp,
 ]
