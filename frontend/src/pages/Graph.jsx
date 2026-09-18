@@ -198,7 +198,7 @@ function NodePanel({ picked, onClose }) {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 60, opacity: 0 }}
           transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-          className='absolute inset-y-0 right-0 w-72 border-l border-seam bg-white/95 p-4 backdrop-blur'
+          className='absolute inset-y-0 right-0 w-72 overflow-y-auto border-l border-seam bg-white/95 p-4 backdrop-blur'
         >
           <div className='flex items-start justify-between gap-2'>
             <h3 className='text-[13px] font-semibold leading-snug'>
@@ -221,15 +221,87 @@ function NodePanel({ picked, onClose }) {
               <Link to={`/search?tag=${encodeURIComponent(picked.label)}`} className='mt-4 block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search This Tag</Link>
             </>
           )}
-          {picked.type === 'entity' && (
-            <>
-              <p className='mt-2 text-[13px] text-stone-500'>Entity resolved from the fact index.</p>
-              <Link to={`/search?q=${encodeURIComponent(picked.label)}`} className='mt-4 block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search Mentions</Link>
-            </>
-          )}
+          {picked.type === 'entity' && <EntityContext name={picked.ref || picked.label} />}
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+// Public reference context for an entity node: curated profile, geography,
+// production and statistics (origin: reference) kept visually separate from
+// the entity's footprint in the ingested library (origin: evidence).
+// Reference values are context, never receipts.
+function EntityContext({ name }) {
+  const [state, setState] = useState({ data: null, error: null });
+  useEffect(() => {
+    let alive = true;
+    setState({ data: null, error: null });
+    getJSON('/api/reference/entity?name=' + encodeURIComponent(name))
+      .then((data) => alive && setState({ data, error: null }))
+      .catch((e) => alive && setState({ data: null, error: e.message }));
+    return () => { alive = false; };
+  }, [name]);
+
+  const { data, error } = state;
+  if (error) {
+    return (
+      <div className='mt-2'>
+        <p className='text-[13px] text-stone-500'>Entity resolved from the fact index.</p>
+        <p className='mt-1 font-mono text-[11px] text-stone-400'>No public reference for this entity yet.</p>
+        <Link to={`/search?q=${encodeURIComponent(name)}`} className='mt-4 block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search Mentions</Link>
+      </div>
+    );
+  }
+  if (!data) return <p className='mt-2 font-mono text-[11px] text-stone-400'>Loading public reference…</p>;
+
+  const groups = [
+    ['profile', 'Profile'],
+    ['geography', 'Operating Geography'],
+    ['production', 'Reference Production'],
+    ['statistic', 'Reference Statistics'],
+  ];
+  const lib = data.library || {};
+  return (
+    <div className='mt-2 space-y-3'>
+      {groups.map(([key, title]) => (data.reference?.[key]?.length > 0) && (
+        <div key={key}>
+          <h4 className='font-mono text-[10px] uppercase tracking-widest text-stone-400'>{title}</h4>
+          <dl className='mt-1 space-y-1.5'>
+            {data.reference[key].map((r, i) => (
+              <div key={i} className='rounded-lg border border-seam bg-paper px-2.5 py-1.5'>
+                <dt className='text-[11px] font-medium text-stone-500'>{r.label}</dt>
+                <dd className='text-[12.5px] font-semibold text-ink'>
+                  {r.value}{r.unit ? ` ${r.unit}` : ''}
+                </dd>
+                <dd className='mt-0.5 font-mono text-[10px] text-stone-400'>
+                  public reference{r.as_of ? ` · ${r.as_of}` : ''} · {r.source}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ))}
+      <div>
+        <h4 className='font-mono text-[10px] uppercase tracking-widest text-stone-400'>From Your Library</h4>
+        <p className='mt-1 text-[12.5px] text-stone-600'>
+          {lib.documents ?? 0} document(s) · {lib.facts ?? 0} fact(s)
+          {(lib.periods?.length > 0) && (
+            <> · {lib.periods[0].slice(0, 4)}–{lib.periods[lib.periods.length - 1].slice(0, 4)}</>
+          )}
+        </p>
+        {(lib.attributes?.length > 0) && (
+          <p className='mt-0.5 font-mono text-[10.5px] text-stone-400'>
+            {lib.attributes.map((a) => String(a).replace('_', ' ')).join(' · ')}
+          </p>
+        )}
+      </div>
+      <Link to={`/search?q=${encodeURIComponent(name)}`} className='block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search Mentions</Link>
+      <p className='font-mono text-[10px] leading-relaxed text-stone-400'>
+        Reference values are public context, not evidence — every number from
+        your documents keeps its own receipt.
+      </p>
+    </div>
   );
 }
 

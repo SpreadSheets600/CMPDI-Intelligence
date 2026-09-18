@@ -12,7 +12,7 @@ from flask import Flask, send_from_directory
 
 from backend.api import ALL_BLUEPRINTS
 from backend.core import appsettings, config
-from backend.core.knowledge import facts
+from backend.core.knowledge import facts, reference
 from backend.core.pipeline import pipeline
 from backend.db import database
 
@@ -27,6 +27,7 @@ def create_app() -> Flask:
 
     database.init_db()
     facts.ensure_subsidiary_entities()
+    reference.seed_reference()
     pipeline.start_worker()
 
     for bp in ALL_BLUEPRINTS:

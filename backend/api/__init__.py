@@ -13,6 +13,7 @@ from backend.api import (
     insights,
     llm,
     pages,
+    reference,
     reports,
 )
 
@@ -28,4 +29,5 @@ ALL_BLUEPRINTS = [
     compare.bp,
     insights.bp,
     llm.bp,
+    reference.bp,
 ]
