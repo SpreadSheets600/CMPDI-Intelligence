@@ -1,7 +1,7 @@
 """Rebuild derived indexes for an existing library: keywords/tags,
 metadata-enriched chunk embeddings, the FAISS index, normalized content
-labels and (with --summaries) document summaries. Run after upgrading the
-embedding model or ingesting on an older database.
+labels, knowledge-graph edges and (with --summaries) document summaries.
+Run after upgrading the embedding model or ingesting on an older database.
 
 Usage: python -m backend.scripts.reindex [--summaries]"""
 
@@ -78,6 +78,10 @@ def main():
         count += len(chunks)
         print(f"  embedded {len(chunks):3d} chunks: {m['filename']}")
     print(f"Done. {count} chunks re-embedded with {model_name}; FAISS index at {config.DATA_DIR / 'faiss_index.bin'}")
+
+    from backend.core.knowledge import relations as kg_relations
+    kg = kg_relations.rebuild_all()
+    print(f"Knowledge graph: {kg['edges']} edges across {kg['documents']} documents")
 
     if "--summaries" in sys.argv:
         from backend.core.knowledge.summary import (

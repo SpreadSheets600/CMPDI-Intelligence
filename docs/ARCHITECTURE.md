@@ -138,17 +138,22 @@ Library filters apply inside both retrieval layers before scoring: document
 type, subsidiary, tag, and a reporting-period range (`doc_from`/`doc_to`,
 normalized to ISO dates, so `2022-23` and `2022` both work).
 
-## Knowledge Tree
+## Knowledge Graph
 
-`/knowledge` renders a force-directed canvas of three node types: documents
-(amber), extracted tags (green) and entities resolved from the fact index
-(blue). Edges connect each document to its tags and entities (deduplicated
-per document, so one entity mentioned in many chunks links once), and dense
-clusters usually mean one topic reported across many files. The subsidiary
-filter refetches the graph for that slice and clears the selection; the
-simulation loop and listeners are torn down on every reload so no stale
-frames survive. The tag sidebar links every tag to a filtered search, and
-clicking a node opens a panel with document/tag/entity actions.
+`/knowledge` renders a force-directed canvas of seven node kinds: documents
+(amber), organizations (violet), mines (blue), locations (teal), geology
+(ochre), metrics (pink) and events (red), plus extracted tags (green).
+Persisted evidence edges (`kg_edges`, built deterministically at ingestion
+by `knowledge/relations`) carry OPERATES / LOCATED_IN / BASED_IN /
+HAS_GEOLOGY / MENTIONS / OCCURRED_AT / INVOLVES / REPORTED_IN with chunk →
+page → document provenance; HAS_METRIC / REPORTS_METRIC / version
+SUPERSEDES links derive at query time from the fact index so the graph never
+duplicates it. Reference context (`entity_reference`) never enters the graph.
+The subsidiary/kind/query filters refetch the slice and clear the selection;
+the simulation loop and listeners are torn down on every reload so no stale
+frames survive. Clicking a node opens its one-hop neighbourhood
+(`/api/graph/node`) with per-edge receipts, and the tag sidebar links every
+tag to a filtered search.
 
 ## External Knowledge Layer
 

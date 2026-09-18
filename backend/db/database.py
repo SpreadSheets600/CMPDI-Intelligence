@@ -321,3 +321,30 @@ def _migrate():
             ecols = {c["name"] for c in insp.get_columns("elements")}
             if "method" not in ecols:
                 conn.execute(text("ALTER TABLE elements ADD COLUMN method TEXT"))
+        if "kg_edges" not in insp.get_table_names():
+            conn.execute(text(
+                """CREATE TABLE kg_edges (
+                    id INTEGER PRIMARY KEY,
+                    src_kind TEXT NOT NULL,
+                    src_label TEXT NOT NULL,
+                    src_entity_id INTEGER REFERENCES entities(id) ON DELETE CASCADE,
+                    dst_kind TEXT NOT NULL,
+                    dst_label TEXT NOT NULL,
+                    dst_entity_id INTEGER REFERENCES entities(id) ON DELETE CASCADE,
+                    relation TEXT NOT NULL,
+                    chunk_id INTEGER REFERENCES chunks(id) ON DELETE CASCADE,
+                    doc_id TEXT REFERENCES documents(id) ON DELETE CASCADE,
+                    page_no INTEGER,
+                    sheet_no INTEGER,
+                    period_norm TEXT,
+                    conf REAL DEFAULT 1.0,
+                    UNIQUE (src_kind, src_label, dst_kind, dst_label, relation, chunk_id)
+                )"""))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_kg_edges_src ON kg_edges(src_kind, src_label)"))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_kg_edges_dst ON kg_edges(dst_kind, dst_label)"))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_kg_edges_doc ON kg_edges(doc_id)"))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_kg_edges_relation ON kg_edges(relation)"))

@@ -9,11 +9,27 @@ import { Magnetic } from '../components/motion/magnetic.jsx';
 
 const COLORS = {
   document: { fill: '#d97706', text: '#fff', r: 9 },
+  organization: { fill: '#7c3aed', text: '#fff', r: 8 },
+  mine: { fill: '#0369a1', text: '#fff', r: 7 },
+  location: { fill: '#0d9488', text: '#fff', r: 7 },
+  geology: { fill: '#a16207', text: '#fff', r: 6 },
+  metric: { fill: '#db2777', text: '#fff', r: 6 },
+  event: { fill: '#dc2626', text: '#fff', r: 7 },
   tag: { fill: '#059669', text: '#fff', r: 6 },
   entity: { fill: '#0369a1', text: '#fff', r: 7 },
 };
 
-function KnowledgeCanvas({ subsidiary, onPick }) {
+const KIND_FILTERS = [
+  ['', 'All kinds'],
+  ['organization', 'Organizations'],
+  ['mine', 'Mines'],
+  ['location', 'Locations'],
+  ['geology', 'Geology'],
+  ['metric', 'Metrics'],
+  ['event', 'Events'],
+];
+
+function KnowledgeCanvas({ subsidiary, kind, query, onPick, onMeta }) {
   const canvasRef = useRef(null);
   const sim = useRef({ nodes: [], edges: [] });
   const hovered = useRef(null);
@@ -41,16 +57,24 @@ function KnowledgeCanvas({ subsidiary, onPick }) {
 
     (async () => {
       try {
-        const data = await getJSON('/api/graph?subsidiary=' + encodeURIComponent(subsidiary || ''));
+        const params = new URLSearchParams();
+        if (subsidiary) params.set('subsidiary', subsidiary);
+        if (kind) params.set('kinds', kind);
+        if (query) params.set('q', query);
+        const data = await getJSON('/api/graph?' + params.toString());
         if (dead) return;
         const W = canvas.clientWidth || 800, H = canvas.clientHeight || 560;
         setEmpty(!data.nodes || data.nodes.length === 0);
+        if (onMeta) onMeta({ legend: data.legend || [], counts: data.counts || {} });
         sim.current.nodes = (data.nodes || []).map((n, i) => ({
           ...n,
           x: W / 2 + Math.cos(i * 2.4) * (60 + (i % 7) * 22),
           y: H / 2 + Math.sin(i * 2.4) * (60 + (i % 5) * 26),
           vx: 0, vy: 0,
-          r: n.type === 'document' ? 10 : n.type === 'entity' ? 7 : 5 + Math.min(6, n.count || 1),
+          r: n.type === 'document' ? 10
+            : n.type === 'organization' || n.type === 'mine' ? 8
+            : n.type === 'entity' || n.type === 'event' || n.type === 'location' ? 7
+            : 5 + Math.min(6, n.count || 1),
         }));
         const byId = new Map(sim.current.nodes.map((n) => [n.id, n]));
         const seen = new Set();
@@ -123,7 +147,7 @@ function KnowledgeCanvas({ subsidiary, onPick }) {
       }
       ctx.textAlign = 'center';
       for (const n of nodes) {
-        const c = COLORS[n.type];
+        const c = COLORS[n.type] || COLORS.entity;
         const hot = n === hovered.current || n === selected.current;
         ctx.beginPath();
         ctx.arc(n.x, n.y, n.r + (hot ? 2.5 : 0), 0, Math.PI * 2);
@@ -175,7 +199,7 @@ function KnowledgeCanvas({ subsidiary, onPick }) {
       window.removeEventListener('mouseup', onUp);
       canvas.removeEventListener('mousemove', onHover);
     };
-  }, [subsidiary]);
+  }, [subsidiary, kind, query]);
 
   return (
     <div className='relative'>
@@ -190,6 +214,17 @@ function KnowledgeCanvas({ subsidiary, onPick }) {
 }
 
 function NodePanel({ picked, onClose }) {
+  const [hood, setHood] = useState(null);
+  useEffect(() => {
+    if (!picked || picked.type === 'tag') { setHood(null); return undefined; }
+    let alive = true;
+    setHood(null);
+    getJSON('/api/graph/node?id=' + encodeURIComponent(picked.id))
+      .then((data) => { if (alive) setHood(data); })
+      .catch(() => { if (alive) setHood(null); });
+    return () => { alive = false; };
+  }, [picked]);
+
   return (
     <AnimatePresence>
       {picked && (
@@ -198,12 +233,15 @@ function NodePanel({ picked, onClose }) {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 60, opacity: 0 }}
           transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-          className='absolute inset-y-0 right-0 w-72 overflow-y-auto border-l border-seam bg-white/95 p-4 backdrop-blur'
+          className='absolute inset-y-0 right-0 w-80 overflow-y-auto border-l border-seam bg-white/95 p-4 backdrop-blur'
         >
           <div className='flex items-start justify-between gap-2'>
-            <h3 className='text-[13px] font-semibold leading-snug'>
-              {picked.type === 'tag' ? `#${picked.label}` : picked.label}
-            </h3>
+            <div>
+              <h3 className='text-[13px] font-semibold leading-snug'>
+                {picked.type === 'tag' ? `#${picked.label}` : picked.label}
+              </h3>
+              <p className='mt-0.5 font-mono text-[10px] uppercase tracking-widest text-stone-400'>{picked.type}</p>
+            </div>
             <button onClick={onClose} className='text-stone-400 hover:text-ink'>✕</button>
           </div>
           {picked.type === 'document' && (
@@ -221,7 +259,47 @@ function NodePanel({ picked, onClose }) {
               <Link to={`/search?tag=${encodeURIComponent(picked.label)}`} className='mt-4 block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search This Tag</Link>
             </>
           )}
-          {picked.type === 'entity' && <EntityContext name={picked.ref || picked.label} />}
+          {(picked.type === 'entity' || picked.type === 'organization') && (
+            <EntityContext name={picked.ref || picked.label} />
+          )}
+          {hood && hood.edges && hood.edges.length > 0 && (
+            <div className='mt-4'>
+              <h4 className='font-mono text-[10px] uppercase tracking-widest text-stone-400'>
+                Relationships ({hood.edges.length})
+              </h4>
+              <ul className='mt-2 space-y-2'>
+                {hood.edges.slice(0, 12).map((e, i) => {
+                  const otherId = e.source === picked.id ? e.target : e.source;
+                  const other = (hood.neighbours || []).find((n) => n.id === otherId);
+                  const ev = e.evidence || {};
+                  return (
+                    <li key={i} className='rounded-lg border border-seam bg-paper px-2.5 py-1.5'>
+                      <p className='font-mono text-[10px] text-coal'>{e.relation.replace(/_/g, ' ')}</p>
+                      <p className='text-[12.5px] font-semibold text-ink'>{other ? other.label : otherId}</p>
+                      {ev.filename && (
+                        <p className='mt-0.5 font-mono text-[10px] text-stone-400'>
+                          {ev.filename}{ev.page_no ? ` · p.${ev.page_no}` : ''}
+                        </p>
+                      )}
+                      {ev.snippet && (
+                        <p className='mt-1 text-[11.5px] leading-snug text-stone-500'>
+                          {ev.snippet.length > 140 ? ev.snippet.slice(0, 140) + '…' : ev.snippet}
+                        </p>
+                      )}
+                      {ev.doc_id && (
+                        <Link
+                          to={ev.page_no ? `/doc/${ev.doc_id}?page=${ev.page_no}` : `/doc/${ev.doc_id}`}
+                          className='mt-1 inline-block font-mono text-[10.5px] text-sky-700 hover:underline'
+                        >
+                          View Source
+                        </Link>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
@@ -309,32 +387,67 @@ export default function Graph() {
   const { data, error } = usePageData('/api/pages/graph');
   const [params, setParams] = useSearchParams();
   const [picked, setPicked] = useState(null);
+  const [meta, setMeta] = useState({ legend: [], counts: {} });
   const subsidiary = params.get('subsidiary') || '';
+  const kind = params.get('kind') || '';
+  const query = params.get('q') || '';
 
   if (error) return <ErrorBox message={error} />;
   if (!data) return <Loading />;
 
+  const set = (patch) => {
+    setPicked(null);
+    const next = {};
+    if ('subsidiary' in patch) { if (patch.subsidiary) next.subsidiary = patch.subsidiary; }
+    else if (subsidiary) next.subsidiary = subsidiary;
+    if ('kind' in patch) { if (patch.kind) next.kind = patch.kind; }
+    else if (kind) next.kind = kind;
+    if ('q' in patch) { if (patch.q) next.q = patch.q; }
+    else if (query) next.q = query;
+    setParams(next);
+  };
+
+  const legendDots = {
+    document: 'bg-coal', organization: 'bg-violet-700', mine: 'bg-sky-700',
+    location: 'bg-teal-600', geology: 'bg-yellow-700', metric: 'bg-pink-700',
+    event: 'bg-red-600', tag: 'bg-emerald-600',
+  };
+
   return (
     <div>
       <PageHeader
-        title='Knowledge Tree'
-        subtitle='Documents, their extracted tags and the entities they mention, laid out by force simulation. Click a node to inspect it.'>
-        <select value={subsidiary}
-                onChange={(e) => { setPicked(null); setParams(e.target.value ? { subsidiary: e.target.value } : {}); }}
-                className='rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none'>
-          <option value=''>All subsidiaries</option>
-          {data.subs.map((s) => <option key={s.subsidiary} value={s.subsidiary}>{s.subsidiary}</option>)}
-        </select>
+        title='Knowledge Graph'
+        subtitle='Organizations, mines, locations, geology, documents, metrics and events — every relationship keeps its source receipt. Click a node to inspect it.'>
+        <div className='flex flex-wrap gap-2'>
+          <select value={subsidiary}
+                  onChange={(e) => set({ subsidiary: e.target.value })}
+                  className='rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none'>
+            <option value=''>All subsidiaries</option>
+            {data.subs.map((s) => <option key={s.subsidiary} value={s.subsidiary}>{s.subsidiary}</option>)}
+          </select>
+          <select value={kind}
+                  onChange={(e) => set({ kind: e.target.value })}
+                  className='rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none'>
+            {KIND_FILTERS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+          </select>
+          <input value={query}
+                 onChange={(e) => set({ q: e.target.value })}
+                 placeholder='Filter nodes…'
+                 className='w-40 rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none' />
+        </div>
       </PageHeader>
 
       <Rise delay={0.05}>
         <div className='mt-6 grid gap-5 lg:grid-cols-[1fr_280px]'>
           <div className='relative overflow-hidden rounded-xl border border-seam bg-white shadow-card'>
-            <KnowledgeCanvas subsidiary={subsidiary} onPick={setPicked} />
+            <KnowledgeCanvas subsidiary={subsidiary} kind={kind} query={query} onPick={setPicked} onMeta={setMeta} />
             <div className='pointer-events-none absolute left-4 top-4 flex max-w-[70%] flex-wrap gap-3 font-mono text-[10px] uppercase tracking-wide text-stone-400'>
-              <span className='flex items-center gap-1.5'><i className='h-2.5 w-2.5 rounded-full bg-coal' />document</span>
-              <span className='flex items-center gap-1.5'><i className='h-2.5 w-2.5 rounded-full bg-emerald-600' />tag</span>
-              <span className='flex items-center gap-1.5'><i className='h-2.5 w-2.5 rounded-full bg-sky-700' />entity</span>
+              {(meta.legend.length > 0 ? meta.legend : [{ kind: 'document' }, { kind: 'tag' }, { kind: 'entity' }]).map((l) => (
+                <span key={l.kind} className='flex items-center gap-1.5'>
+                  <i className={`h-2.5 w-2.5 rounded-full ${legendDots[l.kind] || 'bg-stone-400'}`} />
+                  {l.kind}{meta.counts[l.kind] != null ? ` ${meta.counts[l.kind]}` : ''}
+                </span>
+              ))}
             </div>
             <NodePanel picked={picked} onClose={() => setPicked(null)} />
           </div>
@@ -356,8 +469,8 @@ export default function Graph() {
             </Tilt>
             <div className='rounded-xl border border-seam bg-white p-4 shadow-card'>
               <h2 className='text-[13px] font-semibold uppercase tracking-wide text-stone-500'>How To Read It</h2>
-              <p className='mt-2 text-[13px] leading-relaxed text-stone-600'>Amber nodes are documents. Green nodes are tags extracted at ingestion time. Blue nodes are entities resolved from the fact index. A document connects to every tag and entity it contains, so densely linked clusters usually mean one topic reported across many files.</p>
-              <p className='mt-2 text-[13px] text-stone-500'>Click a document node to open it, or a tag to run a search.</p>
+              <p className='mt-2 text-[13px] leading-relaxed text-stone-600'>Amber nodes are documents. Violet nodes are organizations, blue mines, teal locations, ochre geology, pink metrics and red events. Green nodes are tags extracted at ingestion time. Edges are typed relationships — operates, located in, has geology, reports metric, occurred at — each keeping its source receipt.</p>
+              <p className='mt-2 text-[13px] text-stone-500'>Click any node to see its relationships with evidence. Click a document node to open it, or a tag to run a search.</p>
             </div>
           </aside>
         </div>

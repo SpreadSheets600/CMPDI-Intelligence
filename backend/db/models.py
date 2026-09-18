@@ -291,6 +291,35 @@ class ConflictStatus(Base):
                                             server_default=sql_text("datetime('now')"))
 
 
+class KgEdge(Base):
+    """P1 knowledge-graph edge: a typed relationship between two nodes.
+
+    Nodes span organizations, mines, locations, geology, documents, metrics
+    and events. Every evidence-backed edge carries its chunk -> page ->
+    document provenance; derived edges (SUPERSEDES) carry doc ids only."""
+
+    __tablename__ = "kg_edges"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    src_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    src_label: Mapped[str] = mapped_column(Text, nullable=False)
+    src_entity_id: Mapped[int | None] = mapped_column(
+        ForeignKey("entities.id", ondelete="CASCADE"))
+    dst_kind: Mapped[str] = mapped_column(Text, nullable=False)
+    dst_label: Mapped[str] = mapped_column(Text, nullable=False)
+    dst_entity_id: Mapped[int | None] = mapped_column(
+        ForeignKey("entities.id", ondelete="CASCADE"))
+    relation: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chunks.id", ondelete="CASCADE"))
+    doc_id: Mapped[str | None] = mapped_column(
+        Text, ForeignKey("documents.id", ondelete="CASCADE"))
+    page_no: Mapped[int | None] = mapped_column()
+    sheet_no: Mapped[int | None] = mapped_column()
+    period_norm: Mapped[str | None] = mapped_column(Text)
+    conf: Mapped[float | None] = mapped_column(REAL, server_default=sql_text("1.0"))
+
+
 class AgentRun(Base):
     __tablename__ = "agent_runs"
 
@@ -308,9 +337,13 @@ Index("idx_cells_table", TableCell.table_id)
 Index("idx_chunks_doc", Chunk.doc_id)
 Index("idx_facts_key", Fact.entity_id, Fact.attribute, Fact.period_norm)
 Index("idx_doc_keywords_kw", DocKeyword.keyword)
+Index("idx_kg_edges_src", KgEdge.src_kind, KgEdge.src_label)
+Index("idx_kg_edges_dst", KgEdge.dst_kind, KgEdge.dst_label)
+Index("idx_kg_edges_doc", KgEdge.doc_id)
+Index("idx_kg_edges_relation", KgEdge.relation)
 
 __all__ = [
     "Base", "Document", "Page", "Element", "DocTable", "TableCell",
     "Chunk", "ChunkEmbedding", "Entity", "Fact", "Job", "Report",
-    "DocKeyword", "DocTopic", "ConflictStatus", "AgentRun",
+    "DocKeyword", "DocTopic", "ConflictStatus", "AgentRun", "KgEdge",
 ]
