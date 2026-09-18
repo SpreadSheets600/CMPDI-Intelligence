@@ -100,6 +100,19 @@ CREATE TABLE IF NOT EXISTS entities (
     aliases_json TEXT DEFAULT '[]'
 );
 
+CREATE TABLE IF NOT EXISTS entity_reference (
+    id INTEGER PRIMARY KEY,
+    entity_id INTEGER NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+    category TEXT NOT NULL,            -- profile | geography | production | statistic
+    label TEXT NOT NULL,
+    value TEXT NOT NULL,
+    unit TEXT,                         -- e.g. MT, MTPA, % (NULL for prose values)
+    as_of TEXT,                        -- when the public source reported it (NULL for stable facts)
+    source TEXT NOT NULL,              -- public source; reference context, never evidence
+    UNIQUE (entity_id, category, label)
+);
+CREATE INDEX IF NOT EXISTS idx_entity_reference_entity ON entity_reference(entity_id);
+
 CREATE TABLE IF NOT EXISTS facts (
     id INTEGER PRIMARY KEY,
     entity_id INTEGER REFERENCES entities(id),

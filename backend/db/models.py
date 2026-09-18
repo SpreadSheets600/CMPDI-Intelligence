@@ -173,6 +173,34 @@ class Entity(Base):
 
     facts: Mapped[list["Fact"]] = relationship(back_populates="entity")
 
+    reference: Mapped[list["EntityReference"]] = relationship(
+        back_populates="entity", cascade="all, delete-orphan")
+
+
+class EntityReference(Base):
+    """Curated public reference context for an organizational entity.
+
+    Reference rows are context, never evidence: they describe the entity
+    (headquarters, operating states, coalfields, dated public statistics)
+    and must never enter the fact index, conflicts, answers or reports.
+    Every row carries its public source and as-of date so staleness is
+    visible instead of silent."""
+
+    __tablename__ = "entity_reference"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    entity_id: Mapped[int] = mapped_column(ForeignKey("entities.id", ondelete="CASCADE"),
+                                           nullable=False)
+    category: Mapped[str] = mapped_column(Text, nullable=False)
+    # profile | geography | production | statistic
+    label: Mapped[str] = mapped_column(Text, nullable=False)
+    value: Mapped[str] = mapped_column(Text, nullable=False)
+    unit: Mapped[str | None] = mapped_column(Text)
+    as_of: Mapped[str | None] = mapped_column(Text)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+
+    entity: Mapped[Entity] = relationship(back_populates="reference")
+
 
 class Fact(Base):
     __tablename__ = "facts"
