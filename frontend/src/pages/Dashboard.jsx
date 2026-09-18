@@ -96,15 +96,30 @@ const emptyNote = (text) => (
 // dashboard itself.
 function Signals() {
   const [state, setState] = useState({ data: null, error: null });
+  const [subsidiary, setSubsidiary] = useState('');
+  const [subs, setSubs] = useState([]);
+  useEffect(() => {
+    getJSON('/api/pages/insights')
+      .then((d) => setSubs((d.subs || []).map((s) => s.subsidiary).filter(Boolean)))
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     let alive = true;
-    getJSON('/api/insights/dashboard')
+    setState((s) => ({ ...s, error: null }));
+    const qs = subsidiary ? `?subsidiary=${encodeURIComponent(subsidiary)}` : '';
+    getJSON(`/api/insights/dashboard${qs}`)
       .then((data) => alive && setState({ data, error: null }))
       .catch((e) => alive && setState({ data: null, error: e.message }));
     return () => { alive = false; };
-  }, []);
+  }, [subsidiary]);
   const { data, error } = state;
-  if (error) return null;
+  if (error) {
+    return (
+      <div className='rounded-xl border border-seam bg-white p-4 shadow-card'>
+        <p className='text-[12.5px] text-red-700'>Signals unavailable: {error}</p>
+      </div>
+    );
+  }
   if (!data) {
     return (
       <div className='rounded-xl border border-seam bg-white p-4 shadow-card'>
@@ -116,6 +131,7 @@ function Signals() {
   }
 
   const newestOf = (docs) => docs.filter((d) => d.is_current_version).slice(-1)[0] || docs.slice(-1)[0];
+  const scopeLabel = data.scope && data.scope !== 'corpus' ? data.scope : 'corpus-wide';
 
   return (
     <div>
@@ -123,9 +139,20 @@ function Signals() {
         <h2 className='text-[13px] font-semibold uppercase tracking-wider text-stone-400'>
           Organizational Signals
         </h2>
-        <span className='font-mono text-[10.5px] text-stone-400'>
-          {data.corpus.metrics} metrics · {data.corpus.fact_points} fact points · corpus-wide
-        </span>
+        <div className='flex flex-wrap items-center gap-2'>
+          <span className='font-mono text-[10.5px] text-stone-400'>
+            {data.corpus.metrics} metrics · {data.corpus.fact_points} fact points · {scopeLabel}
+          </span>
+          <select
+            value={subsidiary}
+            onChange={(e) => setSubsidiary(e.target.value)}
+            aria-label='Filter signals by subsidiary'
+            className='rounded-lg border border-seam bg-white px-2 py-1 font-mono text-[11px] text-stone-600 focus:border-coal focus:outline-none'
+          >
+            <option value=''>All subsidiaries</option>
+            {subs.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
       </div>
 
       <div className='grid grid-cols-1 gap-3 lg:grid-cols-2'>
@@ -135,7 +162,11 @@ function Signals() {
             : (
               <div className='space-y-1.5'>
                 {data.trends.slice(0, 5).map((t) => (
-                  <div key={`${t.entity}|${t.attribute}`} className='flex items-center justify-between gap-2 rounded-lg border border-seam bg-paper px-3 py-2'>
+                  <Link
+                    key={`${t.entity}|${t.attribute}`}
+                    to={`/insights?entity=${encodeURIComponent(t.entity)}&attribute=${encodeURIComponent(t.attribute)}`}
+                    className='flex items-center justify-between gap-2 rounded-lg border border-seam bg-paper px-3 py-2 transition-colors hover:border-coal/50'
+                  >
                     <div className='flex min-w-0 items-center gap-2'>
                       {t.direction === 'up'
                         ? <TrendingUp className='h-4 w-4 shrink-0 text-emerald-700' />
@@ -152,7 +183,7 @@ function Signals() {
                       </div>
                     </div>
                     {deltaChip(t.delta_pct)}
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -164,7 +195,11 @@ function Signals() {
             : (
               <div className='space-y-1.5'>
                 {data.anomalies.slice(0, 5).map((a, i) => (
-                  <div key={i} className='rounded-lg border border-seam bg-paper px-3 py-2'>
+                  <Link
+                    key={i}
+                    to={`/insights?entity=${encodeURIComponent(a.entity)}&attribute=${encodeURIComponent(a.attribute)}`}
+                    className='block rounded-lg border border-seam bg-paper px-3 py-2 transition-colors hover:border-coal/50'
+                  >
                     <p className='flex flex-wrap items-center gap-2 text-[12.5px] font-semibold text-ink'>
                       <span className={`rounded-full border px-2 py-0.5 font-mono text-[9.5px] uppercase ${a.severity === 'high' ? 'border-red-200 bg-red-50 text-red-700' : 'border-coalline bg-coalsoft text-coal'}`}>
                         {a.severity === 'high' ? 'high' : 'watch'}
@@ -172,7 +207,7 @@ function Signals() {
                       {a.title}
                     </p>
                     <p className='mt-0.5 text-[12px] text-stone-500'>{a.detail}</p>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}

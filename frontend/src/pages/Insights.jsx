@@ -95,8 +95,9 @@ function FactChart({ entity, attribute, series }) {
 
 export default function Insights() {
   const { data, error } = usePageData('/api/pages/insights');
-  const [entity, setEntity] = useState('');
-  const [attribute, setAttribute] = useState('');
+  const params = new URLSearchParams(window.location.search);
+  const [entity, setEntity] = useState(params.get('entity') || '');
+  const [attribute, setAttribute] = useState(params.get('attribute') || '');
   const [series, setSeries] = useState(null);
   const [summary, setSummary] = useState(null);
 
@@ -113,6 +114,11 @@ export default function Insights() {
       setSeries(res);
     } catch { setSeries({ entity: ent, attribute: attr, series: [] }); }
   };
+
+  // Deep-links from the Dashboard signals carry entity + attribute.
+  useEffect(() => {
+    if (entity && attribute && series === null && data) loadFacts(entity, attribute);
+  }, [data]);
 
   if (error) return <ErrorBox message={error} />;
   if (!data) return <Loading />;
