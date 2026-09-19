@@ -5,6 +5,7 @@ import { usePageData } from '../hooks/useData.js';
 import { postJSON } from '../api.js';
 import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button } from '../components/ui.jsx';
 import { AnimatedNumber } from '../components/motion/animated-number.jsx';
+import { Magnetic } from '../components/motion/magnetic.jsx';
 import { ScrollProgress } from '../components/motion/scroll-progress.jsx';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '../components/motion/dialog.jsx';
 
