@@ -28,4 +28,7 @@ def api_summary():
     counts = conflicts.status_counts()
     open_now = len(conflicts.detect(limit=500))
     counts["detected"] = open_now
+    counts["recent"] = [dict(r) for r in db.q(
+        "SELECT conflict_key AS key, status, decided_by, updated_ts"
+        " FROM conflict_status ORDER BY updated_ts DESC LIMIT 10")]
     return jsonify(counts)
