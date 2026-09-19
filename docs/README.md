@@ -8,7 +8,7 @@ owns it. Read top-down for a full tour, or jump to the layer you need.
 | Order | Guide | What you will learn | Key code |
 |---|---|---|---|
 | 1 | [ARCHITECTURE.md](ARCHITECTURE.md) | System overview, request path, storage layout | `backend/app/__init__.py`, `backend/api/__init__.py` |
-| 2 | [DATA_MODEL.md](DATA_MODEL.md) | SQLite schema, provenance chain, file store | `backend/db/models.py`, `backend/storage/__init__.py` |
+| 2 | [DATA-MODEL.md](DATA-MODEL.md) | SQLite schema, provenance chain, file store | `backend/db/models.py`, `backend/storage/__init__.py` |
 | 3 | [PIPELINE.md](PIPELINE.md) | Ingestion: classify → parse → OCR → chunk → embed → index → summarize | `backend/core/pipeline/` |
 | 4 | [RETRIEVAL.md](RETRIEVAL.md) | Hybrid search, grounded Q&A, abstention, org search | `backend/core/retrieval/` |
 | 5 | [KNOWLEDGE.md](KNOWLEDGE.md) | Facts, Conflict Radar, compare, graph, assets, topics, temporal | `backend/core/knowledge/`, `backend/core/conflicts.py` |
