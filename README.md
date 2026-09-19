@@ -1,12 +1,14 @@
 # CMPDI Intelligence
 
 Offline document intelligence for geological, mining, and production reporting
-(SIH26023). Upload PDFs, spreadsheets, Word files, and scans — ask questions,
+(SIH26023). Upload PDFs, spreadsheets, Word files, and scans - ask questions,
 compare sources, and generate reports where **every number carries a receipt**
 back to its document, page, table row, or spreadsheet cell.
 
 Runs on one machine. No cloud, no external API calls, no data leaving the
 premises. Works with no generative LLM installed (extractive mode).
+
+<img width="700" height="1900" alt="file-2eda44c6184514e789e948db69b6fa81" src="https://github.com/user-attachments/assets/40f845e6-b26b-472d-9130-97f791ba3e9b" />
 
 ## Capabilities
 
