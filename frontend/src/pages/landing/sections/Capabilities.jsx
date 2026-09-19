@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { InView } from '../../../components/motion/in-view.jsx';
 import { TextEffect } from '../../../components/motion/text-effect.jsx';
-import { Tilt } from '../../../components/motion/tilt.jsx';
 import { Spotlight } from '../../../components/motion/spotlight.jsx';
 import { motion } from 'motion/react';
 
@@ -111,37 +110,35 @@ export function Capabilities() {
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             className='md:col-span-4 md:row-span-2'
           >
-            <Tilt rotationFactor={3} className='h-full'>
-              <div className='group h-full rounded-2xl border border-seam bg-white p-7 transition-all duration-300 hover:shadow-lift'>
-                <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-coal text-white transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105'>
-                  <MessageCircle className='h-5 w-5' />
-                </div>
-                <h3 className='mt-5 text-xl font-semibold tracking-tight'>
-                  Ask, with grounded answers
-                </h3>
-                <p className='mt-3 max-w-[52ch] text-[14px] leading-relaxed text-stone-500'>
-                  One chat over the whole library. Numbers resolve against a fact index
-                  for exact values; when a question needs analysis, a tool-calling agent
-                  runs sandboxed Python over the real data — comparisons, shares and
-                  trends are computed, never guessed. Every claim carries its citation,
-                  and when evidence is weak the system abstains instead of inventing.
-                </p>
-                <div className='mt-6 flex flex-wrap gap-2'>
-                  {[
-                    '"raw coal production of CIL in 2023-24?"',
-                    '"compare offtake across subsidiaries"',
-                    '"chart the GCV trend since 2019"',
-                  ].map((t) => (
-                    <span
-                      key={t}
-                      className='rounded-full border border-coalline bg-coalsoft px-3 py-1.5 font-mono text-[10.5px] text-coal'
-                    >
-                      {t}
-                    </span>
-                  ))}
-                </div>
+            <div className='group h-full rounded-2xl border border-seam bg-white p-7 transition-all duration-300 hover:shadow-lift'>
+              <div className='flex h-11 w-11 items-center justify-center rounded-xl bg-coal text-white transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105'>
+                <MessageCircle className='h-5 w-5' />
               </div>
-            </Tilt>
+              <h3 className='mt-5 text-xl font-semibold tracking-tight'>
+                Ask, with grounded answers
+              </h3>
+              <p className='mt-3 max-w-[52ch] text-[14px] leading-relaxed text-stone-500'>
+                One chat over the whole library. Numbers resolve against a fact index
+                for exact values; when a question needs analysis, a tool-calling agent
+                runs sandboxed Python over the real data — comparisons, shares and
+                trends are computed, never guessed. Every claim carries its citation,
+                and when evidence is weak the system abstains instead of inventing.
+              </p>
+              <div className='mt-6 flex flex-wrap gap-2'>
+                {[
+                  '"raw coal production of CIL in 2023-24?"',
+                  '"compare offtake across subsidiaries"',
+                  '"chart the GCV trend since 2019"',
+                ].map((t) => (
+                  <span
+                    key={t}
+                    className='rounded-full border border-coalline bg-coalsoft px-3 py-1.5 font-mono text-[10.5px] text-coal'
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
           </motion.div>
 
           {/* ── Small feature cells ── */}
@@ -152,23 +149,21 @@ export function Capabilities() {
               transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
               className={col}
             >
-              <Tilt rotationFactor={5} className='h-full'>
-                <Spotlight
-                  className={`group h-full rounded-2xl border p-5 transition-all duration-300 hover:shadow-lift ${cardCls}`}
+              <Spotlight
+                className={`group h-full rounded-2xl border p-5 transition-all duration-300 hover:shadow-lift ${cardCls}`}
+              >
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105 ${iconCls}`}
                 >
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105 ${iconCls}`}
-                  >
-                    <Icon className='h-[18px] w-[18px]' />
-                  </div>
-                  <h3 className={`mt-4 text-[15px] font-semibold tracking-tight ${titleCls ?? ''}`}>
-                    {title}
-                  </h3>
-                  <p className={`mt-1.5 text-[13px] leading-relaxed ${textCls ?? 'text-stone-500'}`}>
-                    {text}
-                  </p>
-                </Spotlight>
-              </Tilt>
+                  <Icon className='h-[18px] w-[18px]' />
+                </div>
+                <h3 className={`mt-4 text-[15px] font-semibold tracking-tight ${titleCls ?? ''}`}>
+                  {title}
+                </h3>
+                <p className={`mt-1.5 text-[13px] leading-relaxed ${textCls ?? 'text-stone-500'}`}>
+                  {text}
+                </p>
+              </Spotlight>
             </motion.div>
           ))}
 
@@ -178,34 +173,32 @@ export function Capabilities() {
             transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
             className='md:col-span-6'
           >
-            <Tilt rotationFactor={2} className='h-full'>
-              <div className='h-full rounded-2xl border border-coalline bg-coalsoft p-6 transition-all duration-300 hover:shadow-lift'>
-                <div className='flex flex-wrap items-start gap-x-12 gap-y-5'>
-                  <div className='max-w-[54ch]'>
-                    <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-coal text-white'>
-                      <ScanText className='h-[18px] w-[18px]' />
-                    </div>
-                    <h3 className='mt-4 text-[15px] font-semibold tracking-tight'>
-                      Built for real paperwork, not demo data
-                    </h3>
-                    <p className='mt-1.5 text-[13.5px] leading-relaxed text-stone-600'>
-                      Indian number formats, lakh/crore and MT units, fiscal years starting
-                      April, OCR with confidence quarantine, automatic version chains for
-                      revised reports, SHA-256 duplicate rejection — tested against live
-                      reports from coal.gov.in.
-                    </p>
+            <div className='h-full rounded-2xl border border-coalline bg-coalsoft p-6 transition-all duration-300 hover:shadow-lift'>
+              <div className='flex flex-wrap items-start gap-x-12 gap-y-5'>
+                <div className='max-w-[54ch]'>
+                  <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-coal text-white'>
+                    <ScanText className='h-[18px] w-[18px]' />
                   </div>
-                  <div className='grid flex-1 grid-cols-2 gap-x-6 gap-y-2 self-center font-mono text-[11.5px] text-stone-600'>
-                    {CHECK_ITEMS.map((line) => (
-                      <span key={line} className='flex items-center gap-2'>
-                        <Check className='h-3.5 w-3.5 shrink-0 text-coal' />
-                        {line}
-                      </span>
-                    ))}
-                  </div>
+                  <h3 className='mt-4 text-[15px] font-semibold tracking-tight'>
+                    Built for real paperwork, not demo data
+                  </h3>
+                  <p className='mt-1.5 text-[13.5px] leading-relaxed text-stone-600'>
+                    Indian number formats, lakh/crore and MT units, fiscal years starting
+                    April, OCR with confidence quarantine, automatic version chains for
+                    revised reports, SHA-256 duplicate rejection — tested against live
+                    reports from coal.gov.in.
+                  </p>
+                </div>
+                <div className='grid flex-1 grid-cols-2 gap-x-6 gap-y-2 self-center font-mono text-[11.5px] text-stone-600'>
+                  {CHECK_ITEMS.map((line) => (
+                    <span key={line} className='flex items-center gap-2'>
+                      <Check className='h-3.5 w-3.5 shrink-0 text-coal' />
+                      {line}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </Tilt>
+            </div>
           </motion.div>
         </motion.div>
 

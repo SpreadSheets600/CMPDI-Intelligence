@@ -33,6 +33,7 @@ const GROUPS = [
       ['/assets', 'Assets', Pickaxe],
       ['/insights', 'Insights', ChartColumn],
       ['/temporal', 'Temporal', History],
+      ['/topics', 'Topics', Shapes],
       ['/conflicts', 'Conflicts', TriangleAlert],
       ['/compare', 'Compare', GitCompareArrows],
       ['/topics', 'Topics', Shapes],
@@ -56,7 +57,7 @@ function SidebarNav({ collapsed, onNavigate }) {
               <div className='my-2.5 mx-auto w-6 border-t border-sideline/70' />
             ) : null
           ) : (
-            <p className='sb-label mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidemute/70'>
+            <p className='sb-label mb-1.5 px-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-sidemute/80'>
               {name}
             </p>
           )}
@@ -74,12 +75,12 @@ function SidebarNav({ collapsed, onNavigate }) {
                     collapsed
                       ? `h-10 w-10 mx-auto justify-center rounded-xl ${
                           isActive
-                            ? 'bg-coal/20 text-coal ring-1 ring-coal/30'
+                            ? 'bg-coal/20 text-coal ring-1 ring-coal/30 shadow-sm'
                             : 'text-sidemute hover:bg-white/[0.06] hover:text-sidetext'
                         }`
                       : `gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] ${
                           isActive
-                            ? 'bg-coal/15 text-coal font-semibold ring-1 ring-coal/20'
+                            ? 'bg-coal/15 text-coal font-semibold ring-1 ring-coal/25 shadow-sm'
                             : 'text-sidemute hover:bg-white/[0.05] hover:text-sidetext font-medium'
                         }`
                   }`}
@@ -156,12 +157,12 @@ function Sidebar({ collapsed, toggleCollapse, mobileOpen, closeMobile }) {
             collapsed
               ? `h-10 w-10 mx-auto justify-center rounded-xl ${
                   isSettingsActive
-                    ? 'bg-coal/20 text-coal ring-1 ring-coal/30'
+                    ? 'bg-coal/20 text-coal ring-1 ring-coal/30 shadow-sm'
                     : 'text-sidemute hover:bg-white/[0.06] hover:text-sidetext'
                 }`
               : `gap-3 rounded-xl px-3.5 py-2.5 text-[13.5px] ${
                   isSettingsActive
-                    ? 'bg-coal/15 text-coal font-semibold ring-1 ring-coal/20'
+                    ? 'bg-coal/15 text-coal font-semibold ring-1 ring-coal/25 shadow-sm'
                     : 'text-sidemute hover:bg-white/[0.05] hover:text-sidetext font-medium'
                 }`
           }`}
@@ -256,16 +257,6 @@ export default function AppShell({ children }) {
         closeMobile={() => setMobileOpen(false)}
       />
 
-      {/* Mobile menu button */}
-      <button
-        onClick={() => setMobileOpen(true)}
-        className='fixed left-3 top-3 z-40 rounded-lg bg-side p-2 text-sidetext shadow-lift md:hidden'
-        title='Menu'
-        aria-label='Open navigation menu'
-      >
-        <Menu className='h-5 w-5' strokeWidth={1.75} />
-      </button>
-
       {/* Mobile overlay */}
       <AnimatePresence>
         {mobileOpen && (
@@ -280,17 +271,38 @@ export default function AppShell({ children }) {
         )}
       </AnimatePresence>
 
-      {/* Main content */}
+      {/* Main content area */}
       <div
         style={{ marginLeft: 'var(--sidebar-w, 240px)' }}
         className='flex min-h-dvh flex-col transition-[margin] duration-300 ease-out max-md:ml-0'
       >
-        <main className='flex-1 overflow-x-clip px-5 pb-12 pt-8 md:px-8'>
+        {/* Mobile top navigation bar */}
+        <header className='sticky top-0 z-20 flex h-14 items-center justify-between border-b border-seam bg-white/95 px-4 backdrop-blur md:hidden'>
+          <button
+            onClick={() => setMobileOpen(true)}
+            className='flex h-9 w-9 items-center justify-center rounded-lg border border-seam bg-paper text-ink transition-colors hover:border-coal hover:text-coal'
+            title='Open navigation menu'
+            aria-label='Open navigation menu'
+          >
+            <Menu className='h-5 w-5' strokeWidth={1.75} />
+          </button>
+          <Link to='/dashboard' className='flex items-center gap-2'>
+            <span className='flex h-7 w-7 items-center justify-center rounded bg-coal font-mono text-xs font-bold text-white shadow-sm'>
+              C
+            </span>
+            <span className='text-[14px] font-bold text-ink'>
+              CMPDI <span className='font-normal text-stone-500'>Intelligence</span>
+            </span>
+          </Link>
+          <div className='w-9' />
+        </header>
+
+        <main className='flex-1 overflow-x-clip px-4 pb-12 pt-6 sm:px-6 md:px-8 md:pt-8'>
           <div className='mx-auto max-w-6xl'>{children}</div>
         </main>
 
-        <footer className='border-t border-seam'>
-          <div className='mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4 text-[11.5px] text-stone-500 md:px-8'>
+        <footer className='border-t border-seam bg-white/50'>
+          <div className='mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-4 text-[11.5px] text-stone-500 sm:px-6 md:px-8'>
             <div className='flex items-center gap-2'>
               <span className='flex h-5 w-5 items-center justify-center rounded bg-ink font-mono text-[9.5px] font-bold text-amber-400'>
                 C
@@ -308,9 +320,9 @@ export default function AppShell({ children }) {
                 ['/reports', 'Reports'],
                 ['/settings', 'Settings'],
               ].map(([to, label]) => (
-                <a key={to} href={to} className='transition-colors hover:text-coal'>
+                <Link key={to} to={to} className='transition-colors hover:text-coal'>
                   {label}
-                </a>
+                </Link>
               ))}
             </nav>
             <span className='font-mono text-[9.5px] uppercase tracking-widest text-stone-400'>
