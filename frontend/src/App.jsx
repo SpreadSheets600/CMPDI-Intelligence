@@ -16,7 +16,6 @@ import Temporal from './pages/Temporal.jsx';
 import Topics from './pages/Topics.jsx';
 import Conflicts from './pages/Conflicts.jsx';
 import Compare from './pages/Compare.jsx';
-import Topics from './pages/Topics.jsx';
 
 import Reports from './pages/Reports.jsx';
 import Review from './pages/Review.jsx';
@@ -82,11 +81,18 @@ function AnimatedOutlet() {
   );
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   const location = useLocation();
   // the landing page has its own chrome (fixed nav, no sidebar)
   if (location.pathname === '/') return <Landing />;
-
   return (
     <AppShell>
       <ScrollToTop />

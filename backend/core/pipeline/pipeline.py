@@ -3,6 +3,7 @@ index -> facts. A single worker thread consumes the jobs table so
 the UI stays responsive during ingestion. Document id = content SHA-256."""
 
 import json
+import re
 import shutil
 import logging
 import threading
@@ -390,10 +391,22 @@ def _elect_current(group: str):
                    (1 if i == len(ordered) - 1 else 0, m["id"]))
 
 
+def _version_stem(filename: str | None) -> str:
+    """Filename without extension and revision suffixes. Version groups only
+    ever join same-named documents (annual_report + annual_report_revised);
+    without this gate, same-format documents (CSVs, workbooks, memos) merge
+    on embedding similarity and all but one go superseded."""
+    stem = Path(filename or "").stem.lower()
+    stem = re.sub(r"(_copy|_revised|_v\d+|\(\d+\)|\s+final|\s+draft)$", "", stem)
+    return stem.strip(" _-")
+
+
 def _assign_version_group(doc_id: str):
     """Near-duplicate detection via document-mean embedding cosine. Documents
     over 0.95 similarity form a version group; the one with the latest
     doc_date_norm (fallback: latest upload) is the current version."""
+    mine_name = db.q1("SELECT filename FROM documents WHERE id=?", (doc_id,))
+    mine_stem = _version_stem(mine_name["filename"] if mine_name else "")
     # cheap exact pre-filter: identical content fingerprints join immediately
     # without waiting on embedding comparison
     mine_fp = None
@@ -404,14 +417,14 @@ def _assign_version_group(doc_id: str):
         except Exception:
             mine_fp = None
     if mine_fp:
-        for r in db.q("SELECT id, version_group_id, structure_json FROM documents"
+        for r in db.q("SELECT id, filename, version_group_id, structure_json FROM documents"
                       " WHERE id != ? AND status='completed'", (doc_id,)):
             try:
                 fp = (json.loads(r["structure_json"] or "{}").get("fingerprint")
                       if r["structure_json"] else None)
             except Exception:
                 fp = None
-            if fp and fp == mine_fp:
+            if fp and fp == mine_fp and _version_stem(r["filename"]) == mine_stem:
                 group = r["version_group_id"] or str(uuid.uuid4())
                 if not r["version_group_id"]:
                     db.execute("UPDATE documents SET version_group_id=? WHERE id=?",
@@ -440,13 +453,18 @@ def _assign_version_group(doc_id: str):
         if other == doc_id:
             continue
         if float(np.dot(mine, norm(vec))) > 0.95:
-            row = db.q1("SELECT version_group_id FROM documents WHERE id=?", (other,))
-            if row and row["version_group_id"]:
+            row = db.q1("SELECT filename, version_group_id FROM documents WHERE id=?", (other,))
+            if (row and row["version_group_id"]
+                    and _version_stem(row["filename"]) == mine_stem):
                 group = row["version_group_id"]
                 break
     if group is None:
         for other, vec in means.items():
-            if other != doc_id and float(np.dot(mine, norm(vec))) > 0.95:
+            if other == doc_id:
+                continue
+            row = db.q1("SELECT filename FROM documents WHERE id=?", (other,))
+            if (float(np.dot(mine, norm(vec))) > 0.95
+                    and row and _version_stem(row["filename"]) == mine_stem):
                 group = str(uuid.uuid4())
                 db.execute("UPDATE documents SET version_group_id=? WHERE id=?", (group, other))
                 break

@@ -152,7 +152,7 @@ export default function Reports() {
                       <p className='mt-1 break-all font-mono text-xs text-ink'>{r.params_json}</p>
                       <div className='mt-5 flex flex-wrap gap-2'>
                         <Button
-                          to={`/reports/${r.id}/review`}
+                          to={`/reports/${r.id}`}
                           variant='primary'
                           size='sm'
                         >
@@ -181,7 +181,7 @@ export default function Reports() {
               <p className='mt-2 line-clamp-1 font-mono text-xs text-muted1'>{r.params_json}</p>
               <div className='mt-auto flex flex-wrap items-center gap-2 pt-3'>
                 <Button
-                  to={`/reports/${r.id}/review`}
+                  to={`/reports/${r.id}`}
                   variant='secondary'
                   size='sm'
                 >

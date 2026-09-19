@@ -116,6 +116,13 @@ def load_demo():
         corpus = DATA_DIR / "demo_corpus"
         if corpus.exists():
             for f in sorted(corpus.iterdir()):
+                if not f.is_file():
+                    continue
+                # Regenerated corpus files carry fresh PDF timestamps, so
+                # SHA-256 dedupe cannot catch them: skip by filename when a
+                # document with the same name is already in the library.
+                if db.q1("SELECT id FROM documents WHERE filename=?", (f.name,)):
+                    continue
                 try:
                     pipeline.ingest_file(f)
                 except Exception as e:
@@ -140,11 +147,12 @@ def load_demo():
 
 @bp.post("/topics/refresh")
 def topics_refresh():
-    scope = (request.get_json(silent=True) or {}).get("scope") or None
-    db.execute("DELETE FROM doc_topics WHERE scope IS ?", (scope,))
-    topics.cluster_corpus(scope)
-    topics.wordcloud_png(scope)
-    return jsonify({"ok": True, "scope": scope or "corpus"})
+    # doc_topics.scope is NOT NULL: corpus-wide rows use the "corpus" string.
+    scope = (request.get_json(silent=True) or {}).get("scope") or "corpus"
+    db.execute("DELETE FROM doc_topics WHERE scope = ?", (scope,))
+    topics.cluster_corpus(None if scope == "corpus" else scope)
+    topics.wordcloud_png(None if scope == "corpus" else scope)
+    return jsonify({"ok": True, "scope": scope})
 
 
 # ---------- reports ----------
@@ -190,6 +198,28 @@ def reports_review(rid):
     )
     events.record(f"report_{status}", rid, {"by": operator})
     return jsonify({"ok": True})
+
+
+@bp.post("/reports/<int:rid>/revise")
+def reports_revise(rid):
+    """Officer instruction -> agent revision -> updated report file. Runs the
+    analytical agent synchronously (like /api/agent); the Review screen shows
+    a working state while the tool loop executes."""
+    from backend.core.reporting import revise as revise_mod
+
+    instruction = ((request.get_json(silent=True) or {}).get("instruction") or "").strip()
+    if not instruction:
+        return jsonify({"error": "instruction is required"}), 400
+    try:
+        out = revise_mod.revise_report(rid, instruction)
+    except KeyError:
+        return jsonify({"error": "report not found"}), 404
+    except revise_mod.NoBackendError as e:
+        return jsonify({"error": str(e)}), 503
+    except revise_mod.RevisionError as e:
+        return jsonify({"error": str(e)}), 400
+    events.record("report_revised", rid, {"instruction": instruction[:200]})
+    return jsonify({"ok": True, **out})
 
 
 @bp.post("/reports/parliamentary")

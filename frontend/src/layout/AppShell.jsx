@@ -36,7 +36,6 @@ const GROUPS = [
       ['/topics', 'Topics', Shapes],
       ['/conflicts', 'Conflicts', TriangleAlert],
       ['/compare', 'Compare', GitCompareArrows],
-      ['/topics', 'Topics', Shapes],
     ],
   },
 ];
@@ -142,7 +141,7 @@ function Sidebar({ collapsed, toggleCollapse, mobileOpen, closeMobile }) {
       </div>
 
       {/* Nav */}
-      <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-4 ${collapsed ? 'px-2' : 'px-3'}`}>
+      <nav className={`no-scrollbar flex-1 overflow-y-auto overflow-x-hidden py-4 ${collapsed ? 'px-2' : 'px-3'}`}>
         <SidebarNav collapsed={collapsed} onNavigate={closeMobile} />
       </nav>
 

@@ -260,18 +260,48 @@ def insights():
 
 @bp.get("/topics")
 def topics():
+    from backend.core.knowledge.topics import hashlib_slug
+
     scope = request.args.get("scope", "corpus")
-    scope_filter = None if scope == "corpus" else scope
+    # doc_topics.scope is NOT NULL: corpus-wide rows use the "corpus" string.
+    scope_filter = scope if scope else "corpus"
+    sub_filter = None
+    if scope_filter and scope_filter.startswith("subsidiary:"):
+        sub_filter = scope_filter.split(":", 1)[1]
     clusters = []
     for t in db.q("SELECT * FROM doc_topics WHERE scope IS ? ORDER BY id DESC LIMIT 6",
                   (scope_filter,)):
         t = dict(t)
         t["keywords"] = json.loads(t["keywords_json"])
-        t["doc_ids"] = json.loads(t["doc_ids_json"])
+        doc_ids = json.loads(t["doc_ids_json"])
+        t["doc_ids"] = doc_ids
+        members = []
+        for did in doc_ids:
+            d = db.q1("SELECT id, filename, display_name FROM documents WHERE id=?", (did,))
+            if d:
+                members.append({"id": d["id"],
+                                "filename": d["display_name"] or d["filename"]})
+        t["docs"] = members
         clusters.append(t)
+    kw_where, kw_params = ["d.is_current_version=1"], []
+    if sub_filter:
+        kw_where.append("d.subsidiary=?")
+        kw_params.append(sub_filter)
+    top_keywords = _rows(db.q(
+        f"""SELECT k.keyword, COUNT(DISTINCT k.doc_id) AS n_docs
+            FROM doc_keywords k JOIN documents d ON d.id = k.doc_id
+            WHERE {' AND '.join(kw_where)}
+            GROUP BY k.keyword ORDER BY n_docs DESC, k.keyword LIMIT 30""",
+        kw_params))
+    n_docs = db.q1(
+        f"SELECT COUNT(*) c FROM documents d WHERE {' AND '.join(kw_where)}",
+        kw_params)["c"]
     return jsonify({
         "scope": scope,
         "clusters": clusters,
+        "top_keywords": top_keywords,
+        "n_docs": n_docs,
+        "cloud_ready": (config.CLOUDS_DIR / f"cloud_{hashlib_slug(scope_filter)}.png").exists(),
         "subs": _rows(db.q("SELECT DISTINCT subsidiary FROM documents WHERE subsidiary IS NOT NULL")),
     })
 
