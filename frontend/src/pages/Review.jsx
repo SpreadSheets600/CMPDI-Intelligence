@@ -90,6 +90,12 @@ export default function Review() {
           <strong>Returned for revision:</strong> {report.review_note}
         </div>
       )}
+      {(report.reviewed_by || report.review_rounds > 0) && (
+        <p className='mt-3 text-[12.5px] text-stone-500'>
+          Decided by {report.reviewed_by || 'an officer'}
+          {report.review_rounds > 0 && ` · returned ${report.review_rounds} time${report.review_rounds === 1 ? '' : 's'}`}
+        </p>
+      )}
 
       <Rise delay={0.12}>
         <div className='mt-6 overflow-hidden rounded-xl border border-seam bg-white shadow-card'>
@@ -154,6 +160,10 @@ export default function Review() {
           <a href={`/reports/${report.id}/download`}
              className='flex items-center gap-2 rounded-lg border border-seam px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-coal hover:text-coal'>
             <Download className='h-4 w-4' /> DOCX
+          </a>
+          <a href={`/reports/${report.id}/audit`}
+             className='flex items-center gap-2 rounded-lg border border-seam px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-coal hover:text-coal'>
+            <Download className='h-4 w-4' /> Audit JSON
           </a>
         </div>
       </Rise>

@@ -173,6 +173,10 @@ All configuration is environment-driven with working defaults.
 | `CMPDI_OPENAI_API_KEY` | _(empty)_ | API key, environment only — never persisted or logged |
 | `CMPDI_EMBEDDING_MODEL` | `google/embeddinggemma-300m` | Embedding model, with automatic fallbacks |
 | `CMPDI_OCR_MIN_CONF` | `85` | OCR confidence below which digits are quarantined |
+| `CMPDI_OCR_LANGS` | `eng` | Tesseract languages (`eng,hin` needs traineddata) |
+| `CMPDI_OPERATOR` | _(empty)_ | Officer name stamped on approvals and conflict decisions |
+| `CMPDI_API_TOKEN` | _(empty)_ | Shared token (header `X-API-Token`) gating mutating `/api` calls |
+| `CMPDI_MANUAL_BASELINE_MINUTES` | `138` | Stated manual-report baseline for the time-saved KPI (override in Settings once measured) |
 | `CMPDI_DATA_DIR` | `./data` | SQLite database and file store location |
 
 ## How It Fits Together
@@ -261,7 +265,8 @@ spreadsheet arithmetic.
 
 ## Known Limitations
 
-- Single-user; no authentication.
+- Single-user; no logins (decisions are attributed via operator name, and
+  mutating API calls can be gated with `CMPDI_API_TOKEN`).
 - Heavily degraded scans reduce fact extraction quality; low-confidence
   digits are flagged rather than trusted.
 - Table detection targets ruled tables, which official reports use;
