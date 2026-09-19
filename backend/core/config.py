@@ -80,6 +80,14 @@ OPENAI_MODEL = os.environ.get("CMPDI_OPENAI_MODEL", "")
 OPENAI_API_KEY = os.environ.get("CMPDI_OPENAI_API_KEY", "")
 OPENAI_TIMEOUT = float(os.environ.get("CMPDI_OPENAI_TIMEOUT", "60"))
 
+# Operator identity recorded on review/conflict decisions (single-user box:
+# who clicked approve). Empty means unattributed.
+OPERATOR = os.environ.get("CMPDI_OPERATOR", "")
+
+# Optional shared token for mutating API calls. Empty (default) disables the
+# gate; when set, non-GET /api/* requests need header X-API-Token.
+API_TOKEN = os.environ.get("CMPDI_API_TOKEN", "")
+
 # OCR
 OCR_MIN_CONF = float(os.environ.get("CMPDI_OCR_MIN_CONF", "85"))
 OCR_DPI = int(os.environ.get("CMPDI_OCR_DPI", "300"))

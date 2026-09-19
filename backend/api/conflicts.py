@@ -18,7 +18,7 @@ def api_conflicts():
 def api_status():
     data = request.get_json(force=True)
     ok = conflicts.set_status(data.get("key", ""), data.get("status", ""),
-                              data.get("note"))
+                              data.get("note"), data.get("operator") or None)
     return jsonify({"ok": ok}), (200 if ok else 400)
 
 

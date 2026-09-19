@@ -174,12 +174,16 @@ def reports_review(rid):
     data = request.get_json(silent=True) or {}
     status = data.get("status")
     note = (data.get("note") or "").strip() or None
+    operator = (data.get("operator") or "").strip() or None
     if status not in ("approved", "returned"):
         return jsonify({"error": "status must be approved or returned"}), 400
     db.execute(
-        "UPDATE reports SET review_status=?, review_note=?, human_approved=?"
+        "UPDATE reports SET review_status=?, review_note=?, human_approved=?,"
+        " reviewed_by=COALESCE(?, reviewed_by),"
+        " review_rounds=review_rounds+?"
         " WHERE id=?",
-        (status, note, 1 if status == "approved" else 0, rid),
+        (status, note, 1 if status == "approved" else 0, operator,
+         1 if status == "returned" else 0, rid),
     )
     return jsonify({"ok": True})
 

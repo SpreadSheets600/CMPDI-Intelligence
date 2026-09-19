@@ -252,6 +252,9 @@ class Report(Base):
     review_status: Mapped[str] = mapped_column(Text, nullable=False,
                                                server_default=sql_text("'pending'"))
     review_note: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[str | None] = mapped_column(Text)
+    review_rounds: Mapped[int] = mapped_column(nullable=False,
+                                              server_default=sql_text("0"))
     created_ts: Mapped[str] = mapped_column(Text, nullable=False,
                                             server_default=sql_text("datetime('now')"))
 
@@ -287,6 +290,7 @@ class ConflictStatus(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False,
                                         server_default=sql_text("'open'"))
     note: Mapped[str | None] = mapped_column(Text)
+    decided_by: Mapped[str | None] = mapped_column(Text)
     updated_ts: Mapped[str] = mapped_column(Text, nullable=False,
                                             server_default=sql_text("datetime('now')"))
 

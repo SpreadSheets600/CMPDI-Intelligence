@@ -13,6 +13,7 @@ export default function Review() {
   const { rid } = useParams();
   const { data, error } = usePageData(`/api/pages/review/${rid}`);
   const [note, setNote] = useState('');
+  const [operator, setOperator] = useState(() => localStorage.getItem('cmpdi-operator') || '');
   const [busy, setBusy] = useState(false);
 
   if (error) return <ErrorBox message={error} />;
@@ -24,7 +25,8 @@ export default function Review() {
   const act = async (status) => {
     setBusy(true);
     try {
-      await postJSON(`/api/reports/${report.id}/review`, { status, note });
+      localStorage.setItem('cmpdi-operator', operator);
+      await postJSON(`/api/reports/${report.id}/review`, { status, note, operator });
       window.location.reload();
     } catch { setBusy(false); }
   };
@@ -117,6 +119,8 @@ export default function Review() {
 
       <Rise delay={0.16}>
         <div className='mt-6 flex flex-wrap items-center gap-3'>
+          <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder='Reviewing officer…'
+                 className='rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm shadow-card focus:border-coal focus:outline-none' />
           <Magnetic intensity={0.25} range={90}>
             <button onClick={() => act('approved')} disabled={busy}
                     className='flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50'>
