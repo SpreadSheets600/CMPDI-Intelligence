@@ -67,6 +67,12 @@ export default function Documents() {
   const toggle = (id) =>
     setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
+  const clearFilters = () => {
+    setFilters({ q: '', type: '', subsidiary: '' });
+    navigate('/documents');
+  };
+  const hasFilters = !!(filters.q || filters.type || filters.subsidiary || tag);
+
   const inputCls = 'rounded-lg border border-seam bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none';
 
   return (
@@ -98,10 +104,13 @@ export default function Documents() {
             ))}
           </select>
           {(filters.q || filters.type || filters.subsidiary || tag) && (
-            <Link to='/documents'
-                  className='flex items-center gap-1.5 rounded-lg border border-seam px-3 py-2 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-red-300 hover:text-red-700'>
+            <button
+              type='button'
+              onClick={clearFilters}
+              className='flex items-center gap-1.5 rounded-lg border border-seam px-3 py-2 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-red-300 hover:text-red-700'
+            >
               <X className='h-3.5 w-3.5' /> Clear
-            </Link>
+            </button>
           )}
         </div>
       </Rise>
@@ -132,16 +141,29 @@ export default function Documents() {
       {docs.length === 0 ? (
         <Rise delay={0.1}>
           <div className='mt-8'>
-            <EmptyState
-              icon={FolderOpen}
-              title='No documents match'
-              description='Adjust the filters, or ingest new files from the pipeline. Ingested documents appear here within seconds.'
-              action={
-                <Button to='/pipeline' icon={Upload}>
-                  Go to Pipeline
-                </Button>
-              }
-            />
+            {hasFilters ? (
+              <EmptyState
+                icon={Search}
+                title='No documents match these filters'
+                description='Try a shorter search term, another type or subsidiary — or clear the filters to browse the whole library.'
+                action={
+                  <Button variant='secondary' onClick={clearFilters} icon={X}>
+                    Clear filters
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={FolderOpen}
+                title='Your library is empty'
+                description='Drop PDFs, scans, Word, Excel or CSV files into the pipeline and they will be parsed, indexed and appear here within seconds.'
+                action={
+                  <Button to='/pipeline' icon={Upload}>
+                    Go to Pipeline
+                  </Button>
+                }
+              />
+            )}
           </div>
         </Rise>
       ) : (

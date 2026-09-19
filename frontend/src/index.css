@@ -49,6 +49,30 @@ body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; 
   50%       { box-shadow: 0 6px 32px rgb(var(--c-coal) / 0.6); }
 }
 
+/* ─── Scrollbars ─────────────────────────────────────────────────────────────── */
+/* One slim, theme-aware scrollbar everywhere instead of chunky native bars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--c-seamdark)) transparent;
+}
+.dark * {
+  scrollbar-color: rgb(var(--c-seamdark)) transparent;
+}
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-seamdark));
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: rgb(var(--c-coal) / 0.55); background-clip: border-box; border: none; }
+
+/* Opt out of visible scrollbars where the region scrolls via wheel/touch and
+   a bar only adds noise (content still scrolls, keyboard focus still works). */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* ─── Sidebar ─────────────────────────────────────────────────────────────────── */
 /* Collapsed state: hide labels via max-width + opacity, keep icons centered */
 .sb-label {

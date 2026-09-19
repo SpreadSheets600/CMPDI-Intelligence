@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Network } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { usePageData, cmpdiColors } from '../hooks/useData.js';
 import { getJSON } from '../api.js';
-import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button } from '../components/ui.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button, EmptyState } from '../components/ui.jsx';
 
 const COLORS = {
   document: { fill: '#d97706', text: '#fff', r: 9 },
@@ -203,9 +204,14 @@ function KnowledgeCanvas({ subsidiary, kind, query, onPick, onMeta }) {
     <div className='relative'>
       <canvas ref={canvasRef} className='block h-[560px] w-full' />
       {empty && (
-        <p className='pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-muted1'>
-          No documents in this view yet. Ingest files to grow the tree.
-        </p>
+        <div className='pointer-events-none absolute inset-0 flex items-center justify-center p-6'>
+          <EmptyState
+            icon={Network}
+            title='Nothing to draw in this view'
+            description='No nodes match the current subsidiary, kind or search — loosen the filters, or ingest files to grow the tree.'
+            className='pointer-events-auto max-w-md border-solid bg-surface/95 backdrop-blur'
+          />
+        </div>
       )}
     </div>
   );

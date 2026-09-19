@@ -116,6 +116,13 @@ def load_demo():
         corpus = DATA_DIR / "demo_corpus"
         if corpus.exists():
             for f in sorted(corpus.iterdir()):
+                if not f.is_file():
+                    continue
+                # Regenerated corpus files carry fresh PDF timestamps, so
+                # SHA-256 dedupe cannot catch them: skip by filename when a
+                # document with the same name is already in the library.
+                if db.q1("SELECT id FROM documents WHERE filename=?", (f.name,)):
+                    continue
                 try:
                     pipeline.ingest_file(f)
                 except Exception as e:
