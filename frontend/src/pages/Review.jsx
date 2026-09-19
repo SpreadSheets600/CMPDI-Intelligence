@@ -188,7 +188,7 @@ export default function Review() {
             href={`/reports/${report.id}/download`}
           >
             <Download className='h-4 w-4' /> DOCX
-          </a>
+          </Button>
           <a href={`/reports/${report.id}/audit`}
              className='flex items-center gap-2 rounded-lg border border-seam px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-coal hover:text-coal'>
             <Download className='h-4 w-4' /> Audit JSON
