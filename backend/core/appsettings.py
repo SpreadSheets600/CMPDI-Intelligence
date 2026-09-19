@@ -25,6 +25,7 @@ KNOWN_KEYS = {
     # NOTE: the OpenAI-compatible API key is env-only (CMPDI_OPENAI_API_KEY)
     # and is deliberately not a setting so it can never be persisted to disk.
     "retrieval_k": range(1, 51),
+    "manual_baseline_minutes": range(1, 10000),
     "theme": ("dark", "light"),  # persisted server-side only as a convenience
 }
 
@@ -53,8 +54,14 @@ def all_settings() -> dict:
         "openai_model": config.OPENAI_MODEL,
         "openai_base_url": config.OPENAI_BASE_URL,
         "retrieval_k": config.RETRIEVAL_K,
+        "manual_baseline_minutes": int(config.MANUAL_BASELINE_MINUTES),
     }
     return {**defaults, **_read_overrides()}
+
+
+def has_override(key: str) -> bool:
+    """True when the operator stored an explicit override for key."""
+    return key in _read_overrides()
 
 
 def get(key: str, default=None):

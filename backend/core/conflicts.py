@@ -126,6 +126,9 @@ def set_status(key: str, status: str, note: str | None = None,
             decided_by = COALESCE(excluded.decided_by, conflict_status.decided_by),
             updated_ts = datetime('now')
     """, (key, status, note, decided_by))
+    from backend.core.quality import events
+    events.record(f"conflict_{'reopened' if status == 'open' else status}",
+                  key, {"by": decided_by})
     return True
 
 

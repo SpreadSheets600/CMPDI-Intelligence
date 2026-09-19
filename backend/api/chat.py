@@ -10,7 +10,7 @@ from flask import Blueprint, jsonify, request
 from backend.core import retrieval
 from backend.core.knowledge import graph
 from backend.core.llm import agent
-from backend.core.quality import trust
+from backend.core.quality import events, trust
 from backend.core.retrieval import query
 from backend.core.llm import get_backend
 from backend.db import database as db
@@ -61,6 +61,8 @@ def chat():
                      for i, e in enumerate(run["evidence"], 1)]
             steps = [s for s in run["steps"] if s["type"] in ("thought", "tool", "chart")]
             n_tools = sum(1 for s in steps if s["type"] == "tool")
+            events.record("answer_agent", run.get("row_id"),
+                          {"tools": n_tools, "scoped": bool(doc_ids)})
             return jsonify({
                 "mode": "agent",
                 "answer": run["answer"],
@@ -85,6 +87,8 @@ def chat():
     payload["mode"] = "chat"
     payload["charts"] = []
     payload["trace"] = []
+    events.record("answer_abstained" if payload.get("abstained") else "answer_grounded",
+                  None, {"route": payload.get("route"), "scoped": bool(doc_ids)})
     return jsonify(payload)
 
 

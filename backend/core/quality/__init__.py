@@ -4,6 +4,7 @@ number is the manual baseline used for the time-saved comparison, and it is
 labeled as such in the UI."""
 
 import json
+import os
 import time
 
 from backend.db import database as db
@@ -52,6 +53,38 @@ def quality_stats() -> dict:
     }
 
 
+def _pct(part: int, whole: int) -> float | None:
+    return round(part / whole * 100, 1) if whole else None
+
+
+def automation_stats() -> dict:
+    """Measured workflow automation: first-pass report approvals, conflict
+    triage outcomes, and grounded-vs-abstained answers. Every component is
+    None until its first event lands; the headline is the mean of whatever
+    has been observed, labeled measured so it is never mistaken for a
+    planning estimate."""
+    approved = db.q1(
+        "SELECT COUNT(*) c FROM reports WHERE review_status='approved'")["c"] or 0
+    first_pass = db.q1(
+        "SELECT COUNT(*) c FROM reports WHERE review_status='approved'"
+        " AND review_rounds=0")["c"] or 0
+    resolved = db.q1(
+        "SELECT COUNT(*) c FROM conflict_status WHERE status='resolved'")["c"] or 0
+    triaged = db.q1("SELECT COUNT(*) c FROM conflict_status")["c"] or 0
+    from backend.core.quality import events
+    answered = events.count("answer_grounded") + events.count("answer_agent")
+    abstained = events.count("answer_abstained")
+    rates = {
+        "first_pass_approval_pct": _pct(first_pass, approved),
+        "conflict_resolution_pct": _pct(resolved, triaged),
+        "answer_rate_pct": _pct(answered, answered + abstained),
+    }
+    observed = [v for v in rates.values() if v is not None]
+    return {**rates,
+            "pct": round(sum(observed) / len(observed), 1) if observed else None,
+            "measured": True}
+
+
 def _eval_metrics() -> dict | None:
     from backend.core import config
     try:
@@ -71,20 +104,25 @@ def record_report_time(seconds: float):
 def kpi_stats() -> dict:
     """KPI panel: extraction accuracy and QA accuracy from the harness, real
     report generation times where measured. The manual baseline is a stated
-    planning figure (2h18m for an equivalent summary), not a measurement."""
+    planning figure until the operator overrides it via settings or
+    CMPDI_MANUAL_BASELINE_MINUTES (flagged by manual_stated)."""
+    from backend.core import appsettings, config
     metrics = _eval_metrics() or {}
     accuracy = metrics.get("accuracy")
     last_report_s = _report_times[-1] if _report_times else None
-    manual_minutes = 138.0  # stated baseline for an equivalent summary
+    manual_minutes = float(appsettings.get("manual_baseline_minutes"))
     ai_minutes = round(last_report_s / 60, 1) if last_report_s else None
     return {
         "extraction_accuracy": accuracy,
         "extraction_checks": metrics.get("total_checks"),
         "qa_accuracy": accuracy,  # the corpus ground truths ARE QA checks
         "report": {"manual_minutes": manual_minutes,
+                   "manual_stated": not appsettings.has_override(
+                       "manual_baseline_minutes")
+                   and "CMPDI_MANUAL_BASELINE_MINUTES" not in os.environ,
                    "ai_minutes": ai_minutes,
                    "time_saved_pct": round((1 - ai_minutes / manual_minutes) * 100, 1)
                    if ai_minutes else None},
-        "automation": {"steps": 18, "of": 21, "pct": round(18 / 21 * 100, 1)},
+        "automation": automation_stats(),
         "ran_at": metrics.get("ran_at"),
     }

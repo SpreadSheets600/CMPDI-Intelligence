@@ -107,6 +107,10 @@ RETRIEVAL_K = int(os.environ.get("CMPDI_RETRIEVAL_K", "8"))
 RRF_K = int(os.environ.get("CMPDI_RRF_K", "60"))
 VECTOR_DIM = int(os.environ.get("CMPDI_VECTOR_DIM", "0"))  # 0 = detect from model
 
+# Manual-report baseline (minutes) for the time-saved KPI. Stated planning
+# figure until measured on site; override via Settings instead when known.
+MANUAL_BASELINE_MINUTES = float(os.environ.get("CMPDI_MANUAL_BASELINE_MINUTES", "138.0"))
+
 # Conflict detection: relative difference above this (per unit) is a conflict
 CONFLICT_TOLERANCE = float(os.environ.get("CMPDI_CONFLICT_TOLERANCE", "0.01"))
 
