@@ -147,11 +147,12 @@ def load_demo():
 
 @bp.post("/topics/refresh")
 def topics_refresh():
-    scope = (request.get_json(silent=True) or {}).get("scope") or None
-    db.execute("DELETE FROM doc_topics WHERE scope IS ?", (scope,))
-    topics.cluster_corpus(scope)
-    topics.wordcloud_png(scope)
-    return jsonify({"ok": True, "scope": scope or "corpus"})
+    # doc_topics.scope is NOT NULL: corpus-wide rows use the "corpus" string.
+    scope = (request.get_json(silent=True) or {}).get("scope") or "corpus"
+    db.execute("DELETE FROM doc_topics WHERE scope = ?", (scope,))
+    topics.cluster_corpus(None if scope == "corpus" else scope)
+    topics.wordcloud_png(None if scope == "corpus" else scope)
+    return jsonify({"ok": True, "scope": scope})
 
 
 # ---------- reports ----------
