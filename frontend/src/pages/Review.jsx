@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Check, Files, TriangleAlert, ScanText, Download } from 'lucide-react';
+import { Check, Files, TriangleAlert, ScanText, Download, Sparkles, LoaderCircle, History } from 'lucide-react';
 import { usePageData } from '../hooks/useData.js';
 import { postJSON } from '../api.js';
 import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button } from '../components/ui.jsx';
@@ -15,12 +15,17 @@ export default function Review() {
   const [note, setNote] = useState('');
   const [operator, setOperator] = useState(() => localStorage.getItem('cmpdi-operator') || '');
   const [busy, setBusy] = useState(false);
+  const [instruction, setInstruction] = useState('');
+  const [revising, setRevising] = useState(false);
+  const [reviseError, setReviseError] = useState('');
 
   if (error) return <ErrorBox message={error} />;
   if (!data) return <Loading />;
   const { report, sources, stats, conflict_counts: conflictCounts } = data;
   const docsUsed = new Set(sources.map((s) => s.doc_id)).size;
   const ocrCount = sources.filter((s) => s.ocr).length;
+  let revisions = [];
+  try { revisions = JSON.parse(report.params_json || '{}').revisions || []; } catch { revisions = []; }
 
   const act = async (status) => {
     setBusy(true);
@@ -30,6 +35,27 @@ export default function Review() {
       window.location.reload();
     } catch { setBusy(false); }
   };
+
+  const revise = async () => {
+    const text = instruction.trim();
+    if (!text || revising) return;
+    setRevising(true);
+    setReviseError('');
+    try {
+      await postJSON(`/api/reports/${report.id}/revise`, { instruction: text });
+      window.location.reload();
+    } catch (err) {
+      setReviseError(err.message);
+      setRevising(false);
+    }
+  };
+
+  const suggestions = [
+    'Add more charts',
+    'Add year-on-year growth analysis',
+    'Explain the open conflicts in plain language',
+    'Add a subsidiary comparison table',
+  ];
 
   const statusVariant =
     report.review_status === 'approved' ? 'ok'
@@ -138,6 +164,70 @@ export default function Review() {
               </div>
             ))}
           </div>
+        </Card>
+      </Rise>
+
+      <Rise delay={0.14}>
+        <Card className='mt-6 border-coalline bg-coalsoft/40 p-5'>
+          <div className='flex items-center gap-2'>
+            <Sparkles className='h-4 w-4 text-coal' />
+            <h2 className='text-sm font-semibold text-ink'>Revise with agent</h2>
+          </div>
+          <p className='mt-1 text-xs text-muted1'>
+            Describe the change in plain words — the agent re-reads this report plus the evidence layer,
+            computes anything new, and rewrites the document. Approval resets to pending afterwards.
+          </p>
+          <div className='mt-3 flex flex-wrap gap-1.5'>
+            {suggestions.map((s) => (
+              <button
+                key={s}
+                type='button'
+                onClick={() => setInstruction(s)}
+                className='rounded-full border border-seam bg-surface px-2.5 py-1 text-[12px] text-stone-600 transition-colors hover:border-coalline hover:text-coal'
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            rows='2'
+            placeholder='e.g. Add more charts comparing subsidiary production…'
+            className='mt-3 w-full resize-y rounded-lg border border-seam bg-surface px-3.5 py-2.5 text-xs text-ink placeholder:text-muted2 focus:border-coal focus:outline-none sm:text-sm'
+          />
+          {reviseError && (
+            <p className='mt-2 text-xs font-medium text-bad'>{reviseError}</p>
+          )}
+          <div className='mt-3'>
+            <Button
+              variant='primary'
+              size='md'
+              onClick={revise}
+              disabled={revising || !instruction.trim()}
+              className='px-5'
+            >
+              {revising
+                ? <><LoaderCircle className='h-3.5 w-3.5 animate-spin' /> Agent is revising — this can take a minute…</>
+                : <><Sparkles className='h-3.5 w-3.5' /> Apply to report</>}
+            </Button>
+          </div>
+          {revisions.length > 0 && (
+            <div className='mt-4 border-t border-coalline/60 pt-3'>
+              <p className='flex items-center gap-1.5 font-mono text-[10.5px] font-bold uppercase tracking-wider text-coal'>
+                <History className='h-3.5 w-3.5' /> Agent revisions ({revisions.length})
+              </p>
+              <ul className='mt-2 space-y-1.5'>
+                {revisions.map((r, i) => (
+                  <li key={i} className='text-xs text-stone-600'>
+                    <span className='font-mono text-[11px] text-stone-400 tabular-nums'>{r.ts}</span>
+                    {' — '}{r.instruction}
+                    {r.figures > 0 && <span className='ml-1.5 text-coal'>· {r.figures} chart{r.figures === 1 ? '' : 's'}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
       </Rise>
 

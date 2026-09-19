@@ -195,6 +195,7 @@ def run_task(task: str) -> dict:
     figure_refs: list[dict] = []
     transcript = f"Task: {task}\n"
     answer = None
+    finished = False
     backend = get_backend()
 
     if backend.name == "extractive":
@@ -209,7 +210,7 @@ def run_task(task: str) -> dict:
                      "snippet": (c.get("text") or "")[:300]}
                     for c in result.get("citations", [])]
         return {"run_id": run_id, "steps": steps, "answer": result["answer"],
-                "evidence": evidence, "figures": []}
+                "evidence": evidence, "figures": [], "finished": True}
 
     for step_no in range(MAX_STEPS):
         user = transcript + "\nEvidence so far (cite these):\n" + (
@@ -231,6 +232,7 @@ def run_task(task: str) -> dict:
         args = action.get("args") or {}
         if tool == "finish":
             answer = args.get("answer") or ""
+            finished = True
             break
         steps.append({"type": "tool", "tool": tool, "args": args})
 
@@ -294,7 +296,7 @@ def run_task(task: str) -> dict:
 
     row_id = _persist_run(task, steps, answer, evidence)
     return {"run_id": run_id, "row_id": row_id, "steps": steps, "answer": answer,
-            "evidence": evidence, "figures": figure_refs}
+            "evidence": evidence, "figures": figure_refs, "finished": finished}
 
 
 def _persist_run(task, steps, answer, evidence) -> int:

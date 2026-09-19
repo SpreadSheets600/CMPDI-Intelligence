@@ -200,6 +200,28 @@ def reports_review(rid):
     return jsonify({"ok": True})
 
 
+@bp.post("/reports/<int:rid>/revise")
+def reports_revise(rid):
+    """Officer instruction -> agent revision -> updated report file. Runs the
+    analytical agent synchronously (like /api/agent); the Review screen shows
+    a working state while the tool loop executes."""
+    from backend.core.reporting import revise as revise_mod
+
+    instruction = ((request.get_json(silent=True) or {}).get("instruction") or "").strip()
+    if not instruction:
+        return jsonify({"error": "instruction is required"}), 400
+    try:
+        out = revise_mod.revise_report(rid, instruction)
+    except KeyError:
+        return jsonify({"error": "report not found"}), 404
+    except revise_mod.NoBackendError as e:
+        return jsonify({"error": str(e)}), 503
+    except revise_mod.RevisionError as e:
+        return jsonify({"error": str(e)}), 400
+    events.record("report_revised", rid, {"instruction": instruction[:200]})
+    return jsonify({"ok": True, **out})
+
+
 @bp.post("/reports/parliamentary")
 def reports_parliamentary():
     question = ((request.get_json(silent=True) or {}).get("question") or "").strip()
