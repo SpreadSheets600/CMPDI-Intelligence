@@ -12,7 +12,7 @@ owns it. Read top-down for a full tour, or jump to the layer you need.
 | 3 | [PIPELINE.md](PIPELINE.md) | Ingestion: classify → parse → OCR → chunk → embed → index → summarize | `backend/core/pipeline/` |
 | 4 | [RETRIEVAL.md](RETRIEVAL.md) | Hybrid search, grounded Q&A, abstention, org search | `backend/core/retrieval/` |
 | 5 | [KNOWLEDGE.md](KNOWLEDGE.md) | Facts, Conflict Radar, compare, graph, assets, topics, temporal | `backend/core/knowledge/`, `backend/core/conflicts.py` |
-| 6 | [AGENT_AND_REPORTS.md](AGENT_AND_REPORTS.md) | Analytical agent, sandbox, report engines, review gate | `backend/core/llm/`, `backend/core/reporting/` |
+| 6 | [AGENT_AND_REPORTS.md](AGENTS-REPORTS.md) | Analytical agent, sandbox, report engines, review gate | `backend/core/llm/`, `backend/core/reporting/` |
 | 7 | [FRONTEND.md](FRONTEND.md) | SPA routes, data hooks, layout, theme, dev/prod serving | `frontend/src/` |
 | 8 | [OPERATIONS.md](OPERATIONS.md) | Setup, configuration, scripts, demo corpus, troubleshooting | `run.sh`, `backend/scripts/`, `.env.example` |
 
