@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import { Upload, Package, Info, File as FileIcon, TriangleAlert as Alert, LoaderCircle } from 'lucide-react';
+import { Upload, Package, Info, File as FileIcon, TriangleAlert as Alert, LoaderCircle, CheckCircle2 } from 'lucide-react';
 import { usePageData, usePolling } from '../hooks/useData.js';
 import { uploadFiles } from '../api.js';
-import { Rise, PageHeader, Loading, ErrorBox } from '../components/ui.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Card, SectionTitle, Badge, Button } from '../components/ui.jsx';
 import { AnimatedGroup } from '../components/motion/animated-group.jsx';
 import { AnimatedNumber } from '../components/motion/animated-number.jsx';
 
@@ -27,18 +27,20 @@ function JobStrip() {
           .sort((a, b) => Number(a) - Number(b));
         const isOpen = !!open[j.id];
         return (
-          <div key={j.id || i}
-            className={`relative overflow-hidden rounded-xl border p-4 shadow-card ${failed ? 'border-red-200 bg-red-50/60' : 'border-seam bg-white'}`}>
+          <Card
+            key={j.id || i}
+            className={`p-4 ${failed ? 'border-red-200 bg-red-50/60' : ''}`}
+          >
             <div className='flex items-baseline justify-between gap-4 overflow-hidden'>
-              <span className='min-w-0 truncate text-sm font-semibold'>{j.filename || 'unknown file'}</span>
+              <span className='min-w-0 truncate text-sm font-semibold text-ink'>{j.filename || 'unknown file'}</span>
               <span className={`flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide ${failed ? 'text-red-700' : j.status === 'completed' ? 'text-emerald-700' : 'text-coal'}`}>
                 {failed ? <Alert className='h-3.5 w-3.5' /> : running
-                  ? <LoaderCircle2 /> : <CircleCheck />}
+                  ? <LoaderCircle className='h-3.5 w-3.5 animate-spin' /> : <CheckCircle2 className='h-3.5 w-3.5' />}
                 {failed ? 'failed' : j.stage}
                 {stats.pages_done && stats.pages_total ? ` · pages ${stats.pages_done}/${stats.pages_total}` : ''}
               </span>
             </div>
-            <div className='mt-2 flex flex-wrap items-center gap-1 text-[10px] font-mono uppercase tracking-wide'>
+            <div className='mt-2.5 flex flex-wrap items-center gap-1 text-[10px] font-mono uppercase tracking-wide'>
               {STAGES.map((s, si) => {
                 const mine = STAGES.indexOf(s);
                 const cls = failed && s === j.stage
@@ -74,21 +76,10 @@ function JobStrip() {
                 )}
               </div>
             )}
-          </div>
+          </Card>
         );
       })}
     </AnimatedGroup>
-  );
-}
-
-function LoaderCircle2() {
-  return <LoaderCircle className='h-3.5 w-3.5 animate-spin' />;
-}
-function CircleCheck() {
-  return (
-    <svg className='h-3.5 w-3.5' fill='none' viewBox='0 0 24 24' strokeWidth='2' stroke='currentColor'>
-      <circle cx='12' cy='12' r='10' /><path d='m9 12 2 2 4-4' />
-    </svg>
   );
 }
 
@@ -146,17 +137,17 @@ export default function Pipeline() {
 
       {ingested && (
         <Rise className='mt-6'>
-          <h2 className='text-lg font-semibold'>Queued For Ingestion</h2>
+          <SectionTitle title='Queued For Ingestion' />
           <AnimatedGroup preset='fade' className='mt-3 space-y-3'>
             {ingested.map((r, i) => (
-              <div key={i} className='flex items-center justify-between rounded-xl border border-seam bg-white px-5 py-4 shadow-card'>
-                <span className='text-sm font-semibold'>{r.filename}</span>
+              <Card key={i} className='flex items-center justify-between px-5 py-4'>
+                <span className='text-sm font-semibold text-ink'>{r.filename}</span>
                 {r.error
-                  ? <span className='rounded-full border border-red-200 bg-red-50 px-3 py-1 font-mono text-[11px] text-red-700'>rejected: {r.error}</span>
+                  ? <Badge variant='bad'>rejected: {r.error}</Badge>
                   : r.duplicate
-                    ? <span className='rounded-full border border-seam bg-paper px-3 py-1 font-mono text-[11px] text-stone-500'>duplicate of existing document</span>
-                    : <span className='rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700'>queued</span>}
-              </div>
+                    ? <Badge variant='neutral'>duplicate of existing document</Badge>
+                    : <Badge variant='ok'>queued</Badge>}
+              </Card>
             ))}
           </AnimatedGroup>
         </Rise>
@@ -183,27 +174,24 @@ export default function Pipeline() {
               <div className='mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-coalsoft text-coal transition-transform duration-300 hover:scale-105'>
                 <Upload className='h-8 w-8' />
               </div>
-              <p className='mt-5 text-[16px] font-semibold'>{busy ? 'Ingesting files…' : 'Drag & drop files here'}</p>
+              <p className='mt-5 text-[16px] font-semibold text-ink'>{busy ? 'Ingesting files…' : 'Drag & drop files here'}</p>
               <p className='mt-1 text-[13.5px] text-stone-500'>or click to browse — ingestion starts automatically</p>
               <div className='mt-5 flex flex-wrap items-center justify-center gap-1.5'>
                 {chips.map((t) => (
-                  <span key={t} className='rounded-full border border-seam bg-paper px-2.5 py-0.5 font-mono text-[10.5px] uppercase tracking-wide text-stone-400'>{t}</span>
+                  <Badge key={t} variant='neutral'>{t}</Badge>
                 ))}
               </div>
             </div>
           </div>
           <div className='mt-3 flex flex-wrap gap-1.5'>
             {files.map((n) => (
-              <span key={n} className='inline-flex items-center gap-1.5 rounded-full border border-coalline bg-coalsoft px-3 py-1 text-[12px] text-coal'>
-                <FileIcon className='h-3 w-3' />{n}
-              </span>
+              <Badge key={n} variant='coal' icon={FileIcon}>{n}</Badge>
             ))}
           </div>
           <div className='mt-4 flex flex-wrap items-center justify-between gap-3'>
-            <button type='button' onClick={loadDemo} disabled={busy} title='Generate and ingest a curated demonstration corpus'
-              className='flex items-center gap-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:text-coal disabled:opacity-50'>
-              <Package className='h-3.5 w-3.5 text-stone-400' /> No files handy? Load the demonstration dataset
-            </button>
+            <Button variant='ghost' size='sm' icon={Package} onClick={loadDemo} disabled={busy} title='Generate and ingest a curated demonstration corpus'>
+              No files handy? Load the demonstration dataset
+            </Button>
             <p className='flex items-center gap-1.5 text-[13px] text-stone-500'>
               <Info className='h-4 w-4 shrink-0 text-stone-400' />
               Duplicates are rejected by SHA-256. Revised reports join version chains automatically.
@@ -214,23 +202,27 @@ export default function Pipeline() {
 
       <AnimatedGroup preset='blur-slide' className='mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4'>
         {statCards.map(([label, value]) => (
-          <div key={label} className='flex items-center gap-3 rounded-xl border border-seam bg-white px-4 py-3.5 shadow-card'>
+          <Card key={label} className='flex items-center gap-3 px-4 py-3.5'>
             <div>
-              <AnimatedNumber value={value} className='font-mono text-[20px] font-semibold leading-none tracking-tight' />
+              <AnimatedNumber value={value} className='font-mono tabular-nums text-[20px] font-semibold leading-none tracking-tight text-ink' />
               <div className='mt-1 text-[12px] text-stone-500'>{label}</div>
             </div>
-          </div>
+          </Card>
         ))}
       </AnimatedGroup>
 
       <Rise delay={0.15}>
-        <div className='mt-8 flex items-center justify-between'>
-          <h2 className='text-lg font-semibold tracking-tight'>Recent Jobs</h2>
-          <span className='flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide text-stone-400'>
-            <span className='h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600'></span> live
-          </span>
+        <div className='mt-8'>
+          <SectionTitle
+            title='Recent Jobs'
+            badge={
+              <span className='flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wide text-stone-400'>
+                <span className='h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-600'></span> live
+              </span>
+            }
+          />
+          <JobStrip />
         </div>
-        <JobStrip />
       </Rise>
     </div>
   );

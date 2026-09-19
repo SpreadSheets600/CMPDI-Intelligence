@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getJSON } from '../api.js';
-import { Rise, PageHeader, Loading, ErrorBox } from '../components/ui.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button, Table, TableHead, TableHeader, TableBody, TableRow, TableCell } from '../components/ui.jsx';
 import { AnimatedGroup } from '../components/motion/animated-group.jsx';
 import { AnimatedNumber } from '../components/motion/animated-number.jsx';
 import { Reveal } from '../components/ui.jsx';
-import { Magnetic } from '../components/motion/magnetic.jsx';
 import { usePageData, cmpdiColors } from '../hooks/useData.js';
 
 // Bar chart over the fact series, drawn on canvas; every bar carries a
@@ -86,8 +85,8 @@ function FactChart({ entity, attribute, series }) {
       <strong>${meta.current.entity} · ${meta.current.attribute.replace('_', ' ')} · ${hit.period_norm || 'period n/a'}</strong><br>
       Reported value: <span class="font-mono">${hit.value_raw}</span> ${hit.unit || ''}<br>
       Source: <a class="text-coal font-medium underline underline-offset-2"
-                 href="/doc/${hit.doc_id}${hit.page_no ? `/?page=${hit.page_no}` : `?sheet=${hit.sheet_no || 1}`}">${hit.filename}, ${loc}</a>
-      ${hit.flags ? `<span class="ml-2 font-mono text-[11px] text-red-700">${String(hit.flags).replace('_', ' ')}</span>` : ''}`;
+                  href="/doc/${hit.doc_id}${hit.page_no ? `?page=${hit.page_no}` : `?sheet=${hit.sheet_no || 1}`}">${hit.filename}, ${loc}</a>
+      ${hit.flags ? `<span class="ml-2 font-mono text-[11px] text-bad font-semibold">${String(hit.flags).replace('_', ' ')}</span>` : ''}`;
   };
 
   return <canvas ref={canvasRef} onMouseMove={onMove} className='block h-[320px] w-full' />;
@@ -138,109 +137,117 @@ export default function Insights() {
       />
 
       <Rise delay={0.05}>
-        <div className='mt-6 rounded-xl border border-seam bg-white p-5 shadow-card'>
+        <Card className='mt-6 p-5'>
           <div className='flex flex-wrap items-end gap-3'>
             <label className='w-full min-w-0 flex-1 sm:min-w-[200px] sm:max-w-[280px]'>
-              <span className='text-[12px] font-medium text-stone-500'>Entity</span>
-              <select value={entity} onChange={(e) => setEntity(e.target.value)}
-                      className='mt-1 w-full rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none'>
+              <span className='text-xs font-medium text-muted1'>Entity</span>
+              <select
+                value={entity}
+                onChange={(e) => setEntity(e.target.value)}
+                className='mt-1 w-full rounded-lg border border-seam bg-surface px-3 py-2 text-xs text-ink focus:border-coal focus:outline-none'
+              >
                 <option value=''>Choose entity...</option>
                 {data.entities.map((e) => <option key={e.canonical_name} value={e.canonical_name}>{e.canonical_name} ({e.n})</option>)}
               </select>
             </label>
             <label className='w-full min-w-0 flex-1 sm:min-w-[200px] sm:max-w-[280px]'>
-              <span className='text-[12px] font-medium text-stone-500'>Metric</span>
-              <select value={attribute} onChange={(e) => setAttribute(e.target.value)}
-                      className='mt-1 w-full rounded-lg border border-seamdark bg-white px-3 py-2 text-sm focus:border-coal focus:outline-none'>
+              <span className='text-xs font-medium text-muted1'>Metric</span>
+              <select
+                value={attribute}
+                onChange={(e) => setAttribute(e.target.value)}
+                className='mt-1 w-full rounded-lg border border-seam bg-surface px-3 py-2 text-xs text-ink focus:border-coal focus:outline-none'
+              >
                 <option value=''>Choose metric...</option>
                 {data.attributes.map((a) => <option key={a.attribute} value={a.attribute}>{a.attribute.replace('_', ' ')}</option>)}
               </select>
             </label>
-            <Magnetic intensity={0.25} range={90}>
-              <button onClick={() => loadFacts()}
-                      className='rounded-lg bg-coal px-5 py-2.5 text-sm font-semibold text-white shadow-card transition-colors hover:bg-amber-500'>
-                Load Facts
-              </button>
-            </Magnetic>
+            <Button
+              variant='primary'
+              size='md'
+              onClick={() => loadFacts()}
+              className='px-5'
+            >
+              Load Facts
+            </Button>
           </div>
           {series && <FactChart entity={series.entity} attribute={series.attribute} series={series.series} />}
-          <div id='receipts' className='mt-3 hidden rounded-lg border border-coalline bg-coalsoft px-3 py-2 text-[12.5px]'></div>
-        </div>
+          <div id='receipts' className='mt-3 hidden rounded-xl border border-coalline bg-coalsoft px-3.5 py-2.5 text-xs text-ink'></div>
+        </Card>
       </Rise>
 
       <Rise delay={0.1}>
-        <h2 id='quality' className='mt-10 text-lg font-semibold tracking-tight'>Data Quality</h2>
-        <p className='mt-1 max-w-[65ch] text-[13.5px] text-stone-500'>Measured from the live library: how much survived processing, how trustworthy the OCR layer is, and how much of the fact index is clean of quarantine flags.</p>
+        <h2 id='quality' className='mt-10 text-base font-semibold tracking-tight text-ink'>Data Quality</h2>
+        <p className='mt-1 max-w-[65ch] text-xs text-muted1'>Measured from the live library: how much survived processing, how trustworthy the OCR layer is, and how much of the fact index is clean of quarantine flags.</p>
 
         <AnimatedGroup preset='blur-slide' className='mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3'>
           {qualityCards.map((c) => (
-            <div key={c.label} className='rounded-xl border border-seam bg-white p-5 shadow-card'>
+            <Card key={c.label} className='p-5'>
               <div className='flex items-center justify-between'>
-                <span className='text-[13px] font-medium text-stone-500'>{c.label}</span>
+                <span className='text-xs font-medium text-muted1'>{c.label}</span>
                 {c.dash
-                  ? <span className='font-mono text-[20px] font-semibold'>-%</span>
-                  : <AnimatedNumber value={c.value} className='font-mono text-[20px] font-semibold' />}
+                  ? <span className='font-mono text-xl font-semibold text-ink'>-%</span>
+                  : <AnimatedNumber value={c.value} className='font-mono text-xl font-semibold tabular-nums text-ink' />}
               </div>
-              <div className='mt-2 h-1.5 overflow-hidden rounded-full bg-paper'>
+              <div className='mt-2.5 h-1.5 overflow-hidden rounded-full bg-paper'>
                 <div className={`h-full rounded-full ${c.barCls}`} style={{ width: `${c.bar}%` }}></div>
               </div>
-              <p className='mt-2 text-[12px] text-stone-400'>{c.foot}</p>
-            </div>
+              <p className='mt-2 font-mono text-[11px] text-muted1 tabular-nums'>{c.foot}</p>
+            </Card>
           ))}
         </AnimatedGroup>
       </Rise>
 
       {summary && (
-        <Reveal className='mt-4 overflow-x-auto rounded-xl border border-seam bg-white shadow-card'>
-          <table className='w-full min-w-[560px] text-sm'>
-            <thead>
-              <tr className='border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500'>
-                <th className='px-5 py-3 font-medium'>Document</th>
-                <th className='px-4 py-3 font-medium'>Type</th>
-                <th className='px-4 py-3 text-center font-medium'>Pages/OCR</th>
-                <th className='px-4 py-3 text-center font-medium'>Chunks</th>
-                <th className='px-4 py-3 text-center font-medium'>Facts</th>
-                <th className='px-4 py-3 text-center font-medium'>Tags</th>
+        <Reveal className='mt-6'>
+          <Table>
+            <TableHead>
+              <tr>
+                <TableHeader>Document</TableHeader>
+                <TableHeader>Type</TableHeader>
+                <TableHeader numeric>Pages/OCR</TableHeader>
+                <TableHeader numeric>Chunks</TableHeader>
+                <TableHeader numeric>Facts</TableHeader>
+                <TableHeader numeric>Tags</TableHeader>
               </tr>
-            </thead>
-            <tbody>
+            </TableHead>
+            <TableBody>
               {summary.doc_quality.map((d, i) => (
-                <tr key={i} className='border-b border-seam last:border-0'>
-                  <td className='px-5 py-3 font-medium'>{d.filename}</td>
-                  <td className='px-4 py-3 font-mono text-[11px] uppercase text-stone-500'>{d.doc_type}</td>
-                  <td className='px-4 py-3 text-center font-mono text-[13px]'>{d.page_count || d.ocr_pages || '—'}</td>
-                  <td className='px-4 py-3 text-center font-mono text-[13px]'>{d.chunks}</td>
-                  <td className='px-4 py-3 text-center font-mono text-[13px]'>{d.facts}</td>
-                  <td className='px-4 py-3 text-center font-mono text-[13px]'>{d.tags}</td>
-                </tr>
+                <TableRow key={i}>
+                  <TableCell className='font-medium text-ink'>{d.filename}</TableCell>
+                  <TableCell mono className='uppercase text-muted1'>{d.doc_type}</TableCell>
+                  <TableCell numeric>{d.page_count || d.ocr_pages || '—'}</TableCell>
+                  <TableCell numeric>{d.chunks}</TableCell>
+                  <TableCell numeric>{d.facts}</TableCell>
+                  <TableCell numeric>{d.tags}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </Reveal>
       )}
 
       <Reveal>
-        <h2 className='mt-10 text-lg font-semibold tracking-tight'>Extraction By Type</h2>
-        <div className='mt-4 overflow-x-auto rounded-xl border border-seam bg-white shadow-card'>
-          <table className='w-full min-w-[420px] text-sm'>
-            <thead>
-              <tr className='border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500'>
-                <th className='px-5 py-3 font-medium'>Document Type</th>
-                <th className='px-4 py-3 text-center font-medium'>Documents</th>
-                <th className='px-4 py-3 text-center font-medium'>Processed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {qs.by_type.map((r) => (
-                <tr key={r.doc_type} className='border-b border-seam last:border-0'>
-                  <td className='px-5 py-3 font-mono text-[12px] uppercase text-stone-600'>{r.doc_type}</td>
-                  <td className='px-4 py-3 text-center font-mono text-[13px]'>{r.documents}</td>
-                  <td className={`px-4 py-3 text-center font-mono text-[13px] ${r.processed_pct >= 95 ? 'text-emerald-700' : 'text-coal'}`}>{r.processed_pct}%</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h2 className='mt-10 text-base font-semibold tracking-tight text-ink'>Extraction By Type</h2>
+        <Table className='mt-4'>
+          <TableHead>
+            <tr>
+              <TableHeader>Document Type</TableHeader>
+              <TableHeader numeric>Documents</TableHeader>
+              <TableHeader numeric>Processed</TableHeader>
+            </tr>
+          </TableHead>
+          <TableBody>
+            {qs.by_type.map((r) => (
+              <TableRow key={r.doc_type}>
+                <TableCell mono className='uppercase text-ink'>{r.doc_type}</TableCell>
+                <TableCell numeric>{r.documents}</TableCell>
+                <TableCell numeric className={r.processed_pct >= 95 ? 'text-ok font-semibold' : 'text-coal'}>
+                  {r.processed_pct}%
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </Reveal>
     </div>
   );

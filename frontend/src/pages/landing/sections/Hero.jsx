@@ -113,7 +113,7 @@ export function Hero({ stats }) {
               preset='fade-in-blur'
               delay={0.08}
               speedReveal={1.3}
-              className='text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[4rem] leading-[1.06]'
+              className='text-3xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl lg:text-[4rem] leading-[1.08]'
             >
               Every coal number.
             </TextEffect>
@@ -123,7 +123,7 @@ export function Hero({ stats }) {
               preset='fade-in-blur'
               delay={0.25}
               speedReveal={1.3}
-              className='mt-1 text-4xl font-extrabold tracking-tight text-amber-500 sm:text-5xl md:text-6xl lg:text-[4rem] leading-[1.06]'
+              className='mt-1 text-3xl font-extrabold tracking-tight text-amber-500 sm:text-5xl md:text-6xl lg:text-[4rem] leading-[1.08]'
             >
               With its verified receipt.
             </TextEffect>

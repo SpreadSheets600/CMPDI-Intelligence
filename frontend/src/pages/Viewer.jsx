@@ -3,13 +3,12 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Pencil, MessageCircle, ExternalLink, Trash2, RefreshCw, ChevronDown } from 'lucide-react';
 import { usePageData } from '../hooks/useData.js';
 import { postJSON } from '../api.js';
-import { Rise, Loading, ErrorBox } from '../components/ui.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button, Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '../components/ui.jsx';
 import { Disclosure, DisclosureTrigger, DisclosureContent } from '../components/motion/disclosure.jsx';
 import { AnimatedBackground } from '../components/motion/animated-background.jsx';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '../components/motion/dialog.jsx';
 import { MorphingPopover, MorphingPopoverTrigger, MorphingPopoverContent } from '../components/motion/morphing-popover.jsx';
 import { ScrollProgress } from '../components/motion/scroll-progress.jsx';
-import { Tilt } from '../components/motion/tilt.jsx';
 
 export default function Viewer() {
   const { docId: _paramDocId } = useParams();
@@ -48,36 +47,41 @@ export default function Viewer() {
     window.location.reload();
   };
 
-  const chip = 'rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal flex items-center gap-1.5';
-
   return (
     <div>
       <ScrollProgress />
       <Rise>
-        <div className='flex flex-wrap items-start justify-between gap-3'>
-          <div className='min-w-0'>
-            <h1 className='text-2xl font-semibold tracking-tight'>{title}</h1>
-            <p className='mt-1 font-mono text-[12px] text-stone-400'>{doc.filename} · {doc.sha256.slice(0, 16)}…</p>
-          </div>
+        <PageHeader
+          title={title}
+          subtitle={`${doc.filename} · ${doc.sha256.slice(0, 16)}…`}
+        >
           <div className='relative flex flex-wrap items-center gap-2'>
             <MorphingPopover>
-              <MorphingPopoverTrigger className={chip}>
-                <Pencil className='h-3.5 w-3.5' /> Rename
+              <MorphingPopoverTrigger asChild>
+                <Button variant='ghost' size='sm' icon={Pencil}>
+                  Rename
+                </Button>
               </MorphingPopoverTrigger>
               <MorphingPopoverContent className='right-0 w-72'>
-                <form onSubmit={doRename} className='flex gap-2'>
+                <form onSubmit={doRename} className='flex gap-2 p-1'>
                   <input value={name} onChange={(e) => setName(e.target.value)} maxLength={200} required autoFocus
                          placeholder={title}
-                         className='min-w-0 flex-1 rounded-lg border border-seamdark bg-paper px-2.5 py-1.5 text-sm focus:border-coal focus:outline-none' />
-                  <button className='rounded-lg bg-coal px-3 py-1.5 text-[13px] font-semibold text-white hover:bg-amber-500'>Save</button>
+                         className='min-w-0 flex-1 rounded-lg border border-seam bg-paper px-2.5 py-1.5 text-sm focus:border-coal focus:outline-none' />
+                  <Button type='submit' size='sm'>Save</Button>
                 </form>
               </MorphingPopoverContent>
             </MorphingPopover>
-            <Link to={`/ask?doc=${doc.id}`} className={chip}><MessageCircle className='h-3.5 w-3.5' /> Ask About This Document</Link>
-            <a href={`/documents/${doc.id}/original`} target='_blank' rel='noreferrer' className={chip}><ExternalLink className='h-3.5 w-3.5' /> Open Original</a>
+            <Button to={`/ask?doc=${doc.id}`} variant='ghost' size='sm' icon={MessageCircle}>
+              Ask About This Document
+            </Button>
+            <Button href={`/documents/${doc.id}/original`} target='_blank' rel='noreferrer' variant='ghost' size='sm' icon={ExternalLink}>
+              Open Original
+            </Button>
             <Dialog>
-              <DialogTrigger className='flex items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1.5 text-[12.5px] text-stone-500 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700'>
-                <Trash2 className='h-3.5 w-3.5' /> Delete
+              <DialogTrigger asChild>
+                <Button variant='danger-ghost' size='sm' icon={Trash2}>
+                  Delete
+                </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
@@ -87,41 +91,42 @@ export default function Viewer() {
                   </DialogDescription>
                 </DialogHeader>
                 <div className='mt-5 flex justify-end gap-2'>
-                  <DialogClose className='rounded-lg border border-seam px-4 py-2 text-sm font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal'>
-                    Keep it
+                  <DialogClose asChild>
+                    <Button variant='ghost' size='sm'>Keep it</Button>
                   </DialogClose>
-                  <button type='button' onClick={doDelete}
-                          className='rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700'>
+                  <Button variant='danger' size='sm' onClick={doDelete}>
                     Delete
-                  </button>
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
-        </div>
+        </PageHeader>
       </Rise>
 
       <Rise delay={0.04}>
         <div className='mt-3 flex flex-wrap gap-2'>
-          <span className='rounded-full border border-coalline bg-coalsoft px-3 py-1 font-mono text-[11px] uppercase text-coal'>{doc.doc_type}</span>
-        {doc.content_norm && (
-          <span className='rounded-full border border-seam bg-white px-3 py-1 text-[12px] text-stone-600' title='The normalized representation this file became inside the intelligence layer'>normalized: {doc.content_norm}</span>
-        )}
-          {doc.subsidiary && <span className='rounded-full border border-seam bg-white px-3 py-1 text-[12px] text-stone-600'>{doc.subsidiary}</span>}
-          {doc.doc_date_raw && <span className='rounded-full border border-seam bg-white px-3 py-1 font-mono text-[12px] text-stone-600'>{doc.doc_date_raw}</span>}
+          <Badge variant='coal'>{doc.doc_type}</Badge>
+          {doc.content_norm && (
+            <Badge variant='neutral' title='The normalized representation this file became inside the intelligence layer'>
+              normalized: {doc.content_norm}
+            </Badge>
+          )}
+          {doc.subsidiary && <Badge variant='neutral'>{doc.subsidiary}</Badge>}
+          {doc.doc_date_raw && <Badge variant='neutral' className='font-mono'>{doc.doc_date_raw}</Badge>}
           {doc.version_group_id && (doc.is_current_version
-            ? <span className='rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 font-mono text-[11px] text-emerald-700'>current version</span>
-            : <span className='rounded-full border border-seam bg-paper px-3 py-1 font-mono text-[11px] text-stone-400 line-through'>superseded</span>)}
+            ? <Badge variant='ok'>current version</Badge>
+            : <Badge variant='neutral' className='line-through'>superseded</Badge>)}
         </div>
       </Rise>
 
       <Rise delay={0.08}>
-        <Tilt rotationFactor={2} className='mt-5 rounded-xl border border-seam bg-white p-5 shadow-card'>
+        <Card className='mt-5 p-5'>
           <div className='flex items-center justify-between gap-3'>
-            <h2 className='text-[15px] font-semibold'>Summary</h2>
-            <button onClick={doSummarize} className='flex items-center gap-1.5 rounded-lg border border-seam px-2.5 py-1 text-[12px] font-medium text-stone-500 transition-colors hover:border-coal hover:text-coal'>
-              <RefreshCw className='h-3.5 w-3.5' /> {doc.summary ? 'Regenerate' : 'Generate Summary'}
-            </button>
+            <h2 className='text-[15px] font-semibold text-ink'>Summary</h2>
+            <Button variant='ghost' size='sm' icon={RefreshCw} onClick={doSummarize}>
+              {doc.summary ? 'Regenerate' : 'Generate Summary'}
+            </Button>
           </div>
           {doc.summary ? (
             <p className='mt-2 max-w-[85ch] text-[14px] leading-relaxed text-stone-700'>{doc.summary}</p>
@@ -135,7 +140,7 @@ export default function Viewer() {
               ))}
             </div>
           )}
-        </Tilt>
+        </Card>
       </Rise>
 
       <Rise delay={0.12}>
@@ -223,19 +228,19 @@ export default function Viewer() {
             <h2 className='text-[15px] font-semibold'>Extracted Content · Page {page}</h2>
             {pinfo?.summary && (
               <div className='mt-3 rounded-lg border border-coalline bg-coalsoft px-4 py-3'>
-                <p className='font-mono text-[10px] uppercase tracking-wide text-coal'>Page summary (LLM)</p>
-                <p className='mt-1 text-[13.5px] leading-relaxed text-stone-700'>{pinfo.summary}</p>
+                <p className='font-mono text-[10px] uppercase tracking-wide text-coal font-semibold'>Page summary (LLM)</p>
+                <p className='mt-1 text-[13.5px] leading-relaxed text-ink'>{pinfo.summary}</p>
               </div>
             )}
             <div className='mt-3 space-y-3'>
               {elements.length === 0 ? (
-                <p className='text-[13.5px] text-stone-500'>No elements extracted on this page.</p>
+                <p className='text-[13.5px] text-muted1'>No elements extracted on this page.</p>
               ) : elements.map((el, i) => (
-                <div key={i} className='border-l-2 border-coalline pl-3'>
-                  <span className='font-mono text-[10px] uppercase tracking-wide text-stone-400'>{el.element_type}</span>
+                <div key={i} className='border-l-2 border-coal/30 pl-3'>
+                  <span className='font-mono text-[10px] uppercase tracking-wide text-muted1'>{el.element_type}</span>
                   {el.method && el.method !== 'native' && <span className='ml-2 rounded-full border border-coalline bg-coalsoft px-1.5 py-px font-mono text-[10px] text-coal'>{el.method}</span>}
-                  {el.section_path && <span className='ml-2 font-mono text-[10px] text-stone-400'>{el.section_path}</span>}
-                  <p className='mt-0.5 text-[14px] leading-relaxed text-stone-700'>{(el.text || '').slice(0, 800)}</p>
+                  {el.section_path && <span className='ml-2 font-mono text-[10px] text-muted1'>{el.section_path}</span>}
+                  <p className='mt-0.5 text-[14px] leading-relaxed text-ink'>{(el.text || '').slice(0, 800)}</p>
                 </div>
               ))}
             </div>
@@ -245,13 +250,13 @@ export default function Viewer() {
 
       {isSheet && sheets.length > 0 && (
         <Rise delay={0.14}>
-          <div className='mt-6 flex flex-wrap items-center gap-1'>
-            <span className='mr-1 font-mono text-[11px] uppercase tracking-wide text-stone-400'>sheet</span>
-            <AnimatedBackground defaultValue={sheet != null ? String(sheet) : undefined} className='flex flex-wrap items-center gap-1'
+          <div className='mt-6 flex flex-wrap items-center gap-1.5'>
+            <span className='mr-1 font-mono text-[11px] uppercase tracking-wide text-muted1'>sheet</span>
+            <AnimatedBackground defaultValue={sheet != null ? String(sheet) : undefined} className='flex flex-wrap items-center gap-1.5'
               transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}>
               {sheets.map((s) => (
                 <button key={s.sheet_no} data-id={String(s.sheet_no)} onClick={() => setParams({ sheet: String(s.sheet_no) })}
-                        className={`rounded-md border px-2.5 py-1 font-mono text-[12px] transition-colors ${sheet === s.sheet_no ? 'border-coal text-coal' : 'border-seam bg-white text-stone-600 hover:border-coal hover:text-coal'}`}>{s.sheet_no}</button>
+                        className={`rounded-md border px-2.5 py-1 font-mono text-xs transition-colors ${sheet === s.sheet_no ? 'border-coal text-coal font-semibold shadow-xs' : 'border-seam bg-surface text-ink hover:border-coal hover:text-coal'}`}>{s.sheet_no}</button>
               ))}
             </AnimatedBackground>
           </div>
@@ -260,64 +265,68 @@ export default function Viewer() {
 
       {sheet != null && (tables.length ? tables.map((t, i) => (
         <Rise key={t.id || i} delay={0.1 + i * 0.05}>
-          <div className='mt-6 overflow-hidden rounded-xl border border-seam bg-white shadow-card'>
-            <div className='border-b border-seam bg-paper px-5 py-3 text-[13px] font-semibold'>
-              Table {t.table_idx + 1}
-              {t.section_path && <span className='ml-2 font-normal font-mono text-[11px] text-stone-400'>{t.section_path}</span>}
-              <span className='ml-2 font-normal font-mono text-[11px] text-stone-400'>{t.n_rows} rows × {t.n_cols} cols</span>
+          <Card className='mt-6 overflow-hidden p-0'>
+            <div className='flex items-center justify-between border-b border-seam bg-paper/60 px-5 py-3 text-xs font-semibold text-ink'>
+              <div className='flex items-center gap-2'>
+                <span>Table {t.table_idx + 1}</span>
+                {t.section_path && <span className='font-normal font-mono text-[11px] text-muted1'>{t.section_path}</span>}
+              </div>
+              <span className='font-normal font-mono text-[11px] text-muted1'>{t.n_rows} rows × {t.n_cols} cols</span>
             </div>
             <div className='max-h-[560px] overflow-auto'>
-              <table className='w-full text-[13px]'>
-                <thead className='sticky top-0 z-10'>
-                  <tr className='border-b border-seam bg-paper text-left font-mono text-[11px] uppercase tracking-wide text-stone-500'>
+              <table className='w-full text-left text-xs text-ink'>
+                <thead className='sticky top-0 z-10 border-b border-seam bg-paper font-mono text-[11px] uppercase tracking-wider text-muted1'>
+                  <tr>
                     {t.headers.map((h, hi) => <th key={hi} className='px-4 py-2.5 font-medium'>{h}</th>)}
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className='divide-y divide-seam bg-surface'>
                   {Array.from({ length: maxRow + 1 }, (_, r) => (
-                    <tr key={r} className='border-b border-seam last:border-0 odd:bg-paper/50'>
+                    <tr key={r} className='transition-colors hover:bg-paper/50 odd:bg-paper/20'>
                       {t.rows.filter((c) => c.row_idx === r).map((c, ci) => (
-                        <td key={ci} className={`whitespace-nowrap px-4 py-2 ${c.value_norm != null ? 'font-mono' : ''}`}>{c.value_raw}</td>
+                        <td key={ci} className={`whitespace-nowrap px-4 py-2.5 ${c.value_norm != null ? 'font-mono tabular-nums text-coal font-medium' : ''}`}>{c.value_raw}</td>
                       ))}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         </Rise>
       )) : sheet != null && (
-        <p className='mt-6 text-sm text-stone-500'>No tables were detected on this sheet.</p>
+        <Card className='mt-6 p-8 text-center text-sm text-muted1'>
+          No tables were detected on this sheet.
+        </Card>
       ))}
 
       {((isPdf || isSheet) && !page && !sheet) && (
         <Rise delay={0.1}>
-          <div className='mt-6 rounded-xl border border-seam bg-white px-6 py-10 text-center text-sm text-stone-500 shadow-card'>
+          <Card className='mt-6 p-10 text-center text-sm text-muted1'>
             {isSheet ? 'Pick a sheet above to see it as a spreadsheet.' : 'Select a page above to inspect its extraction with provenance.'}
-          </div>
+          </Card>
         </Rise>
       )}
 
       {!isPdf && !isSheet && (
         <Rise delay={0.14}>
-          <div className='mt-6 rounded-xl border border-seam bg-white p-6 shadow-card'>
-            <h2 className='text-[15px] font-semibold'>Document Reading View</h2>
+          <Card className='mt-6 p-6'>
+            <h2 className='text-sm font-semibold uppercase tracking-wider text-muted1'>Document Reading View</h2>
             {doc.doc_type === 'image' && pages.length > 0 && pages[0].image_path && (
               <img src={`/page_image/${doc.id}/${pages[0].image_path.split('/').pop()}`}
                    className='mt-4 max-h-[560px] rounded-lg border border-seam' alt={title} />
             )}
             <div className='mt-4 space-y-4'>
               {reading.length === 0 ? (
-                <p className='text-[13.5px] text-stone-500'>No text content was extracted from this file.</p>
+                <p className='text-sm text-muted1'>No text content was extracted from this file.</p>
               ) : reading.map((el, i) => el.element_type === 'HEADING' ? (
-                <h3 key={i} className='mt-6 text-[17px] font-semibold tracking-tight'>{el.text}</h3>
+                <h3 key={i} className='mt-6 text-lg font-semibold tracking-tight text-ink'>{el.text}</h3>
               ) : el.element_type === 'TABLE' ? (
-                <p key={i} className='rounded-lg border border-coalline bg-coalsoft px-4 py-2.5 text-[13px] text-coal'>Table extracted on this document. Its cells are searchable and citable across the system.</p>
+                <p key={i} className='rounded-lg border border-coalline bg-coalsoft px-4 py-2.5 text-xs text-coal'>Table extracted on this document. Its cells are searchable and citable across the system.</p>
               ) : (
-                <p key={i} className='max-w-[85ch] text-[14.5px] leading-relaxed text-stone-700'>{el.text}</p>
+                <p key={i} className='max-w-[85ch] text-sm leading-relaxed text-ink'>{el.text}</p>
               ))}
             </div>
-          </div>
+          </Card>
         </Rise>
       )}
     </div>

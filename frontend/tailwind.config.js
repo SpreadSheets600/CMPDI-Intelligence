@@ -52,8 +52,8 @@ export default {
         },
       },
       boxShadow: {
-        card: "0 1px 2px rgb(28 25 23 / 0.05)",
-        lift: "0 10px 24px -8px rgb(28 25 23 / 0.18)",
+        card: "var(--shadow-card)",
+        lift: "var(--shadow-lift)",
       },
     },
   },

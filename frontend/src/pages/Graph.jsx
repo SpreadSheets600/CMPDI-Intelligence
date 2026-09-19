@@ -3,9 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { usePageData, cmpdiColors } from '../hooks/useData.js';
 import { getJSON } from '../api.js';
-import { Rise, PageHeader, Loading, ErrorBox } from '../components/ui.jsx';
-import { Tilt } from '../components/motion/tilt.jsx';
-import { Magnetic } from '../components/motion/magnetic.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button } from '../components/ui.jsx';
 
 const COLORS = {
   document: { fill: '#d97706', text: '#fff', r: 9 },
@@ -205,7 +203,7 @@ function KnowledgeCanvas({ subsidiary, kind, query, onPick, onMeta }) {
     <div className='relative'>
       <canvas ref={canvasRef} className='block h-[560px] w-full' />
       {empty && (
-        <p className='pointer-events-none absolute inset-0 flex items-center justify-center text-[13px] text-stone-400'>
+        <p className='pointer-events-none absolute inset-0 flex items-center justify-center text-xs text-muted1'>
           No documents in this view yet. Ingest files to grow the tree.
         </p>
       )}
@@ -233,38 +231,36 @@ function NodePanel({ picked, onClose }) {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 60, opacity: 0 }}
           transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
-          className='absolute inset-y-0 right-0 w-80 overflow-y-auto border-l border-seam bg-white/95 p-4 backdrop-blur'
+          className='absolute inset-y-0 right-0 w-80 overflow-y-auto border-l border-seam bg-surface/95 p-4 backdrop-blur'
         >
           <div className='flex items-start justify-between gap-2'>
             <div>
-              <h3 className='text-[13px] font-semibold leading-snug'>
+              <h3 className='text-xs font-semibold leading-snug text-ink'>
                 {picked.type === 'tag' ? `#${picked.label}` : picked.label}
               </h3>
-              <p className='mt-0.5 font-mono text-[10px] uppercase tracking-widest text-stone-400'>{picked.type}</p>
+              <p className='mt-0.5 font-mono text-[10px] uppercase tracking-wider text-muted1'>{picked.type}</p>
             </div>
-            <button onClick={onClose} className='text-stone-400 hover:text-ink'>✕</button>
+            <button onClick={onClose} className='text-muted1 hover:text-ink text-sm'>✕</button>
           </div>
           {picked.type === 'document' && (
-            <>
-              <p className='mt-2 font-mono text-[11px] uppercase text-stone-400'>{picked.group}</p>
-              <Magnetic intensity={0.2} range={70} className='mt-4 block'>
-                <Link to={`/doc/${picked.ref}`} className='block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Open Document</Link>
-              </Magnetic>
-              <Link to={`/search?q=${encodeURIComponent(picked.label)}`} className='mt-2 block rounded-lg border border-seamdark px-3 py-2 text-center text-[13px] font-medium text-stone-600 hover:border-coal hover:text-coal'>Search Inside</Link>
-            </>
+            <div className='mt-3 space-y-2'>
+              <p className='font-mono text-[11px] uppercase text-muted1'>{picked.group}</p>
+              <Button to={`/doc/${picked.ref}`} variant='primary' size='sm' className='w-full'>Open Document</Button>
+              <Button to={`/search?q=${encodeURIComponent(picked.label)}`} variant='secondary' size='sm' className='w-full'>Search Inside</Button>
+            </div>
           )}
           {picked.type === 'tag' && (
-            <>
-              <p className='mt-2 text-[13px] text-stone-500'>Extracted tag on {picked.count || '?'} document(s).</p>
-              <Link to={`/search?tag=${encodeURIComponent(picked.label)}`} className='mt-4 block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search This Tag</Link>
-            </>
+            <div className='mt-3 space-y-2'>
+              <p className='text-xs text-muted1'>Extracted tag on {picked.count || '?'} document(s).</p>
+              <Button to={`/search?tag=${encodeURIComponent(picked.label)}`} variant='primary' size='sm' className='w-full'>Search This Tag</Button>
+            </div>
           )}
           {(picked.type === 'entity' || picked.type === 'organization') && (
             <EntityContext name={picked.ref || picked.label} />
           )}
           {hood && hood.edges && hood.edges.length > 0 && (
             <div className='mt-4'>
-              <h4 className='font-mono text-[10px] uppercase tracking-widest text-stone-400'>
+              <h4 className='font-mono text-[10px] uppercase tracking-wider text-muted1'>
                 Relationships ({hood.edges.length})
               </h4>
               <ul className='mt-2 space-y-2'>
@@ -273,25 +269,25 @@ function NodePanel({ picked, onClose }) {
                   const other = (hood.neighbours || []).find((n) => n.id === otherId);
                   const ev = e.evidence || {};
                   return (
-                    <li key={i} className='rounded-lg border border-seam bg-paper px-2.5 py-1.5'>
-                      <p className='font-mono text-[10px] text-coal'>{e.relation.replace(/_/g, ' ')}</p>
-                      <p className='text-[12.5px] font-semibold text-ink'>{other ? other.label : otherId}</p>
+                    <li key={i} className='rounded-xl border border-seam bg-paper/50 px-3 py-2'>
+                      <p className='font-mono text-[10px] text-coal font-semibold'>{e.relation.replace(/_/g, ' ')}</p>
+                      <p className='text-xs font-semibold text-ink'>{other ? other.label : otherId}</p>
                       {ev.filename && (
-                        <p className='mt-0.5 font-mono text-[10px] text-stone-400'>
+                        <p className='mt-0.5 font-mono text-[10px] text-muted1'>
                           {ev.filename}{ev.page_no ? ` · p.${ev.page_no}` : ''}
                         </p>
                       )}
                       {ev.snippet && (
-                        <p className='mt-1 text-[11.5px] leading-snug text-stone-500'>
+                        <p className='mt-1 text-xs leading-snug text-muted0'>
                           {ev.snippet.length > 140 ? ev.snippet.slice(0, 140) + '…' : ev.snippet}
                         </p>
                       )}
                       {ev.doc_id && (
                         <Link
                           to={ev.page_no ? `/doc/${ev.doc_id}?page=${ev.page_no}` : `/doc/${ev.doc_id}`}
-                          className='mt-1 inline-block font-mono text-[10.5px] text-sky-700 hover:underline'
+                          className='mt-1 inline-block font-mono text-[10.5px] font-semibold text-coal hover:underline'
                         >
-                          View Source
+                          View Source →
                         </Link>
                       )}
                     </li>
@@ -324,14 +320,14 @@ function EntityContext({ name }) {
   const { data, error } = state;
   if (error) {
     return (
-      <div className='mt-2'>
-        <p className='text-[13px] text-stone-500'>Entity resolved from the fact index.</p>
-        <p className='mt-1 font-mono text-[11px] text-stone-400'>No public reference for this entity yet.</p>
-        <Link to={`/search?q=${encodeURIComponent(name)}`} className='mt-4 block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search Mentions</Link>
+      <div className='mt-3 space-y-2'>
+        <p className='text-xs text-muted0'>Entity resolved from the fact index.</p>
+        <p className='font-mono text-[11px] text-muted1'>No public reference for this entity yet.</p>
+        <Button to={`/search?q=${encodeURIComponent(name)}`} variant='secondary' size='sm' className='w-full'>Search Mentions</Button>
       </div>
     );
   }
-  if (!data) return <p className='mt-2 font-mono text-[11px] text-stone-400'>Loading public reference…</p>;
+  if (!data) return <p className='mt-2 font-mono text-[11px] text-muted1'>Loading public reference…</p>;
 
   const groups = [
     ['profile', 'Profile'],
@@ -341,18 +337,18 @@ function EntityContext({ name }) {
   ];
   const lib = data.library || {};
   return (
-    <div className='mt-2 space-y-3'>
+    <div className='mt-3 space-y-3'>
       {groups.map(([key, title]) => (data.reference?.[key]?.length > 0) && (
         <div key={key}>
-          <h4 className='font-mono text-[10px] uppercase tracking-widest text-stone-400'>{title}</h4>
+          <h4 className='font-mono text-[10px] uppercase tracking-wider text-muted1'>{title}</h4>
           <dl className='mt-1 space-y-1.5'>
             {data.reference[key].map((r, i) => (
-              <div key={i} className='rounded-lg border border-seam bg-paper px-2.5 py-1.5'>
-                <dt className='text-[11px] font-medium text-stone-500'>{r.label}</dt>
-                <dd className='text-[12.5px] font-semibold text-ink'>
+              <div key={i} className='rounded-xl border border-seam bg-paper/50 px-3 py-1.5'>
+                <dt className='text-xs font-medium text-muted1'>{r.label}</dt>
+                <dd className='text-xs font-semibold text-ink'>
                   {r.value}{r.unit ? ` ${r.unit}` : ''}
                 </dd>
-                <dd className='mt-0.5 font-mono text-[10px] text-stone-400'>
+                <dd className='mt-0.5 font-mono text-[10px] text-muted1'>
                   public reference{r.as_of ? ` · ${r.as_of}` : ''} · {r.source}
                 </dd>
               </div>
@@ -361,21 +357,21 @@ function EntityContext({ name }) {
         </div>
       ))}
       <div>
-        <h4 className='font-mono text-[10px] uppercase tracking-widest text-stone-400'>From Your Library</h4>
-        <p className='mt-1 text-[12.5px] text-stone-600'>
+        <h4 className='font-mono text-[10px] uppercase tracking-wider text-muted1'>From Your Library</h4>
+        <p className='mt-1 font-mono text-xs text-muted0 tabular-nums'>
           {lib.documents ?? 0} document(s) · {lib.facts ?? 0} fact(s)
           {(lib.periods?.length > 0) && (
             <> · {lib.periods[0].slice(0, 4)}–{lib.periods[lib.periods.length - 1].slice(0, 4)}</>
           )}
         </p>
         {(lib.attributes?.length > 0) && (
-          <p className='mt-0.5 font-mono text-[10.5px] text-stone-400'>
+          <p className='mt-0.5 font-mono text-[10.5px] text-muted1'>
             {lib.attributes.map((a) => String(a).replace('_', ' ')).join(' · ')}
           </p>
         )}
       </div>
-      <Link to={`/search?q=${encodeURIComponent(name)}`} className='block rounded-lg bg-coal px-3 py-2 text-center text-[13px] font-semibold text-white'>Search Mentions</Link>
-      <p className='font-mono text-[10px] leading-relaxed text-stone-400'>
+      <Button to={`/search?q=${encodeURIComponent(name)}`} variant='secondary' size='sm' className='w-full'>Search Mentions</Button>
+      <p className='font-mono text-[10px] leading-relaxed text-muted1'>
         Reference values are public context, not evidence — every number from
         your documents keeps its own receipt.
       </p>
@@ -419,59 +415,68 @@ export default function Graph() {
         title='Knowledge Graph'
         subtitle='Organizations, mines, locations, geology, documents, metrics and events — every relationship keeps its source receipt. Click a node to inspect it.'>
         <div className='flex flex-wrap gap-2'>
-          <select value={subsidiary}
-                  onChange={(e) => set({ subsidiary: e.target.value })}
-                  className='rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none'>
+          <select
+            value={subsidiary}
+            onChange={(e) => set({ subsidiary: e.target.value })}
+            className='rounded-lg border border-seam bg-surface px-3 py-1.5 text-xs text-ink shadow-card focus:border-coal focus:outline-none'
+          >
             <option value=''>All subsidiaries</option>
             {data.subs.map((s) => <option key={s.subsidiary} value={s.subsidiary}>{s.subsidiary}</option>)}
           </select>
-          <select value={kind}
-                  onChange={(e) => set({ kind: e.target.value })}
-                  className='rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none'>
+          <select
+            value={kind}
+            onChange={(e) => set({ kind: e.target.value })}
+            className='rounded-lg border border-seam bg-surface px-3 py-1.5 text-xs text-ink shadow-card focus:border-coal focus:outline-none'
+          >
             {KIND_FILTERS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
-          <input value={query}
-                 onChange={(e) => set({ q: e.target.value })}
-                 placeholder='Filter nodes…'
-                 className='w-40 rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none' />
+          <input
+            value={query}
+            onChange={(e) => set({ q: e.target.value })}
+            placeholder='Filter nodes…'
+            className='w-40 rounded-lg border border-seam bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted2 shadow-card focus:border-coal focus:outline-none'
+          />
         </div>
       </PageHeader>
 
       <Rise delay={0.05}>
         <div className='mt-6 grid gap-5 lg:grid-cols-[1fr_280px]'>
-          <div className='relative overflow-hidden rounded-xl border border-seam bg-white shadow-card'>
+          <Card className='relative overflow-hidden p-0'>
             <KnowledgeCanvas subsidiary={subsidiary} kind={kind} query={query} onPick={setPicked} onMeta={setMeta} />
-            <div className='pointer-events-none absolute left-4 top-4 flex max-w-[70%] flex-wrap gap-3 font-mono text-[10px] uppercase tracking-wide text-stone-400'>
+            <div className='pointer-events-none absolute left-4 top-4 flex max-w-[70%] flex-wrap gap-3 font-mono text-[10px] uppercase tracking-wider text-muted1'>
               {(meta.legend.length > 0 ? meta.legend : [{ kind: 'document' }, { kind: 'tag' }, { kind: 'entity' }]).map((l) => (
                 <span key={l.kind} className='flex items-center gap-1.5'>
-                  <i className={`h-2.5 w-2.5 rounded-full ${legendDots[l.kind] || 'bg-stone-400'}`} />
+                  <i className={`h-2 w-2 rounded-full ${legendDots[l.kind] || 'bg-stone-400'}`} />
                   {l.kind}{meta.counts[l.kind] != null ? ` ${meta.counts[l.kind]}` : ''}
                 </span>
               ))}
             </div>
             <NodePanel picked={picked} onClose={() => setPicked(null)} />
-          </div>
+          </Card>
 
           <aside className='space-y-4'>
-            <Tilt rotationFactor={4} className='rounded-xl border border-seam bg-white p-4 shadow-card'>
-              <h2 className='text-[13px] font-semibold uppercase tracking-wide text-stone-500'>Top Tags</h2>
+            <Card className='p-4'>
+              <h2 className='text-xs font-semibold uppercase tracking-wider text-muted1'>Top Tags</h2>
               <div className='mt-3 flex flex-wrap gap-1.5'>
                 {data.tags.length === 0 ? (
-                  <p className='text-[13px] text-stone-400'>No tags yet. Ingest documents to grow the tree.</p>
+                  <p className='text-xs text-muted1'>No tags yet. Ingest documents to grow the tree.</p>
                 ) : data.tags.map((t) => (
-                  <Link key={t.keyword} to={`/search?tag=${encodeURIComponent(t.keyword)}`}
-                        title={`used by ${t.count} documents`}
-                        className='rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-[12px] text-coal transition-colors hover:bg-amber-100'>
+                  <Link
+                    key={t.keyword}
+                    to={`/search?tag=${encodeURIComponent(t.keyword)}`}
+                    title={`used by ${t.count} documents`}
+                    className='rounded-full border border-coalline bg-coalsoft px-2.5 py-1 text-xs text-coal transition-colors hover:border-coal'
+                  >
                     {t.keyword} <span className='font-mono text-[10px] text-coal/60'>{t.count}</span>
                   </Link>
                 ))}
               </div>
-            </Tilt>
-            <div className='rounded-xl border border-seam bg-white p-4 shadow-card'>
-              <h2 className='text-[13px] font-semibold uppercase tracking-wide text-stone-500'>How To Read It</h2>
-              <p className='mt-2 text-[13px] leading-relaxed text-stone-600'>Amber nodes are documents. Violet nodes are organizations, blue mines, teal locations, ochre geology, pink metrics and red events. Green nodes are tags extracted at ingestion time. Edges are typed relationships — operates, located in, has geology, reports metric, occurred at — each keeping its source receipt.</p>
-              <p className='mt-2 text-[13px] text-stone-500'>Click any node to see its relationships with evidence. Click a document node to open it, or a tag to run a search.</p>
-            </div>
+            </Card>
+            <Card className='p-4'>
+              <h2 className='text-xs font-semibold uppercase tracking-wider text-muted1'>How To Read It</h2>
+              <p className='mt-2 text-xs leading-relaxed text-muted0'>Amber nodes are documents. Violet nodes are organizations, blue mines, teal locations, ochre geology, pink metrics and red events. Green nodes are tags extracted at ingestion time. Edges are typed relationships — operates, located in, has geology, reports metric, occurred at — each keeping its source receipt.</p>
+              <p className='mt-2 text-xs text-muted1'>Click any node to see its relationships with evidence. Click a document node to open it, or a tag to run a search.</p>
+            </Card>
           </aside>
         </div>
       </Rise>

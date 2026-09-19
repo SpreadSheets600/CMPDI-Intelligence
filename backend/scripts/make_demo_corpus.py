@@ -1,8 +1,18 @@
 """Generate a synthetic demo corpus that exercises every pipeline path:
-digital PDF (headings, tables, figures), scanned PDF (image-only), mixed PDF,
-multi-sheet XLSX with merged cells, CSV, parliamentary DOCX, a revised
-version of the annual report, a duplicate, and a corrupt file. One planted
-data conflict: two documents disagree about Kusunda Mine's FY2021-22 output."""
+digital PDFs (headings, tables), scanned PDF (image-only), mixed PDF,
+multi-sheet XLSX workbooks with merged cells, CSVs, parliamentary and safety
+DOCX memos, revised versions of reports, a duplicate, and a corrupt file.
+
+Planted conflicts (each pair disagrees on one entity x metric x period):
+ 1. Kusunda Mine production FY2021-22: 4.85 MT (annual report) vs 4.35 MT (scan).
+ 2. Jayant OCP offtake FY2022-23: 195.4 lakh tonnes (NCL workbook) vs
+    197.9 lakh tonnes (NCL ops note).
+Corroborated pairs (same value twice, no conflict):
+ - Nigahi OCP production FY2023-24: 208.6 lakh tonnes (workbook + ops note).
+Hand-checkable series for timelines and forecasting:
+ - Lakhanpur OCP production (MT): 18.20, 19.45, 20.10, 21.65, 22.80
+   across FY2019-20..FY2023-24 (MCL report).
+ - CCL OMS (tonnes): 3.18, 3.31, 3.42 across FY2021-22..FY2023-24 (safety memo)."""
 
 import sys
 from pathlib import Path
@@ -275,6 +285,226 @@ def make_parliamentary_docx():
     return out
 
 
+MCL_PROD = {  # mine -> FY2019-20..FY2023-24 production in MT
+    "Lakhanpur OCP": ["18.20", "19.45", "20.10", "21.65", "22.80"],
+    "Ananta OCP": ["12.40", "12.85", "13.60", "13.15", "14.20"],
+    "Lingaraj OCP": ["15.00", "15.90", "16.40", "17.20", "17.85"],
+}
+MCL_YEARS = ["2019-20", "2020-21", "2021-22", "2022-23", "2023-24"]
+
+
+def make_mcl_report(revised=False):
+    """MCL Annual Report FY2023-24: five-year mine-wise series (timelines and
+    forecasting), offtake, reserves, quality table and manpower."""
+    doc = pymupdf.open()
+    page = doc.new_page()
+    add_heading(page, 90, "MCL Annual Report 2023-24", 17)
+    add_heading(page, 120, "1. Overview", 13)
+    y = add_para(page, 138,
+        "Mahanadi Coalfields Limited (MCL) recorded total coal production of "
+        "201.45 MT during FY2023-24, against 193.80 MT in FY2022-23. The three "
+        "featured opencast projects of MCL — Lakhanpur OCP, Ananta OCP and "
+        "Lingaraj OCP — together produced 54.85 MT during FY2023-24. MCL "
+        "remains the largest producing subsidiary of Coal India Limited.")
+    add_heading(page, y + 10, "2. Production Performance", 13)
+    y2 = add_para(page, y + 28,
+        "Mine-wise production of MCL for the last five financial years is "
+        "presented below. Values are in million tonnes (MT).")
+    rows = [[m] + vals for m, vals in MCL_PROD.items()]
+    if revised:
+        rows[2][-1] = "18.30"  # Lingaraj OCP FY2023-24 revised figure
+    add_table(page, 72, y2, ["Mine"] + MCL_YEARS, rows,
+              col_w=[130, 64, 64, 64, 64, 64])
+
+    page2 = doc.new_page()
+    add_heading(page2, 90, "3. Offtake, Reserves and Manpower", 13)
+    reserves = "1131.20" if revised else "1124.60"
+    add_para(page2, 118,
+        "MCL recorded coal offtake of 178.20 MT during FY2023-24, with grade-wise "
+        "despatch monitored monthly by MCL. Total extractable reserves of MCL as "
+        f"on 1 April 2024 stand at {reserves} MT. MCL employed 21,346 persons "
+        "as on 31 March 2024.")
+
+    page3 = doc.new_page()
+    add_heading(page3, 90, "4. Coal Quality", 13)
+    y3 = add_para(page3, 118,
+        "Average quality parameters of MCL coal despatched during FY2023-24 are "
+        "tabulated below. MCL washeries monitor ash and moisture continuously.")
+    add_table(page3, 72, y3, ["Mine", "GCV (kcal/kg)", "Ash (%)"],
+              [["Lakhanpur OCP", "4850", "34.2"],
+               ["Ananta OCP", "4620", "36.8"],
+               ["Lingaraj OCP", "4950", "33.1"]])
+    out = OUT / ("mcl_annual_report_2024_revised.pdf" if revised
+                 else "mcl_annual_report_2024.pdf")
+    doc.save(str(out))
+    doc.close()
+    return out
+
+
+NCL_PROD = {  # mine -> FY2018-19..FY2023-24 production in lakh tonnes
+    "Jayant OCP": [172.5, 178.0, 184.6, 190.2, 196.8, 201.5],
+    "Nigahi OCP": [180.4, 186.1, 191.7, 197.3, 203.0, 208.6],
+    "Dudhichua OCP": [142.8, 147.5, 152.9, 158.4, 163.1, 168.7],
+    "Amlohri OCP": [96.3, 99.8, 103.2, 106.9, 110.4, 114.0],
+}
+NCL_YEARS = ["2018-19", "2019-20", "2020-21", "2021-22", "2022-23", "2023-24"]
+NCL_OFFTAKE = {  # mine -> [FY2022-23, FY2023-24] offtake in lakh tonnes
+    "Jayant OCP": [195.4, 200.1],
+    "Nigahi OCP": [201.8, 207.2],
+    "Dudhichua OCP": [161.9, 167.5],
+    "Amlohri OCP": [109.6, 113.2],
+}
+
+
+def make_ncl_workbook():
+    """NCL performance workbook: six-year production, offtake and drilling
+    sheets in lakh units, plus a second table region on the Offtake sheet."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Production"
+    ws["A1"] = "Production (lakh tonnes)"
+    ws["A1"].font = Font(bold=True)
+    ws.merge_cells("A1:G1")
+    ws.append([])
+    ws.append(["Mine"] + NCL_YEARS)
+    for mine, vals in NCL_PROD.items():
+        ws.append([mine] + vals)
+    ws2 = wb.create_sheet("Offtake")
+    ws2["A1"] = "Offtake (lakh tonnes)"
+    ws2["A1"].font = Font(bold=True)
+    ws2.merge_cells("A1:C1")
+    ws2.append([])
+    ws2.append(["Mine", "2022-23", "2023-24"])
+    for mine, vals in NCL_OFFTAKE.items():
+        ws2.append([mine] + vals)
+    ws2.append([])
+    ws2.append([])
+    ws2.append(["Project", "Drilling 2023-24", "Unit"])
+    ws2.append(["NCL coalfields", 4.61, "lakh metres"])
+    out = OUT / "ncl_performance_workbook.xlsx"
+    wb.save(out)
+    return out
+
+
+def make_ncl_ops_note():
+    """NCL operational note: conflicts with the workbook on Jayant offtake
+    FY2022-23 (197.9 vs 195.4) while corroborating Nigahi production."""
+    doc = pymupdf.open()
+    page = doc.new_page()
+    add_heading(page, 90, "NCL Operational Note FY2022-23", 15)
+    y = add_para(page, 120,
+        "Northern Coalfields Limited (NCL) reviews mine-wise offtake for the "
+        "Financial Year 2022-23. As reconciled by NCL, Jayant OCP offtake stood "
+        "at 197.9 lakh tonnes during FY2022-23. NCL further notes that Nigahi "
+        "OCP produced 208.6 lakh tonnes during FY2023-24, and NCL drilling "
+        "achieved 4.61 lakh metres in the same year.")
+    add_table(page, 72, y, ["Mine", "Offtake 2022-23 (lakh tonnes)"],
+              [["Jayant OCP", "197.9"],
+               ["Nigahi OCP", "201.8"],
+               ["Dudhichua OCP", "161.9"]], col_w=[220, 220])
+    out = OUT / "ncl_ops_note.pdf"
+    doc.save(str(out))
+    doc.close()
+    return out
+
+
+def make_bccl_exploration_scan():
+    """Scanned BCCL exploration report: drilling, seam depth, GCV and ash."""
+    pages = [
+        ["# BCCL Exploration Report 2023-24",
+         "## Drilling Performance",
+         "Bharat Coking Coal Limited (BCCL) completed 2.34 lakh metres of",
+         "exploratory drilling during FY2023-24 across the Moonidih and",
+         "Muraidih blocks of BCCL. Muraidih OCP produced 8.45 MT during",
+         "FY2023-24 while Moonidih UG produced 2.18 MT in the same period.",
+         "",
+         "## Seam Details",
+         "The coking coal seam occurs at a depth of 380 m to 420 m with an",
+         "average thickness of 6.4 m. GCV of the seam averages 6,100 kcal/kg",
+         "with ash content of 19.8 percent."],
+        ["# BCCL Reserves Statement",
+         "## Extractable Reserves",
+         "Extractable reserves of BCCL as on 1 April 2024 stand at 312.75 MT.",
+         "Proved reserves of the Moonidih block of BCCL are 148.20 MT with",
+         "a stripping ratio of 3.10 cu.m per tonne."],
+    ]
+    doc = pymupdf.open()
+    for i, lines in enumerate(pages):
+        png = OUT / f"_bccl_scan_{i}.jpg"
+        render_text_image(lines, png)
+        img = open(png, "rb").read()
+        page = doc.new_page(width=595, height=842)
+        page.insert_image(pymupdf.Rect(0, 0, 595, 842), stream=img)
+        png.unlink()
+    out = OUT / "bccl_exploration_scan.pdf"
+    doc.save(str(out))
+    doc.close()
+    return out
+
+
+def make_washery_note():
+    """Digital washery/quality note: yields, ash reduction, coking grades."""
+    doc = pymupdf.open()
+    page = doc.new_page()
+    add_heading(page, 90, "Coking Coal Washery Performance Note", 15)
+    y = add_para(page, 120,
+        "This note reviews coking coal washeries of BCCL for FY2023-24. The "
+        "Dugda washery produced 4.85 MT of washed coal at a yield of 48.5 "
+        "percent, while the Bhojudih washery produced 3.62 MT at a yield of "
+        "51.2 percent. Washed coal ash content averaged 17.9 percent against "
+        "raw coal ash of 34.5 percent, with moisture at 6.2 percent.")
+    page2 = doc.new_page()
+    add_heading(page2, 90, "Grade-wise Despatch", 13)
+    add_para(page2, 118,
+        "Despatch of Steel-II grade coking coal from BCCL washeries totalled "
+        "8.4 lakh tonnes during FY2023-24. Washery-III grade despatch was 5.1 "
+        "lakh tonnes in the same period.")
+    out = OUT / "washery_quality_note.pdf"
+    doc.save(str(out))
+    doc.close()
+    return out
+
+
+def make_safety_memo():
+    """CCL safety and manpower memo (DOCX): OMS series, incidents, training."""
+    import docx
+    d = docx.Document()
+    d.add_heading("CCL Safety and Manpower Memo 2023-24", 0)
+    d.add_paragraph("Central Coalfields Limited (CCL) employed 38,214 persons "
+                    "as on 31 March 2024. Output per man shift (OMS) of CCL "
+                    "reached 3.42 tonnes during FY2023-24. Reportable incidents "
+                    "in CCL stood at 0.19 per million tonnes with 12,400 "
+                    "persons trained during the year.")
+    t = d.add_table(rows=1, cols=2)
+    t.style = "Table Grid"
+    hdr = t.rows[0].cells
+    hdr[0].text, hdr[1].text = "Financial Year", "OMS (tonnes)"
+    for year, oms in [("2021-22", "3.18"), ("2022-23", "3.31"), ("2023-24", "3.42")]:
+        row = t.add_row().cells
+        row[0].text, row[1].text = year, oms
+    out = OUT / "ccl_safety_memo.docx"
+    d.save(str(out))
+    return out
+
+
+def make_rake_csv():
+    """Monthly rake despatch register for FY2023-24 (agent chart demo)."""
+    out = OUT / "rake_despatch_fy24.csv"
+    rows = ["Date,Rake,Grade,Quantity (tonnes),Destination"]
+    dests = ["Korba TPS", "Sipat TPS", "Rihand TPS", "Vindhyachal TPS"]
+    grades = ["G11", "G12", "G12", "G13"]
+    qty = [3850, 3975, 4120, 3890, 4055, 4180, 3940, 4090, 4215, 3985, 4070, 4150]
+    for i in range(12):
+        month = f"{(i + 3) % 12 + 1:02d}"
+        year = 2023 if i < 9 else 2024
+        rows.append(f"{year}-{month}-15,R-{2001 + i},{grades[i % 4]},"
+                    f"{qty[i]},{dests[i % 4]}")
+    out.write_text("\n".join(rows), encoding="utf-8")
+    return out
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     np.random.seed(42)
@@ -286,6 +516,14 @@ def main():
         make_xlsx(),
         make_csv(),
         make_parliamentary_docx(),
+        make_mcl_report(revised=False),
+        make_mcl_report(revised=True),
+        make_ncl_workbook(),
+        make_ncl_ops_note(),
+        make_bccl_exploration_scan(),
+        make_washery_note(),
+        make_safety_memo(),
+        make_rake_csv(),
     ]
     # duplicate + corrupt files for dedup / failure demos
     import shutil

@@ -16,19 +16,23 @@
   --c-warn-bg: 254 243 199; --c-warn-text: 120 53 15;
   /* sidebar: fixed charcoal, never flips */
   --s-bg: 24 21 19; --s-hi: 38 34 31; --s-text: 245 243 241;
-  --s-mute: 120 113 108; --s-line: 44 40 36;
+  --s-mute: 145 138 134; --s-line: 44 40 36;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shadow-lift: 0 10px 24px -6px rgb(0 0 0 / 0.10), 0 4px 8px -4px rgb(0 0 0 / 0.05);
 }
 .dark {
-  --c-paper: 18 16 14; --c-surface: 31 28 25; --c-ink: 231 229 228;
+  --c-paper: 18 16 14; --c-surface: 31 28 25; --c-ink: 245 245 244;
   --c-seam: 57 52 47; --c-seamdark: 82 75 68;
   --c-coal: 234 138 12; --c-coalsoft: 55 40 15; --c-coalline: 110 78 28;
-  --c-muted0: 96 90 84; --c-muted1: 154 147 143; --c-muted2: 145 138 134;
-  --c-muted3: 168 162 158; --c-muted4: 196 191 188;
+  --c-muted0: 87 83 78; --c-muted1: 168 162 158; --c-muted2: 190 184 179;
+  --c-muted3: 214 211 209; --c-muted4: 231 229 228;
   --c-ok-bg: 12 46 34; --c-ok-line: 27 84 61; --c-ok-solid: 16 185 129;
   --c-ok-text: 110 231 183; --c-ok-text2: 134 239 200;
   --c-bad-bg: 53 20 20; --c-bad-line: 114 38 38; --c-bad-line2: 142 48 48;
   --c-bad-solid: 225 70 70; --c-bad-text: 248 113 113;
   --c-warn-bg: 62 44 12; --c-warn-text: 252 211 77;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.35), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-lift: 0 10px 24px -6px rgb(0 0 0 / 0.5), 0 4px 8px -4px rgb(0 0 0 / 0.35);
 }
 
 /* ─── Base ───────────────────────────────────────────────────────────────────── */
