@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Network } from 'lucide-react';
+import { Network, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { usePageData, cmpdiColors } from '../hooks/useData.js';
+import { useTheme } from '../hooks/useTheme.jsx';
 import { getJSON } from '../api.js';
-import { Rise, PageHeader, Loading, ErrorBox, Card, Badge, Button, EmptyState } from '../components/ui.jsx';
+import { Rise, PageHeader, Loading, ErrorBox, Card, Button, EmptyState } from '../components/ui.jsx';
 
 const COLORS = {
   document: { fill: '#d97706', text: '#fff', r: 9 },
@@ -28,32 +29,164 @@ const KIND_FILTERS = [
   ['event', 'Events'],
 ];
 
-function KnowledgeCanvas({ subsidiary, kind, query, onPick, onMeta }) {
+// Interactive canvas: force layout settles synchronously on load (no idle
+// animation loop), then renders only on interaction (dirty-flag). Wheel zooms
+// to cursor, background drag pans, node drag moves, pinch works on touch.
+const MIN_ZOOM = 0.25, MAX_ZOOM = 3;
+
+function layoutSync(nodes, edges) {
+  const budget = nodes.length > 500 ? 150 : 260;
+  for (let t = 0; t < budget; t++) {
+    const alpha = 1 - t / budget;
+    let maxD = 0;
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const a = nodes[i], b = nodes[j];
+        let dx = a.x - b.x, dy = a.y - b.y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 < 1) {
+          dx = 0.5 - ((i * 7 + j) % 10) / 10;
+          dy = 0.5 - ((i * 13 + j * 3) % 10) / 10;
+          d2 = 1;
+        }
+        if (d2 > 40000) continue;
+        const d = Math.sqrt(d2), f = (1800 / d2) * alpha;
+        a.vx += (dx / d) * f; a.vy += (dy / d) * f;
+        b.vx -= (dx / d) * f; b.vy -= (dy / d) * f;
+      }
+    }
+    for (const e of edges) {
+      const dx = e.target.x - e.source.x, dy = e.target.y - e.source.y;
+      const d = Math.max(1, Math.hypot(dx, dy));
+      const f = (d - 90) * 0.015 * alpha;
+      e.source.vx += (dx / d) * f; e.source.vy += (dy / d) * f;
+      e.target.vx -= (dx / d) * f; e.target.vy -= (dy / d) * f;
+    }
+    for (const n of nodes) {
+      n.vx *= 0.82; n.vy *= 0.82;
+      const sx = n.vx, sy = n.vy;
+      n.x += sx; n.y += sy;
+      const step = Math.abs(sx) + Math.abs(sy);
+      if (step > maxD) maxD = step;
+    }
+    if (maxD < 0.4 && t > 60) break;
+  }
+  for (const n of nodes) { n.vx = 0; n.vy = 0; }
+}
+
+function KnowledgeCanvas({ subsidiary, kind, query, theme, onPick, onMeta }) {
   const canvasRef = useRef(null);
-  const sim = useRef({ nodes: [], edges: [] });
-  const hovered = useRef(null);
-  const dragged = useRef(null);
-  const selected = useRef(null);
+  const eng = useRef(null);
   const [empty, setEmpty] = useState(false);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-    const ctx = canvas.getContext('2d');
-    let raf = 0;
-    let dead = false;
-    selected.current = null;
-    hovered.current = null;
-    dragged.current = null;
-
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.max(1, canvas.clientWidth * dpr);
-      canvas.height = Math.max(1, canvas.clientHeight * dpr);
+  const [zoomPct, setZoomPct] = useState(100);
+  if (!eng.current) {
+    eng.current = {
+      nodes: [], edges: [], cam: { x: 0, y: 0, k: 1 },
+      hover: null, sel: null, colors: null, raf: 0, w: 0, h: 0,
     };
-    resize();
-    window.addEventListener('resize', resize);
+  }
 
+  const draw = () => {
+    const canvas = canvasRef.current, E = eng.current;
+    if (!canvas || !E.nodes) return;
+    const ctx = canvas.getContext('2d');
+    const dpr = window.devicePixelRatio || 1;
+    if (!E.colors) E.colors = cmpdiColors();
+    const t = E.colors;
+    const { w: W, h: H } = E;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const { x: cx, y: cy, k } = E.cam;
+    const toX = (wx) => (wx - cx) * k + W / 2;
+    const toY = (wy) => (wy - cy) * k + H / 2;
+    const inView = (wx, wy, m) => {
+      const sx = toX(wx), sy = toY(wy);
+      return sx > -m && sx < W + m && sy > -m && sy < H + m;
+    };
+    for (const e of E.edges) {
+      if (!inView(e.source.x, e.source.y, 0) && !inView(e.target.x, e.target.y, 0)) continue;
+      const hot = E.hover && (e.source === E.hover || e.target === E.hover);
+      ctx.strokeStyle = hot ? t.coal : t.seam;
+      ctx.lineWidth = hot ? 1.6 : 1;
+      ctx.beginPath();
+      ctx.moveTo(toX(e.source.x), toY(e.source.y));
+      ctx.lineTo(toX(e.target.x), toY(e.target.y));
+      ctx.stroke();
+    }
+    const showLabels = k > 0.55;
+    ctx.textAlign = 'center';
+    for (const n of E.nodes) {
+      if (!inView(n.x, n.y, n.r * k + 20)) continue;
+      const c = COLORS[n.type] || COLORS.entity;
+      const hot = n === E.hover || n === E.sel;
+      if (E.hover && !hot && E.hover.type === 'document') ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.arc(toX(n.x), toY(n.y), Math.max(2, n.r * k + (hot ? 2.5 : 0)), 0, Math.PI * 2);
+      ctx.fillStyle = c.fill;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      if (hot) {
+        ctx.beginPath();
+        ctx.arc(toX(n.x), toY(n.y), Math.max(4, n.r * k + 5), 0, Math.PI * 2);
+        ctx.strokeStyle = t.coal;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      if (n.type !== 'document' || hot) {
+        if (!showLabels && !hot) continue;
+        ctx.font = `${hot ? '600 ' : ''}11px "IBM Plex Mono", monospace`;
+        ctx.fillStyle = t.muted3;
+        const label = n.label.length > 26 ? n.label.slice(0, 24) + '…' : n.label;
+        ctx.fillText(label, toX(n.x), toY(n.y) + n.r * k + 13);
+      }
+    }
+  };
+
+  const requestDraw = () => {
+    const E = eng.current;
+    if (E.raf) return;
+    E.raf = requestAnimationFrame(() => { E.raf = 0; draw(); });
+  };
+
+  const syncZoomLabel = () => {
+    const pct = Math.round(eng.current.cam.k * 100);
+    setZoomPct((p) => (p === pct ? p : pct));
+  };
+
+  const fit = () => {
+    const E = eng.current;
+    if (!E.nodes.length || !E.w) return;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of E.nodes) {
+      if (n.x < x0) x0 = n.x; if (n.y < y0) y0 = n.y;
+      if (n.x > x1) x1 = n.x; if (n.y > y1) y1 = n.y;
+    }
+    const pad = 80;
+    const k = Math.max(MIN_ZOOM, Math.min(1.6,
+      Math.min(E.w / Math.max(1, x1 - x0 + pad * 2), E.h / Math.max(1, y1 - y0 + pad * 2))));
+    E.cam = { x: (x0 + x1) / 2, y: (y0 + y1) / 2, k };
+    syncZoomLabel();
+    requestDraw();
+  };
+
+  const zoomAt = (px, py, factor) => {
+    const E = eng.current;
+    const k2 = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, E.cam.k * factor));
+    if (k2 === E.cam.k) return;
+    const wx = E.cam.x + (px - E.w / 2) / E.cam.k;
+    const wy = E.cam.y + (py - E.h / 2) / E.cam.k;
+    E.cam = { k: k2, x: wx - (px - E.w / 2) / k2, y: wy - (py - E.h / 2) / k2 };
+    syncZoomLabel();
+    requestDraw();
+  };
+
+  // ---- data + layout (filter change; synchronous settle, one paint)
+  useEffect(() => {
+    const canvas = canvasRef.current, E = eng.current;
+    E.w = canvas.clientWidth || 800;
+    E.h = canvas.clientHeight || 560;
+    E.hover = null; E.sel = null;
+    let dead = false;
     (async () => {
       try {
         const params = new URLSearchParams();
@@ -62,22 +195,21 @@ function KnowledgeCanvas({ subsidiary, kind, query, onPick, onMeta }) {
         if (query) params.set('q', query);
         const data = await getJSON('/api/graph?' + params.toString());
         if (dead) return;
-        const W = canvas.clientWidth || 800, H = canvas.clientHeight || 560;
         setEmpty(!data.nodes || data.nodes.length === 0);
         if (onMeta) onMeta({ legend: data.legend || [], counts: data.counts || {} });
-        sim.current.nodes = (data.nodes || []).map((n, i) => ({
+        E.nodes = (data.nodes || []).map((n, i) => ({
           ...n,
-          x: W / 2 + Math.cos(i * 2.4) * (60 + (i % 7) * 22),
-          y: H / 2 + Math.sin(i * 2.4) * (60 + (i % 5) * 26),
+          x: Math.cos(i * 2.4) * (60 + (i % 7) * 22),
+          y: Math.sin(i * 2.4) * (60 + (i % 5) * 26),
           vx: 0, vy: 0,
           r: n.type === 'document' ? 10
             : n.type === 'organization' || n.type === 'mine' ? 8
             : n.type === 'entity' || n.type === 'event' || n.type === 'location' ? 7
             : 5 + Math.min(6, n.count || 1),
         }));
-        const byId = new Map(sim.current.nodes.map((n) => [n.id, n]));
+        const byId = new Map(E.nodes.map((n) => [n.id, n]));
         const seen = new Set();
-        sim.current.edges = (data.edges || [])
+        E.edges = (data.edges || [])
           .map((e) => ({ source: byId.get(e.source), target: byId.get(e.target) }))
           .filter((e) => {
             if (!e.source || !e.target) return false;
@@ -86,123 +218,207 @@ function KnowledgeCanvas({ subsidiary, kind, query, onPick, onMeta }) {
             seen.add(k);
             return true;
           });
-        raf = requestAnimationFrame(tick);
+        layoutSync(E.nodes, E.edges);
+        if (!dead) { fit(); draw(); }
       } catch {
         if (!dead) setEmpty(true);
       }
     })();
-
-    function tick() {
-      const { nodes, edges } = sim.current;
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i], b = nodes[j];
-          let dx = a.x - b.x, dy = a.y - b.y;
-          let d2 = dx * dx + dy * dy;
-          if (d2 < 1) { dx = Math.random() - 0.5; dy = Math.random() - 0.5; d2 = 1; }
-          if (d2 > 40000) continue;
-          const f = 1800 / d2;
-          const d = Math.sqrt(d2);
-          a.vx += (dx / d) * f; a.vy += (dy / d) * f;
-          b.vx -= (dx / d) * f; b.vy -= (dy / d) * f;
-        }
-      }
-      for (const e of edges) {
-        const dx = e.target.x - e.source.x, dy = e.target.y - e.source.y;
-        const d = Math.max(1, Math.hypot(dx, dy));
-        const f = (d - 90) * 0.015;
-        e.source.vx += (dx / d) * f; e.source.vy += (dy / d) * f;
-        e.target.vx -= (dx / d) * f; e.target.vy -= (dy / d) * f;
-      }
-      const W = canvas.clientWidth, H = canvas.clientHeight;
-      for (const n of nodes) {
-        n.vx += (W / 2 - n.x) * 0.003;
-        n.vy += (H / 2 - n.y) * 0.003;
-        if (n === dragged.current) { n.vx = 0; n.vy = 0; continue; }
-        n.vx *= 0.82; n.vy *= 0.82;
-        n.x += n.vx; n.y += n.vy;
-        n.x = Math.max(24, Math.min(W - 24, n.x));
-        n.y = Math.max(24, Math.min(H - 24, n.y));
-      }
-      draw();
-      raf = requestAnimationFrame(tick);
-    }
-
-    function draw() {
-      const dpr = window.devicePixelRatio || 1;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      const t = cmpdiColors();
-      const { nodes, edges } = sim.current;
-      for (const e of edges) {
-        const hot = hovered.current && (e.source === hovered.current || e.target === hovered.current);
-        ctx.strokeStyle = hot ? t.coal : t.seam;
-        ctx.lineWidth = hot ? 1.6 : 1;
-        ctx.beginPath();
-        ctx.moveTo(e.source.x, e.source.y);
-        ctx.lineTo(e.target.x, e.target.y);
-        ctx.stroke();
-      }
-      ctx.textAlign = 'center';
-      for (const n of nodes) {
-        const c = COLORS[n.type] || COLORS.entity;
-        const hot = n === hovered.current || n === selected.current;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, n.r + (hot ? 2.5 : 0), 0, Math.PI * 2);
-        ctx.fillStyle = c.fill;
-        ctx.globalAlpha = hovered.current && !hot && hovered.current.type === 'document' ? 0.35 : 1;
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        if (n.type !== 'document' || hot) {
-          ctx.font = `${hot ? '600 ' : ''}11px "IBM Plex Mono", monospace`;
-          ctx.fillStyle = t.muted3;
-          ctx.fillText(n.label.length > 26 ? n.label.slice(0, 24) + '…' : n.label, n.x, n.y + n.r + 13);
-        }
-      }
-      ctx.restore();
-    }
-
-    const nodeAt = (x, y) =>
-      sim.current.nodes.find((n) => Math.hypot(n.x - x, n.y - y) <= n.r + 4) || null;
-
-    const onDown = (e) => {
-      const r = canvas.getBoundingClientRect();
-      const n = nodeAt(e.clientX - r.left, e.clientY - r.top);
-      if (n) { dragged.current = n; selected.current = n; onPick(n); }
-    };
-    const onUp = () => { dragged.current = null; };
-    const onMove = (e) => {
-      const r = canvas.getBoundingClientRect();
-      const n = nodeAt(e.clientX - r.left, e.clientY - r.top);
-      if (n !== hovered.current) {
-        hovered.current = n;
-        canvas.style.cursor = n ? 'pointer' : 'default';
-      }
-    };
-    const onDrag = (e) => {
-      if (!dragged.current) return;
-      const r = canvas.getBoundingClientRect();
-      dragged.current.x = e.clientX - r.left;
-      dragged.current.y = e.clientY - r.top;
-    };
-    canvas.addEventListener('mousedown', onDown);
-    window.addEventListener('mouseup', onUp);
-    const onHover = (e) => { onMove(e); onDrag(e); };
-    canvas.addEventListener('mousemove', onHover);
-    return () => {
-      dead = true;
-      cancelAnimationFrame(raf);
-      window.removeEventListener('resize', resize);
-      canvas.removeEventListener('mousedown', onDown);
-      window.removeEventListener('mouseup', onUp);
-      canvas.removeEventListener('mousemove', onHover);
-    };
+    return () => { dead = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subsidiary, kind, query]);
+
+  // ---- theme change repaints with fresh tokens (no refetch)
+  useEffect(() => {
+    eng.current.colors = null;
+    requestDraw();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme]);
+
+  // ---- canvas backing store tracks element size
+  useEffect(() => {
+    const canvas = canvasRef.current, E = eng.current;
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      E.w = canvas.clientWidth || 800;
+      E.h = canvas.clientHeight || 560;
+      canvas.width = Math.max(1, E.w * dpr);
+      canvas.height = Math.max(1, E.h * dpr);
+      requestDraw();
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- pointer interaction (attached once; all state lives in the ref)
+  useEffect(() => {
+    const canvas = canvasRef.current, E = eng.current;
+    const pos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      return [e.clientX - r.left, e.clientY - r.top];
+    };
+    const toWorld = (px, py) => [
+      E.cam.x + (px - E.w / 2) / E.cam.k,
+      E.cam.y + (py - E.h / 2) / E.cam.k,
+    ];
+    const nodeAt = (px, py) => {
+      const [wx, wy] = toWorld(px, py);
+      const slop = 5 / E.cam.k;
+      let best = null, bestD = Infinity;
+      for (const n of E.nodes) {
+        const d = Math.hypot(n.x - wx, n.y - wy) - n.r;
+        if (d <= slop && d < bestD) { best = n; bestD = d; }
+      }
+      return best;
+    };
+    const pointers = new Map();
+    let panStart = null, dragNode = null, pinchD0 = 0, pinchK0 = 1;
+
+    const down = (e) => {
+      canvas.setPointerCapture?.(e.pointerId);
+      pointers.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchD0 = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+        pinchK0 = E.cam.k;
+        dragNode = null; panStart = null;
+        return;
+      }
+      const [px, py] = pos(e);
+      const n = nodeAt(px, py);
+      if (n) {
+        dragNode = n;
+        E.sel = n;
+        if (onPick) onPick(n);
+      } else {
+        panStart = { px, py, cx: E.cam.x, cy: E.cam.y };
+        E.sel = null;
+        if (onPick) onPick(null);
+      }
+      requestDraw();
+    };
+    const move = (e) => {
+      if (!pointers.has(e.pointerId)) {
+        const [px, py] = pos(e);
+        const n = nodeAt(px, py);
+        if (n !== E.hover) {
+          E.hover = n;
+          canvas.style.cursor = n ? 'pointer' : 'default';
+          requestDraw();
+        }
+        return;
+      }
+      pointers.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const d = Math.hypot(a[0] - b[0], a[1] - b[1]) || 1;
+        const r = canvas.getBoundingClientRect();
+        const mx = (a[0] + b[0]) / 2 - r.left, my = (a[1] + b[1]) / 2 - r.top;
+        const k2 = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinchK0 * (d / pinchD0)));
+        const wx = E.cam.x + (mx - E.w / 2) / E.cam.k;
+        const wy = E.cam.y + (my - E.h / 2) / E.cam.k;
+        E.cam = { k: k2, x: wx - (mx - E.w / 2) / k2, y: wy - (my - E.h / 2) / k2 };
+        syncZoomLabel();
+        requestDraw();
+        return;
+      }
+      const [px, py] = pos(e);
+      if (dragNode) {
+        const [wx, wy] = toWorld(px, py);
+        dragNode.x = wx; dragNode.y = wy;
+        for (let t = 0; t < 3; t++) {
+          for (const ed of E.edges) {
+            if (ed.source !== dragNode && ed.target !== dragNode) continue;
+            const dx = ed.target.x - ed.source.x, dy = ed.target.y - ed.source.y;
+            const d = Math.max(1, Math.hypot(dx, dy));
+            const f = (d - 90) * 0.015 * 0.3;
+            ed.source.vx += (dx / d) * f; ed.source.vy += (dy / d) * f;
+            ed.target.vx -= (dx / d) * f; ed.target.vy -= (dy / d) * f;
+          }
+          for (const n of E.nodes) {
+            if (n === dragNode) { n.vx = 0; n.vy = 0; continue; }
+            n.vx *= 0.82; n.vy *= 0.82;
+            n.x += n.vx; n.y += n.vy;
+          }
+        }
+        requestDraw();
+      } else if (panStart) {
+        E.cam.x = panStart.cx - (px - panStart.px) / E.cam.k;
+        E.cam.y = panStart.cy - (py - panStart.py) / E.cam.k;
+        requestDraw();
+      }
+    };
+    const up = (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchD0 = 0;
+      if (pointers.size === 0) { dragNode = null; panStart = null; }
+    };
+    const wheel = (e) => {
+      e.preventDefault();
+      const [px, py] = pos(e);
+      zoomAt(px, py, e.deltaY < 0 ? 1.15 : 1 / 1.15);
+    };
+    const dbl = (e) => {
+      const [px, py] = pos(e);
+      const n = nodeAt(px, py);
+      if (n) {
+        E.sel = n;
+        if (onPick) onPick(n);
+        E.cam.x = n.x; E.cam.y = n.y;
+        E.cam.k = Math.min(MAX_ZOOM, E.cam.k * 1.6);
+        syncZoomLabel();
+      } else {
+        zoomAt(px, py, 1.4);
+      }
+      requestDraw();
+    };
+    canvas.addEventListener('pointerdown', down);
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerup', up);
+    canvas.addEventListener('pointercancel', up);
+    canvas.addEventListener('wheel', wheel, { passive: false });
+    canvas.addEventListener('dblclick', dbl);
+    return () => {
+      canvas.removeEventListener('pointerdown', down);
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerup', up);
+      canvas.removeEventListener('pointercancel', up);
+      canvas.removeEventListener('wheel', wheel);
+      canvas.removeEventListener('dblclick', dbl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className='relative'>
-      <canvas ref={canvasRef} className='block h-[560px] w-full' />
+      <canvas ref={canvasRef} className='block h-[560px] w-full touch-none' />
+      <div className='absolute bottom-3 right-3 flex items-center gap-1 rounded-xl border border-seam bg-surface/95 p-1 shadow-card backdrop-blur'>
+        <button
+          type='button' title='Zoom out' aria-label='Zoom out'
+          onClick={() => zoomAt(eng.current.w / 2, eng.current.h / 2, 1 / 1.25)}
+          className='flex h-8 w-8 items-center justify-center rounded-lg text-muted0 transition-colors hover:bg-paper hover:text-coal'
+        >
+          <ZoomOut className='h-4 w-4' />
+        </button>
+        <span className='w-12 text-center font-mono text-[11px] text-muted1 tabular-nums'>{zoomPct}%</span>
+        <button
+          type='button' title='Zoom in' aria-label='Zoom in'
+          onClick={() => zoomAt(eng.current.w / 2, eng.current.h / 2, 1.25)}
+          className='flex h-8 w-8 items-center justify-center rounded-lg text-muted0 transition-colors hover:bg-paper hover:text-coal'
+        >
+          <ZoomIn className='h-4 w-4' />
+        </button>
+        <button
+          type='button' title='Fit to view' aria-label='Fit to view'
+          onClick={() => fit()}
+          className='flex h-8 w-8 items-center justify-center rounded-lg text-muted0 transition-colors hover:bg-paper hover:text-coal'
+        >
+          <Maximize className='h-4 w-4' />
+        </button>
+      </div>
       {empty && (
         <div className='pointer-events-none absolute inset-0 flex items-center justify-center p-6'>
           <EmptyState
@@ -390,9 +606,15 @@ export default function Graph() {
   const [params, setParams] = useSearchParams();
   const [picked, setPicked] = useState(null);
   const [meta, setMeta] = useState({ legend: [], counts: {} });
+  const { dark } = useTheme();
   const subsidiary = params.get('subsidiary') || '';
   const kind = params.get('kind') || '';
   const query = params.get('q') || '';
+  const [qText, setQText] = useState(query);
+  const qTimer = useRef(null);
+
+  useEffect(() => { setQText(query); }, [query]);
+  useEffect(() => () => { if (qTimer.current) clearTimeout(qTimer.current); }, []);
 
   if (error) return <ErrorBox message={error} />;
   if (!data) return <Loading />;
@@ -409,6 +631,12 @@ export default function Graph() {
     setParams(next);
   };
 
+  const onQueryInput = (value) => {
+    setQText(value);
+    if (qTimer.current) clearTimeout(qTimer.current);
+    qTimer.current = setTimeout(() => set({ q: value }), 350);
+  };
+
   const legendDots = {
     document: 'bg-coal', organization: 'bg-violet-700', mine: 'bg-sky-700',
     location: 'bg-teal-600', geology: 'bg-yellow-700', metric: 'bg-pink-700',
@@ -419,7 +647,7 @@ export default function Graph() {
     <div>
       <PageHeader
         title='Knowledge Graph'
-        subtitle='Organizations, mines, locations, geology, documents, metrics and events — every relationship keeps its source receipt. Click a node to inspect it.'>
+        subtitle='Organizations, mines, locations, geology, documents, metrics and events — every relationship keeps its source receipt. Drag to pan, scroll to zoom, click a node to inspect it.'>
         <div className='flex flex-wrap gap-2'>
           <select
             value={subsidiary}
@@ -437,8 +665,8 @@ export default function Graph() {
             {KIND_FILTERS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
           <input
-            value={query}
-            onChange={(e) => set({ q: e.target.value })}
+            value={qText}
+            onChange={(e) => onQueryInput(e.target.value)}
             placeholder='Filter nodes…'
             className='w-40 rounded-lg border border-seam bg-surface px-3 py-1.5 text-xs text-ink placeholder:text-muted2 shadow-card focus:border-coal focus:outline-none'
           />
@@ -448,7 +676,7 @@ export default function Graph() {
       <Rise delay={0.05}>
         <div className='mt-6 grid gap-5 lg:grid-cols-[1fr_280px]'>
           <Card className='relative overflow-hidden p-0'>
-            <KnowledgeCanvas subsidiary={subsidiary} kind={kind} query={query} onPick={setPicked} onMeta={setMeta} />
+            <KnowledgeCanvas subsidiary={subsidiary} kind={kind} query={query} theme={dark ? 'dark' : 'light'} onPick={setPicked} onMeta={setMeta} />
             <div className='pointer-events-none absolute left-4 top-4 flex max-w-[70%] flex-wrap gap-3 font-mono text-[10px] uppercase tracking-wider text-muted1'>
               {(meta.legend.length > 0 ? meta.legend : [{ kind: 'document' }, { kind: 'tag' }, { kind: 'entity' }]).map((l) => (
                 <span key={l.kind} className='flex items-center gap-1.5'>
@@ -481,7 +709,7 @@ export default function Graph() {
             <Card className='p-4'>
               <h2 className='text-xs font-semibold uppercase tracking-wider text-muted1'>How To Read It</h2>
               <p className='mt-2 text-xs leading-relaxed text-muted0'>Amber nodes are documents. Violet nodes are organizations, blue mines, teal locations, ochre geology, pink metrics and red events. Green nodes are tags extracted at ingestion time. Edges are typed relationships — operates, located in, has geology, reports metric, occurred at — each keeping its source receipt.</p>
-              <p className='mt-2 text-xs text-muted1'>Click any node to see its relationships with evidence. Click a document node to open it, or a tag to run a search.</p>
+              <p className='mt-2 text-xs text-muted1'>Drag the background to pan, scroll to zoom, double-click a node to focus it. Click any node to see its relationships with evidence.</p>
             </Card>
           </aside>
         </div>
