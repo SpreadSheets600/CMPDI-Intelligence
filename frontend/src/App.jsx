@@ -13,6 +13,7 @@ import Insights from './pages/Insights.jsx';
 import Temporal from './pages/Temporal.jsx';
 import Conflicts from './pages/Conflicts.jsx';
 import Compare from './pages/Compare.jsx';
+import Topics from './pages/Topics.jsx';
 
 import Reports from './pages/Reports.jsx';
 import Review from './pages/Review.jsx';
@@ -32,6 +33,7 @@ const PANELS = [
   { match: (p) => p === '/temporal', render: () => <Temporal /> },
   { match: (p) => p === '/conflicts', render: () => <Conflicts /> },
   { match: (p) => p === '/compare', render: () => <Compare /> },
+  { match: (p) => p === '/topics', render: () => <Topics /> },
   { match: (p) => p === '/reports', render: () => <Reports /> },
   { match: (p) => p.startsWith('/reports/'), render: () => <Review /> },
   { match: (p) => p === '/settings', render: () => <Settings /> },

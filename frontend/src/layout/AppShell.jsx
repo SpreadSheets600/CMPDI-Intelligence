@@ -3,7 +3,7 @@ import { useState } from 'react';
 import {
   LayoutDashboard, Workflow, Files, Search, MessageCircle, Network,
   ChartColumn, History, TriangleAlert, GitCompareArrows, FileChartColumn,
-  Pickaxe, Settings, Sun, Moon, Activity, PanelLeftClose, Menu,
+  Shapes, Pickaxe, Settings, Sun, Moon, Activity, PanelLeftClose, Menu,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTheme, useSidebar } from '../hooks/useTheme.jsx';
@@ -35,6 +35,7 @@ const GROUPS = [
       ['/temporal', 'Temporal', History],
       ['/conflicts', 'Conflicts', TriangleAlert],
       ['/compare', 'Compare', GitCompareArrows],
+      ['/topics', 'Topics', Shapes],
     ],
   },
 ];
