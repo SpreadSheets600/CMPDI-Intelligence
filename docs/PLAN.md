@@ -1,5 +1,11 @@
 # CMPDI Intelligence — Full Project Plan (MVP)
 
+> **Historical record.** This was the original build plan. It no longer tracks
+> the implementation — e.g. it specifies server-rendered Flask/Jinja templates
+> and numpy brute-force vectors, while the product is now a React SPA over
+> FAISS. For the current system, start at [README.md](README.md) and
+> [ARCHITECTURE.md](ARCHITECTURE.md).
+
 **Project:** AI-Powered Geological, Mining & Reporting Solution for CMPDI/CIL Subsidiaries (SIH26023)
 **Document type:** Master ideation + build checklist. Everything is written as checkable steps.
 **Status:** Planning → ready to build.
