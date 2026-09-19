@@ -65,9 +65,21 @@ class OCREngine:
         return self._rapid_lines(pil_image)
 
     def _tesseract_lines(self, img):
+        import logging
+
         import pytesseract
 
-        data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
+        want = config.OCR_LANGS.replace(",", "+").strip("+") or "eng"
+        try:
+            data = pytesseract.image_to_data(
+                img, lang=want, output_type=pytesseract.Output.DICT)
+        except Exception:
+            # requested traineddata missing (e.g. hin not installed):
+            # English still reads the page, and the gap is logged loudly
+            logging.getLogger("cmpdi.ocr").warning(
+                "OCR Languages Unavailable (%s); Fell Back To English", want)
+            data = pytesseract.image_to_data(
+                img, lang="eng", output_type=pytesseract.Output.DICT)
         lines = {}
         for i in range(len(data["text"])):
             txt = data["text"][i].strip()

@@ -90,6 +90,9 @@ API_TOKEN = os.environ.get("CMPDI_API_TOKEN", "")
 
 # OCR
 OCR_MIN_CONF = float(os.environ.get("CMPDI_OCR_MIN_CONF", "85"))
+# Tesseract languages, comma-separated ("eng", "eng,hin"). Needs the matching
+# traineddata installed; RapidOCR keeps its built-in model.
+OCR_LANGS = os.environ.get("CMPDI_OCR_LANGS", "eng")
 OCR_DPI = int(os.environ.get("CMPDI_OCR_DPI", "300"))
 PAGE_TEXT_FLOOR = int(
     os.environ.get("CMPDI_PAGE_TEXT_FLOOR", "50")

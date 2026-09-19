@@ -19,6 +19,11 @@ def quality_stats() -> dict:
         WHERE p.ocr_used = 1 AND (p.avg_confidence IS NULL OR p.avg_confidence >= 88)
     """)["c"]
     total_facts = db.q1("SELECT COUNT(*) c FROM facts WHERE value_norm IS NOT NULL")["c"]
+    total_figs = db.q1(
+        "SELECT COUNT(*) c FROM elements WHERE element_type='FIGURE'")["c"]
+    vision_figs = db.q1(
+        "SELECT COUNT(*) c FROM elements WHERE element_type='FIGURE'"
+        " AND method='vision'")["c"]
     verified_facts = db.q1("""
         SELECT COUNT(*) c FROM facts
         WHERE value_norm IS NOT NULL
@@ -41,6 +46,8 @@ def quality_stats() -> dict:
                 "pct": round(high_conf_ocr / ocr_docs * 100, 1) if ocr_docs else None},
         "facts": {"total": total_facts, "verified": verified_facts,
                   "pct": round(verified_facts / total_facts * 100, 1) if total_facts else 0},
+        "figures": {"total": total_figs, "interpreted": vision_figs,
+                    "pending": total_figs - vision_figs},
         "by_type": by_type,
     }
 
