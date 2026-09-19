@@ -308,9 +308,15 @@ def _migrate():
             for col, ddl in [
                 ("review_status", "TEXT NOT NULL DEFAULT 'pending'"),
                 ("review_note", "TEXT"),
+                ("reviewed_by", "TEXT"),
+                ("review_rounds", "INTEGER NOT NULL DEFAULT 0"),
             ]:
                 if col not in rcols:
                     conn.execute(text(f"ALTER TABLE reports ADD COLUMN {col} {ddl}"))
+        if "conflict_status" in insp.get_table_names():
+            ccols = {c["name"] for c in insp.get_columns("conflict_status")}
+            if "decided_by" not in ccols:
+                conn.execute(text("ALTER TABLE conflict_status ADD COLUMN decided_by TEXT"))
         if "pages" in insp.get_table_names():
             pcols = {c["name"] for c in insp.get_columns("pages")}
             if "page_class" not in pcols:

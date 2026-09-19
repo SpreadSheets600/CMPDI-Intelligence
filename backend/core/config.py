@@ -80,8 +80,19 @@ OPENAI_MODEL = os.environ.get("CMPDI_OPENAI_MODEL", "")
 OPENAI_API_KEY = os.environ.get("CMPDI_OPENAI_API_KEY", "")
 OPENAI_TIMEOUT = float(os.environ.get("CMPDI_OPENAI_TIMEOUT", "60"))
 
+# Operator identity recorded on review/conflict decisions (single-user box:
+# who clicked approve). Empty means unattributed.
+OPERATOR = os.environ.get("CMPDI_OPERATOR", "")
+
+# Optional shared token for mutating API calls. Empty (default) disables the
+# gate; when set, non-GET /api/* requests need header X-API-Token.
+API_TOKEN = os.environ.get("CMPDI_API_TOKEN", "")
+
 # OCR
 OCR_MIN_CONF = float(os.environ.get("CMPDI_OCR_MIN_CONF", "85"))
+# Tesseract languages, comma-separated ("eng", "eng,hin"). Needs the matching
+# traineddata installed; RapidOCR keeps its built-in model.
+OCR_LANGS = os.environ.get("CMPDI_OCR_LANGS", "eng")
 OCR_DPI = int(os.environ.get("CMPDI_OCR_DPI", "300"))
 PAGE_TEXT_FLOOR = int(
     os.environ.get("CMPDI_PAGE_TEXT_FLOOR", "50")
@@ -95,6 +106,10 @@ CHUNK_OVERLAP = int(os.environ.get("CMPDI_CHUNK_OVERLAP", "60"))
 RETRIEVAL_K = int(os.environ.get("CMPDI_RETRIEVAL_K", "8"))
 RRF_K = int(os.environ.get("CMPDI_RRF_K", "60"))
 VECTOR_DIM = int(os.environ.get("CMPDI_VECTOR_DIM", "0"))  # 0 = detect from model
+
+# Manual-report baseline (minutes) for the time-saved KPI. Stated planning
+# figure until measured on site; override via Settings instead when known.
+MANUAL_BASELINE_MINUTES = float(os.environ.get("CMPDI_MANUAL_BASELINE_MINUTES", "138.0"))
 
 # Conflict detection: relative difference above this (per unit) is a conflict
 CONFLICT_TOLERANCE = float(os.environ.get("CMPDI_CONFLICT_TOLERANCE", "0.01"))

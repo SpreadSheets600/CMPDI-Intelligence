@@ -8,7 +8,7 @@ The factory is deliberately thin: route blueprints come from the registry in
 
 import hashlib
 
-from flask import Flask, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory
 
 from backend.api import ALL_BLUEPRINTS
 from backend.core import appsettings, config
@@ -32,6 +32,18 @@ def create_app() -> Flask:
 
     for bp in ALL_BLUEPRINTS:
         app.register_blueprint(bp)
+
+    @app.before_request
+    def _api_token_gate():
+        """Optional shared-token gate for mutating API calls. Disabled when
+        CMPDI_API_TOKEN is empty (the default single-user setup)."""
+        if not config.API_TOKEN:
+            return None
+        if request.method == "GET" or not request.path.startswith("/api"):
+            return None
+        if request.headers.get("X-API-Token") != config.API_TOKEN:
+            return jsonify({"error": "missing or invalid API token"}), 401
+        return None
 
     @app.context_processor
     def inject_globals():

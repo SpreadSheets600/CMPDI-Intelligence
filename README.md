@@ -48,6 +48,11 @@ stay visible but are excluded from answers.
 
 ## Limitations
 
-- Single-user; no authentication.
-- Heavily degraded scans reduce extraction quality (flagged, not hidden).
-- Table detection targets ruled tables; borderless layouts are best effort.
+- Single-user; no logins (decisions are attributed via operator name, and
+  mutating API calls can be gated with `CMPDI_API_TOKEN`).
+- Heavily degraded scans reduce fact extraction quality; low-confidence
+  digits are flagged rather than trusted.
+- Table detection targets ruled tables, which official reports use;
+  borderless layouts are best effort.
+- Documents ingested before the tag/enrichment upgrade need
+  `python -m backend.scripts.reindex` to gain tags and enriched embeddings.

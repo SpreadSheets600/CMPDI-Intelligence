@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 
 from backend.core import appsettings, llm, reports
 from backend.core.config import CLOUDS_DIR
+from backend.core.quality import events
 from backend.core.knowledge import topics
 from backend.core.knowledge.summary import generate_summary
 from backend.core.pipeline import pipeline
@@ -152,14 +153,16 @@ def topics_refresh():
 @bp.post("/reports/generate")
 def reports_generate():
     data = request.get_json(silent=True) or {}
-    reports.generate(
-        data.get("template") or "",
+    template = data.get("template") or ""
+    rid = reports.generate(
+        template,
         {
             "entity": (data.get("entity") or "").strip(),
             "period": (data.get("period") or "").strip(),
             "question": (data.get("question") or "").strip(),
         },
     )
+    events.record("report_generated", rid, {"template": template})
     return jsonify({"ok": True})
 
 
@@ -174,13 +177,18 @@ def reports_review(rid):
     data = request.get_json(silent=True) or {}
     status = data.get("status")
     note = (data.get("note") or "").strip() or None
+    operator = (data.get("operator") or "").strip() or None
     if status not in ("approved", "returned"):
         return jsonify({"error": "status must be approved or returned"}), 400
     db.execute(
-        "UPDATE reports SET review_status=?, review_note=?, human_approved=?"
+        "UPDATE reports SET review_status=?, review_note=?, human_approved=?,"
+        " reviewed_by=COALESCE(?, reviewed_by),"
+        " review_rounds=review_rounds+?"
         " WHERE id=?",
-        (status, note, 1 if status == "approved" else 0, rid),
+        (status, note, 1 if status == "approved" else 0, operator,
+         1 if status == "returned" else 0, rid),
     )
+    events.record(f"report_{status}", rid, {"by": operator})
     return jsonify({"ok": True})
 
 
@@ -188,7 +196,8 @@ def reports_review(rid):
 def reports_parliamentary():
     question = ((request.get_json(silent=True) or {}).get("question") or "").strip()
     if question:
-        reports.generate_parliamentary(question)
+        rid = reports.generate_parliamentary(question)
+        events.record("report_generated", rid, {"template": "parliamentary"})
     return jsonify({"ok": True, "question": question})
 
 

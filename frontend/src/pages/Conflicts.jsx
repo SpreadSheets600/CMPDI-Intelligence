@@ -10,7 +10,7 @@ import { Disclosure, DisclosureTrigger, DisclosureContent } from '../components/
 
 const STATUSES = ['open', 'acknowledged', 'resolved'];
 
-function ConflictCard({ c, onStatus }) {
+function ConflictCard({ c, onStatus, operator }) {
   const [busy, setBusy] = useState(false);
   const statusVariant = c.status === 'resolved' ? 'ok'
     : c.status === 'acknowledged' ? 'coal'
@@ -18,7 +18,7 @@ function ConflictCard({ c, onStatus }) {
   const setStatus = async (status) => {
     setBusy(true);
     try {
-      await postJSON('/api/conflicts/status', { key: c.key, status });
+      await postJSON('/api/conflicts/status', { key: c.key, status, operator });
       onStatus();
     } catch { setBusy(false); }
   };
@@ -79,6 +79,7 @@ export default function Conflicts() {
   const params = Object.fromEntries(new URLSearchParams(window.location.search));
   const { data: filters, error } = usePageData('/api/pages/conflicts-filters');
   const [list, setList] = useState(null);
+  const [operator, setOperator] = useState(() => localStorage.getItem('cmpdi-operator') || '');
 
   const load = useCallback(async () => {
     const q = new URLSearchParams();
@@ -115,6 +116,9 @@ export default function Conflicts() {
             <option value=''>All metrics</option>
             {filters.attributes.map((a) => <option key={a.attribute} value={a.attribute}>{a.attribute.replace('_', ' ')}</option>)}
           </select>
+          <input value={operator} placeholder='Deciding officer…'
+                 onChange={(e) => { setOperator(e.target.value); localStorage.setItem('cmpdi-operator', e.target.value); }}
+                 className='rounded-lg border border-seamdark bg-white px-3 py-2 text-sm shadow-card focus:border-coal focus:outline-none' />
         </div>
       </PageHeader>
 
@@ -130,7 +134,7 @@ export default function Conflicts() {
             />
           ) : (
             <AnimatedGroup preset='blur-slide' className='space-y-4'>
-              {list.map((c) => <ConflictCard key={c.key} c={c} onStatus={load} />)}
+              {list.map((c) => <ConflictCard key={c.key} c={c} onStatus={load} operator={operator} />)}
             </AnimatedGroup>
           )}
         </div>

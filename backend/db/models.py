@@ -252,6 +252,9 @@ class Report(Base):
     review_status: Mapped[str] = mapped_column(Text, nullable=False,
                                                server_default=sql_text("'pending'"))
     review_note: Mapped[str | None] = mapped_column(Text)
+    reviewed_by: Mapped[str | None] = mapped_column(Text)
+    review_rounds: Mapped[int] = mapped_column(nullable=False,
+                                              server_default=sql_text("0"))
     created_ts: Mapped[str] = mapped_column(Text, nullable=False,
                                             server_default=sql_text("datetime('now')"))
 
@@ -287,6 +290,7 @@ class ConflictStatus(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False,
                                         server_default=sql_text("'open'"))
     note: Mapped[str | None] = mapped_column(Text)
+    decided_by: Mapped[str | None] = mapped_column(Text)
     updated_ts: Mapped[str] = mapped_column(Text, nullable=False,
                                             server_default=sql_text("datetime('now')"))
 
@@ -332,6 +336,20 @@ class AgentRun(Base):
                                             server_default=sql_text("datetime('now')"))
 
 
+class Event(Base):
+    """Append-only automation log: report/conflict/answer outcomes.
+    Created by create_all on fresh installs and upgrades alike."""
+
+    __tablename__ = "events"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    ref_id: Mapped[str | None] = mapped_column(Text)
+    detail_json: Mapped[str | None] = mapped_column(Text)
+    created_ts: Mapped[str] = mapped_column(Text, nullable=False,
+                                            server_default=sql_text("datetime('now')"))
+
+
 Index("idx_elements_doc", Element.doc_id)
 Index("idx_cells_table", TableCell.table_id)
 Index("idx_chunks_doc", Chunk.doc_id)
@@ -341,9 +359,11 @@ Index("idx_kg_edges_src", KgEdge.src_kind, KgEdge.src_label)
 Index("idx_kg_edges_dst", KgEdge.dst_kind, KgEdge.dst_label)
 Index("idx_kg_edges_doc", KgEdge.doc_id)
 Index("idx_kg_edges_relation", KgEdge.relation)
+Index("idx_events_kind", Event.kind)
 
 __all__ = [
     "Base", "Document", "Page", "Element", "DocTable", "TableCell",
     "Chunk", "ChunkEmbedding", "Entity", "Fact", "Job", "Report",
     "DocKeyword", "DocTopic", "ConflictStatus", "AgentRun", "KgEdge",
+    "Event",
 ]

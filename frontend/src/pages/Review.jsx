@@ -12,6 +12,7 @@ export default function Review() {
   const { rid } = useParams();
   const { data, error } = usePageData(`/api/pages/review/${rid}`);
   const [note, setNote] = useState('');
+  const [operator, setOperator] = useState(() => localStorage.getItem('cmpdi-operator') || '');
   const [busy, setBusy] = useState(false);
 
   if (error) return <ErrorBox message={error} />;
@@ -23,7 +24,8 @@ export default function Review() {
   const act = async (status) => {
     setBusy(true);
     try {
-      await postJSON(`/api/reports/${report.id}/review`, { status, note });
+      localStorage.setItem('cmpdi-operator', operator);
+      await postJSON(`/api/reports/${report.id}/review`, { status, note, operator });
       window.location.reload();
     } catch { setBusy(false); }
   };
@@ -101,6 +103,12 @@ export default function Review() {
           <strong>Returned for revision:</strong> {report.review_note}
         </div>
       )}
+      {(report.reviewed_by || report.review_rounds > 0) && (
+        <p className='mt-3 text-[12.5px] text-stone-500'>
+          Decided by {report.reviewed_by || 'an officer'}
+          {report.review_rounds > 0 && ` · returned ${report.review_rounds} time${report.review_rounds === 1 ? '' : 's'}`}
+        </p>
+      )}
 
       <Rise delay={0.12}>
         <Card className='mt-6 overflow-hidden p-0'>
@@ -134,15 +142,14 @@ export default function Review() {
 
       <Rise delay={0.16}>
         <div className='mt-6 flex flex-wrap items-center gap-3'>
-          <Button
-            variant='primary'
-            size='md'
-            onClick={() => act('approved')}
-            disabled={busy}
-            className='bg-emerald-600 hover:bg-emerald-700 text-white px-5'
-          >
-            <Check className='h-4 w-4' /> Approve Report
-          </Button>
+          <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder='Reviewing officer…'
+                 className='rounded-lg border border-seamdark bg-white px-3 py-2.5 text-sm shadow-card focus:border-coal focus:outline-none' />
+          <Magnetic intensity={0.25} range={90}>
+            <button onClick={() => act('approved')} disabled={busy}
+                    className='flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50'>
+              <Check className='h-4 w-4' /> Approve Report
+            </button>
+          </Magnetic>
           <Dialog>
             <DialogTrigger className='rounded-lg border border-seam bg-surface px-4 py-2.5 text-xs font-semibold text-ink shadow-card transition-colors hover:border-bad hover:text-bad disabled:opacity-50'>
               Return for Revision
@@ -181,7 +188,11 @@ export default function Review() {
             href={`/reports/${report.id}/download`}
           >
             <Download className='h-4 w-4' /> DOCX
-          </Button>
+          </a>
+          <a href={`/reports/${report.id}/audit`}
+             className='flex items-center gap-2 rounded-lg border border-seam px-4 py-2.5 text-sm font-semibold text-stone-600 transition-colors hover:border-coal hover:text-coal'>
+            <Download className='h-4 w-4' /> Audit JSON
+          </a>
         </div>
       </Rise>
     </div>

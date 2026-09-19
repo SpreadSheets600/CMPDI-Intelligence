@@ -113,17 +113,22 @@ def detect(entity: str | None = None, attribute: str | None = None,
     return out[:limit]
 
 
-def set_status(key: str, status: str, note: str | None = None) -> bool:
+def set_status(key: str, status: str, note: str | None = None,
+               decided_by: str | None = None) -> bool:
     if status not in ("open", "acknowledged", "resolved"):
         return False
     db.execute("""
-        INSERT INTO conflict_status (conflict_key, status, note, updated_ts)
-        VALUES (?, ?, ?, datetime('now'))
+        INSERT INTO conflict_status (conflict_key, status, note, decided_by, updated_ts)
+        VALUES (?, ?, ?, ?, datetime('now'))
         ON CONFLICT(conflict_key) DO UPDATE SET
             status = excluded.status,
             note = COALESCE(excluded.note, conflict_status.note),
+            decided_by = COALESCE(excluded.decided_by, conflict_status.decided_by),
             updated_ts = datetime('now')
-    """, (key, status, note))
+    """, (key, status, note, decided_by))
+    from backend.core.quality import events
+    events.record(f"conflict_{'reopened' if status == 'open' else status}",
+                  key, {"by": decided_by})
     return True
 
 
